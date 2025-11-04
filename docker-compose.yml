@@ -108,7 +108,7 @@ services:
       - default
     volumes:
       - redis_data:/data
-    ports: ["6379:6379"]
+
 
   # === Service de licences ===
 #  licensing:
