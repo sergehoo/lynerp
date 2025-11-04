@@ -48,6 +48,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+
     "tenants.middleware.TenantMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -56,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+"tenants.middleware.TenantSessionMiddleware",
 ]
 
 ROOT_URLCONF = 'Lyneerp.urls'
@@ -157,6 +159,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'  # Redirection après connexion réussie
+LOGOUT_REDIRECT_URL = '/login/'
+
+# Optionnel : nom du cookie “tenant”
+TENANT_SESSION_KEY = "current_tenant"
+REMEMBER_ME_SESSION_AGE = 60 * 60 * 24 * 30  # 30 jours
+SESSION_COOKIE_AGE = 60 * 60 * 2             # 2h (si pas remember me)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True       # expir. à la fermeture (par défaut)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

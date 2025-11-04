@@ -4,6 +4,7 @@ from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from hr.api.routers import urlpatterns as hr_urls
 from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView
+from django.contrib.auth import views as auth_views
 
 
 def healthz(_):
@@ -24,4 +25,7 @@ urlpatterns = [
     path('recruitment/', RecruitmentView.as_view(), name='hr-recruitment'),
     path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
     path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
+
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]

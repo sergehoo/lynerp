@@ -1,6 +1,7 @@
 # tenants/middleware.py
 from __future__ import annotations
 
+from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from tenants.models import Tenant
 from urllib.parse import urlparse
@@ -9,6 +10,16 @@ from urllib.parse import urlparse
 class CurrentTenant:
     slug: str | None = None
     obj: Tenant | None = None
+
+
+class TenantSessionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.key = getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
+
+    def __call__(self, request):
+        request.tenant_id = request.session.get(self.key)
+        return self.get_response(request)
 
 
 class TenantMiddleware(MiddlewareMixin):

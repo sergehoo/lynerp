@@ -1,0 +1,446 @@
+<!-- Lyneerp/hr/templates/registration/login.html -->
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - LyneERP</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+        
+        .floating-label {
+            transform: translateY(-50%);
+            transition: all 0.2s ease;
+        }
+        
+        .input-filled + .floating-label,
+        .input-focused + .floating-label {
+            top: 0;
+            font-size: 0.75rem;
+            color: #667eea;
+            background: white;
+            padding: 0 0.5rem;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50">
+    <div class="min-h-full flex">
+        <!-- Section gauche - Illustration -->
+        <div class="hidden lg:flex lg:flex-1 lg:flex-col gradient-bg text-white">
+            <div class="flex-1 flex flex-col justify-center py-12 px-8 xl:px-16 2xl:px-24">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 mb-16">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <i class="fas fa-users text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">LyneERP</h1>
+                        <p class="text-white/80 text-sm">Plateforme RH Intelligente</p>
+                    </div>
+                </div>
+
+                <!-- Contenu marketing -->
+                <div class="max-w-md">
+                    <h2 class="text-4xl font-bold mb-6">
+                        Gérez vos ressources humaines avec intelligence
+                    </h2>
+                    <p class="text-xl text-white/90 mb-8 leading-relaxed">
+                        Une plateforme complète pour le recrutement, la gestion des employés, 
+                        les congés et bien plus encore.
+                    </p>
+                    
+                    <!-- Features list -->
+                    <div class="space-y-4 mb-12">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check text-xs"></i>
+                            </div>
+                            <span class="text-white/90">Recrutement assisté par IA</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check text-xs"></i>
+                            </div>
+                            <span class="text-white/90">Gestion des congés automatisée</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check text-xs"></i>
+                            </div>
+                            <span class="text-white/90">Tableaux de bord en temps réel</span>
+                        </div>
+                    </div>
+
+                    <!-- Témoignage -->
+                    <div class="glass-effect rounded-2xl p-6">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-12 h-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user-tie text-white"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold">Sarah Johnson</p>
+                                <p class="text-white/70 text-sm">Directrice RH</p>
+                            </div>
+                        </div>
+                        <p class="text-white/90 italic">
+                            "LyneERP a transformé notre gestion RH. L'interface est intuitive 
+                            et les fonctionnalités d'IA nous font gagner un temps précieux."
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="border-t border-white/20 py-6 px-8">
+                <div class="flex justify-between items-center text-white/70 text-sm">
+                    <span>&copy; 2024 LyneERP. Tous droits réservés.</span>
+                    <div class="flex space-x-4">
+                        <a href="#" class="hover:text-white transition">Confidentialité</a>
+                        <a href="#" class="hover:text-white transition">Conditions</a>
+                        <a href="#" class="hover:text-white transition">Support</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section droite - Formulaire de connexion -->
+        <div class="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+            <div class="mx-auto w-full max-w-md">
+                <!-- Logo mobile -->
+                <div class="lg:hidden flex justify-center mb-8">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+                            <i class="fas fa-users text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">LyneERP</h1>
+                            <p class="text-gray-600 text-sm">Plateforme RH Intelligente</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carte de connexion -->
+                <div class="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-900">Connexion</h2>
+                        <p class="text-gray-600 mt-2">Accédez à votre espace RH</p>
+                    </div>
+
+                    <!-- Messages d'erreur -->
+                    {% if form.errors %}
+                    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                        <div class="flex items-center space-x-2 text-red-700">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span class="font-medium">Identifiants incorrects</span>
+                        </div>
+                        <p class="text-red-600 text-sm mt-1">
+                            Votre nom d'utilisateur ou mot de passe est incorrect. Veuillez réessayer.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    {% if next %}
+                        {% if user.is_authenticated %}
+                        <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                            <div class="flex items-center space-x-2 text-yellow-700">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span class="font-medium">Accès non autorisé</span>
+                            </div>
+                            <p class="text-yellow-600 text-sm mt-1">
+                                Votre compte n'a pas accès à cette page.
+                            </p>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <form method="post" action="{% url 'login' %}" class="space-y-6">
+                        {% csrf_token %}
+                        
+                        <!-- Champ Tenant -->
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                name="tenant_id" 
+                                id="tenant_id"
+                                required
+                                class="w-full px-4 py-4 border border-gray-300 rounded-xl input-focus transition 
+                                       duration-200 peer input-filled"
+                                placeholder=" "
+                                value="{{ form.tenant_id.value|default:'' }}"
+                            >
+                            <label for="tenant_id" 
+                                   class="floating-label absolute left-4 top-1/2 text-gray-500 
+                                          pointer-events-none transition-all duration-200 
+                                          peer-focus:text-blue-600">
+                                Identifiant Tenant
+                            </label>
+                            <div class="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                <i class="fas fa-building text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <!-- Champ Nom d'utilisateur -->
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                name="username" 
+                                id="username"
+                                required
+                                class="w-full px-4 py-4 border border-gray-300 rounded-xl input-focus transition 
+                                       duration-200 peer input-filled"
+                                placeholder=" "
+                                value="{{ form.username.value|default:'' }}"
+                                autocomplete="username"
+                            >
+                            <label for="username" 
+                                   class="floating-label absolute left-4 top-1/2 text-gray-500 
+                                          pointer-events-none transition-all duration-200 
+                                          peer-focus:text-blue-600">
+                                Nom d'utilisateur
+                            </label>
+                            <div class="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <!-- Champ Mot de passe -->
+                        <div class="relative">
+                            <input 
+                                type="password" 
+                                name="password" 
+                                id="password"
+                                required
+                                class="w-full px-4 py-4 border border-gray-300 rounded-xl input-focus transition 
+                                       duration-200 peer input-filled pr-12"
+                                placeholder=" "
+                                autocomplete="current-password"
+                            >
+                            <label for="password" 
+                                   class="floating-label absolute left-4 top-1/2 text-gray-500 
+                                          pointer-events-none transition-all duration-200 
+                                          peer-focus:text-blue-600">
+                                Mot de passe
+                            </label>
+                            <button type="button" 
+                                    class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 
+                                           hover:text-gray-600 transition"
+                                    onclick="togglePassword()">
+                                <i class="fas fa-eye" id="password-toggle"></i>
+                            </button>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="flex items-center justify-between">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="remember_me" class="w-4 h-4 text-blue-600 
+                                       border-gray-300 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-600">Se souvenir de moi</span>
+                            </label>
+                            <a href="#" class="text-sm text-blue-600 hover:text-blue-700 transition">
+                                Mot de passe oublié ?
+                            </a>
+                        </div>
+
+                        <!-- Bouton de connexion -->
+                        <button type="submit" 
+                                class="w-full btn-gradient text-white py-4 rounded-xl font-semibold 
+                                       shadow-lg transition-all duration-200">
+                            <span class="flex items-center justify-center space-x-2">
+                                <i class="fas fa-sign-in-alt"></i>
+                                <span>Se connecter</span>
+                            </span>
+                        </button>
+
+                        <input type="hidden" name="next" value="{{ next }}">
+
+                        <!-- Séparateur -->
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-gray-300"></div>
+                            </div>
+                            <div class="relative flex justify-center text-sm">
+                                <span class="px-2 bg-white text-gray-500">Ou continuer avec</span>
+                            </div>
+                        </div>
+
+                        <!-- Connexion SSO -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <button type="button" 
+                                    class="flex items-center justify-center space-x-2 py-3 px-4 
+                                           border border-gray-300 rounded-xl hover:bg-gray-50 
+                                           transition duration-200">
+                                <i class="fab fa-microsoft text-blue-600"></i>
+                                <span class="text-sm font-medium text-gray-700">Azure AD</span>
+                            </button>
+                            <button type="button" 
+                                    class="flex items-center justify-center space-x-2 py-3 px-4 
+                                           border border-gray-300 rounded-xl hover:bg-gray-50 
+                                           transition duration-200">
+                                <i class="fas fa-key text-green-600"></i>
+                                <span class="text-sm font-medium text-gray-700">Keycloak</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Lien d'inscription -->
+                    <div class="mt-8 text-center">
+                        <p class="text-gray-600">
+                            Nouveau sur LyneERP ? 
+                            <a href="#" class="text-blue-600 font-semibold hover:text-blue-700 transition">
+                                Créer un compte
+                            </a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Informations de sécurité -->
+                <div class="mt-8 text-center">
+                    <div class="flex items-center justify-center space-x-4 text-gray-500 text-sm">
+                        <div class="flex items-center space-x-1">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Connexion sécurisée</span>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <i class="fas fa-lock"></i>
+                            <span>Chiffré SSL</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fonction pour basculer la visibilité du mot de passe
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const passwordToggle = document.getElementById('password-toggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordToggle.classList.remove('fa-eye');
+                passwordToggle.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                passwordToggle.classList.remove('fa-eye-slash');
+                passwordToggle.classList.add('fa-eye');
+            }
+        }
+
+        // Animation des labels flottants
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
+            
+            inputs.forEach(input => {
+                // Vérifier si le champ a déjà une valeur au chargement
+                if (input.value) {
+                    input.classList.add('input-filled');
+                }
+                
+                // Gérer le focus
+                input.addEventListener('focus', function() {
+                    this.classList.add('input-focused');
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.classList.remove('input-focused');
+                    if (!this.value) {
+                        this.classList.remove('input-filled');
+                    }
+                });
+                
+                // Gérer les changements de valeur
+                input.addEventListener('input', function() {
+                    if (this.value) {
+                        this.classList.add('input-filled');
+                    } else {
+                        this.classList.remove('input-filled');
+                    }
+                });
+            });
+        });
+
+        // Effet de vibration en cas d'erreur
+        {% if form.errors %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            form.classList.add('animate-shake');
+            
+            setTimeout(() => {
+                form.classList.remove('animate-shake');
+            }, 1000);
+        });
+        {% endif %}
+    </script>
+
+    <style>
+        /* Animation de secousse pour les erreurs */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        /* Styles pour les navigateurs WebKit */
+        input:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 30px white inset !important;
+            -webkit-text-fill-color: #374151 !important;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .px-4 {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .p-8 {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</body>
+</html>
