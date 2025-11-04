@@ -1,18 +1,105 @@
-
+# docker-compose.yml
 networks:
-  default:
-    name: lyneerp_default
+  web:
+    driver: bridge
   proxy:
-    external: true   # crée-le une fois:  docker network create proxy
+    external: true   # docker network ls | grep proxy || docker network create proxy
 
 volumes:
   pg_data:
   redis_data:
   minio_data:
   rh_media:
+  static_volume:
 
 services:
-  # === API Gateway (Kong) ===
+  # === Base de données Postgres ===
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [web]
+    restart: unless-stopped
+
+  # === Redis (cache / broker) ===
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server","--save","","--appendonly","no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - redis_data:/data
+    networks: [web]
+    restart: unless-stopped
+
+  # === MinIO (S3) ===
+  minio:
+    image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - web
+      - proxy
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+
+      # API S3
+      - traefik.http.routers.minio-api.rule=Host(`${MINIO_API_HOST}`)
+      - traefik.http.routers.minio-api.entrypoints=websecure
+      - traefik.http.routers.minio-api.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.routers.minio-api.service=minio-api
+      - traefik.http.services.minio-api.loadbalancer.server.port=9000
+
+      # Console
+      - traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST}`)
+      - traefik.http.routers.minio-console.entrypoints=websecure
+      - traefik.http.routers.minio-console.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.routers.minio-console.service=minio-console
+      - traefik.http.services.minio-console.loadbalancer.server.port=9001
+
+  # === Keycloak (SSO) ===
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.1-0
+    command: ["start-dev","--hostname-strict=false"]
+    env_file: .env
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - web
+      - proxy
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.keycloak.rule=Host(`${KEYCLOAK_HOST}`)
+      - traefik.http.routers.keycloak.entrypoints=websecure
+      - traefik.http.routers.keycloak.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.services.keycloak-svc.loadbalancer.server.port=8080
+      - traefik.http.routers.keycloak.service=keycloak-svc
+
+  # === Kong (API Gateway) — optionnel, derrière Traefik ===
   kong:
     image: kong:3
     environment:
@@ -32,129 +119,71 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - default
+      - web
       - proxy
+    restart: unless-stopped
     labels:
-      - "traefik.enable=true"
-      # Route publique: api.localhost -> Kong proxy (8000)
-      - "traefik.http.routers.api.rule=Host(`kong.lyneerp.com`)"
-      - "traefik.http.routers.api.entrypoints=web"
-      - "traefik.http.services.api.loadbalancer.server.port=8000"
-      # Admin Kong optionnel (local)
-      - "traefik.http.routers.kong-admin.rule=Host(`kong.localhost`)"
-      - "traefik.http.routers.kong-admin.entrypoints=web"
-      - "traefik.http.services.kong-admin.loadbalancer.server.port=8001"
+      - traefik.enable=true
+      - traefik.docker.network=proxy
 
-  # === SSO (Keycloak) ===
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.3.1-0
-    command: [ "start-dev","--hostname-strict=false" ]
-    env_file:
-      - .env
-    environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-    networks:
-      - default
-      - proxy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.keycloak.rule=Host(`${lynesso_HOST}`)"
-      - "traefik.http.routers.keycloak.entrypoints=web"
-      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
-    # tu peux retirer le mapping direct si tu passes par Traefik
+      # Proxy public (clients) -> Kong :8000
+      - traefik.http.routers.kong.rule=Host(`${KONG_HOST}`)
+      - traefik.http.routers.kong.entrypoints=websecure
+      - traefik.http.routers.kong.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.services.kong-svc.loadbalancer.server.port=8000
+      - traefik.http.routers.kong.service=kong-svc
 
+      # Admin (à restreindre en prod)
+      - traefik.http.routers.kong-admin.rule=Host(`${KONG_ADMIN_HOST}`)
+      - traefik.http.routers.kong-admin.entrypoints=websecure
+      - traefik.http.routers.kong-admin.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.services.kong-admin-svc.loadbalancer.server.port=8001
+      - traefik.http.routers.kong-admin.service=kong-admin-svc
 
-  # === Stockage fichiers (MinIO) ===
-  minio:
-    image: minio/minio
-    command: ["server","/data","--console-address",":9001"]
-    environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
-    volumes:
-      - minio_data:/data
-    networks:
-      - default
-      - proxy
-    labels:
-      - "traefik.enable=true"
-      # Console Web
-      - "traefik.http.routers.minio-console.rule=Host(`${lynefile_HOST}`)"
-      - "traefik.http.routers.minio-console.entrypoints=web"
-      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
-      # S3 API (facultatif) - utile si tu veux passer par traefik aussi
-      - "traefik.http.routers.minio-s3.rule=Host(`s3.localhost`)"
-      - "traefik.http.routers.minio-s3.entrypoints=web"
-      - "traefik.http.services.minio-s3.loadbalancer.server.port=9000"
-
-  # === Base de données ===
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: rh_core
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    networks:
-      - default
-
-
-  # === Cache ===
-  redis:
-    image: redis:7-alpine
-    networks:
-      - default
-    volumes:
-      - redis_data:/data
-
-
-  # === Service de licences ===
-#  licensing:
-#    build: ./apps/licensing
-#    environment:
-#      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/licensing
-#      REDIS_URL: redis://redis:6379/0
-#      LICENSE_SIGNING_SECRET: change_me
-#    depends_on:
-#      - postgres
-#      - redis
-#    networks:
-#      - default
-#      - proxy
-#    labels:
-#      - "traefik.enable=true"
-#      - "traefik.http.routers.lic.rule=Host(`licensing.localhost`)"
-#      - "traefik.http.routers.lic.entrypoints=web"
-#      - "traefik.http.services.lic.loadbalancer.server.port=8000"
-#    ports: ["8010:8000"]  # optionnel si tu exposes via Traefik
-
-  # === Application Django RH ===
+  # === Application Django (Gunicorn/ASGI) ===
   rh:
     build:
       context: .
-      dockerfile: ./Dockerfile
-    env_file:
-      - ./.env
+      dockerfile: ./docker/Dockerfile
+    env_file: .env
+    command: ["/app/docker/entrypoint.sh", "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "lyneerp.asgi:application"]
     depends_on:
-      - postgres
-      - keycloak
-      - minio
-#      - licensing
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
     volumes:
       - ./:/app:cached
       - rh_media:/app/media
-    command: ["/bin/sh", "/app/docker/entrypoint.sh"]
+      - static_volume:/app/staticfiles
     networks:
-      - default
+      - web
       - proxy
+    restart: unless-stopped
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rh.rule=Host(`${lynerh_HOST}`)"
-      - "traefik.http.routers.rh.entrypoints=web"
-      - "traefik.http.services.rh.loadbalancer.server.port=8000"
+      - traefik.enable=true
+      - traefik.docker.network=proxy
 
+      - traefik.http.routers.rh.rule=Host(`${RH_HOST}`)
+      - traefik.http.routers.rh.entrypoints=websecure
+      - traefik.http.routers.rh.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.middlewares.rh-sec-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.rh-sec-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.rh-sec-headers.headers.stsPreload=true
+      - traefik.http.middlewares.rh-sec-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.rh-sec-headers.headers.frameDeny=true
+      - traefik.http.middlewares.rh-sec-headers.headers.referrerPolicy=strict-origin-when-cross-origin
+      - traefik.http.middlewares.rh-compress.compress=true
+      - traefik.http.routers.rh.middlewares=rh-sec-headers@docker,rh-compress@docker
+      - traefik.http.services.rh-svc.loadbalancer.server.port=8000
+      - traefik.http.routers.rh.service=rh-svc
 
   # === Mailpit (emails de dev) ===
   mailpit:
@@ -162,12 +191,13 @@ services:
     environment:
       MP_MAX_MESSAGES: 10000
     networks:
-      - default
+      - web
       - proxy
+    restart: unless-stopped
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mailpit.rule=Host(`${lynemailpit_HOST}`)"
-      - "traefik.http.routers.mailpit.entrypoints=web"
-      - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
-    ports:
-      - "1025:1025"  # SMTP
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.mailpit.rule=Host(`${MAILPIT_HOST}`)
+      - traefik.http.routers.mailpit.entrypoints=websecure
+      - traefik.http.routers.mailpit.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.services.mailpit-svc.loadbalancer.server.port=8025
