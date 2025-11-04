@@ -170,9 +170,9 @@ services:
   rh:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.rh
+      dockerfile: ./Dockerfile.rh
     env_file:
-      - ./docker/.env
+      - ./.env
     depends_on:
       - postgres
       - keycloak
