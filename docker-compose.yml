@@ -14,7 +14,7 @@ volumes:
 
 services:
   # === Base de données Postgres ===
-  postgres:
+  lyneDB:
     image: postgres:16
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -91,7 +91,7 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     depends_on:
-      postgres:
+      lyneDB:
         condition: service_healthy
     networks:
       - web
@@ -154,7 +154,7 @@ services:
     env_file: .env
     command: ["/entrypoint.sh", "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "lyneerp.asgi:application"]
     depends_on:
-      postgres:
+      lyneDB:
         condition: service_healthy
       redis:
         condition: service_healthy
