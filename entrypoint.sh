@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-# Valeurs par défaut si non fournies
 : "${DB_HOST:=postgres}"
 : "${DB_PORT:=5432}"
 : "${DJANGO_SETTINGS_MODULE:=Lyneerp.settings}"
@@ -14,17 +13,14 @@ until nc -z "${DB_HOST}" "${DB_PORT}"; do
 done
 echo "✅ Postgres OK"
 
-# Migrations
 echo "⚙️  Migrations Django"
 python manage.py migrate --noinput
 
-# Collecte des statics (décommente si nécessaire)
 # echo "📦 collectstatic"
 # python manage.py collectstatic --noinput
 
-# Lancement
 if [ "$DJANGO_ENV" = "prod" ]; then
-  echo "🚀 Démarrage Gunicorn (prod) sur ${BIND}"
+  echo "🚀 Gunicorn sur ${BIND}"
   exec gunicorn Lyneerp.wsgi:application --bind "${BIND}" --workers 3 --timeout 120
 else
   echo "🚀 runserver (dev) sur ${BIND}"

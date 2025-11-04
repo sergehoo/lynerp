@@ -5,29 +5,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Paquets système utiles (netcat pour attendre Postgres, build deps si besoin)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    netcat-openbsd \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    netcat-openbsd build-essential \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Si tu as un requirements.txt
+# Installe tes deps Python ici si besoin
 # COPY requirements.txt /app/
 # RUN pip install -r requirements.txt
 
-# Si tu utilises Poetry (exemple) :
-# COPY pyproject.toml poetry.lock /app/
-# RUN pip install poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
-
-# Copie du code
+# Copie du code (si tu as un .dockerignore, vérifie qu'il n'exclut pas ce qu'il faut)
 COPY . /app
 
-# Rendre l’entrypoint exécutable
-RUN chmod +x /app/docker/entrypoint.sh
+# ✅ Copie l’entrypoint explicitement à la racine pour éviter tout souci de chemin
+COPY docker/entrypoint.sh /entrypoint.sh
+# Fix CRLF éventuels si le fichier vient de Windows
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
-# On garde la commande dans l’entrypoint (migrations, wait db, etc.)
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
