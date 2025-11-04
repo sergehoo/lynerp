@@ -19,7 +19,7 @@ WORKDIR /app
 COPY . /app
 
 # ✅ Copie l’entrypoint explicitement à la racine pour éviter tout souci de chemin
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 # Fix CRLF éventuels si le fichier vient de Windows
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
