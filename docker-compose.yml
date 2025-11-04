@@ -155,7 +155,7 @@ services:
       - "traefik.http.routers.rh.rule=Host(`rh.localhost`)"
       - "traefik.http.routers.rh.entrypoints=web"
       - "traefik.http.services.rh.loadbalancer.server.port=8000"
-    ports: ["8000:8000"]  # optionnel si Accès direct; via Traefik: http://rh.localhost
+
 
   # === Mailpit (emails de dev) ===
   mailpit:
