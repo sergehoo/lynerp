@@ -1,10 +1,18 @@
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from hr.api.routers import urlpatterns as hr_urls
 from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView
 
+
+def healthz(_):
+    # ⚡ rapide : sans requête DB
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
+    path("healthz", healthz),
     path('admin/', admin.site.urls),
     path('api/rh/', include((hr_urls, 'hr'))),
     # path("api/rh/", include("hr.routers")),
