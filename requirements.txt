@@ -61,3 +61,4 @@ wcwidth==0.2.14
 zipp==3.23.0
 uvicorn
 gunicorn
+whitenoise
