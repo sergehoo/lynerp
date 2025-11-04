@@ -37,7 +37,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Route publique: api.localhost -> Kong proxy (8000)
-      - "traefik.http.routers.api.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.api.rule=Host(`kong.lyneerp.com`)"
       - "traefik.http.routers.api.entrypoints=web"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
       # Admin Kong optionnel (local)
@@ -59,7 +59,7 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.keycloak.rule=Host(`keycloak.localhost`)"
+      - "traefik.http.routers.keycloak.rule=Host(`${lynesso_HOST}`)"
       - "traefik.http.routers.keycloak.entrypoints=web"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
     # tu peux retirer le mapping direct si tu passes par Traefik
@@ -80,7 +80,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Console Web
-      - "traefik.http.routers.minio-console.rule=Host(`minio.localhost`)"
+      - "traefik.http.routers.minio-console.rule=Host(`${lynefile_HOST}`)"
       - "traefik.http.routers.minio-console.entrypoints=web"
       - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
       # S3 API (facultatif) - utile si tu veux passer par traefik aussi
@@ -151,7 +151,7 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rh.rule=Host(`rh.localhost`)"
+      - "traefik.http.routers.rh.rule=Host(`${lynerh_HOST}`)"
       - "traefik.http.routers.rh.entrypoints=web"
       - "traefik.http.services.rh.loadbalancer.server.port=8000"
 
@@ -166,7 +166,7 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mailpit.rule=Host(`mail.localhost`)"
+      - "traefik.http.routers.mailpit.rule=Host(`${lynemailpit_HOST}`)"
       - "traefik.http.routers.mailpit.entrypoints=web"
       - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
     ports:
