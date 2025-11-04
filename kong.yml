@@ -1,0 +1,54 @@
+_format_version: "3.0"
+
+services:
+  # RH API
+  - name: rh
+    url: http://rh:8000
+    routes:
+      - name: rh-host
+        hosts: [rh.lyneerp.local]
+        strip_path: false
+        paths: ["/"]
+        plugins:
+          # Exemple: ajouter le header X-Module pour reconnaissance côté RH
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                  - "X-Module:rh"
+          # Exemple CORS simple pour dev
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
+              headers: ["Authorization","Content-Type","X-Tenant-Id"]
+              exposed_headers: ["*"]
+              credentials: true
+              max_age: 3600
+
+  # Keycloak (SSO)
+  - name: keycloak
+    url: http://keycloak:8080
+    routes:
+      - name: sso-host
+        hosts: [sso.lyneerp.local]
+        strip_path: false
+        paths: ["/"]
+
+  # MinIO (fichiers)
+  - name: minio
+    url: http://minio:9000
+    routes:
+      - name: files-host
+        hosts: [files.lyneerp.local]
+        strip_path: false
+        paths: ["/"]
+
+# (Option) exposer l'admin Django derrière un host dédié
+#  - name: rh-admin
+#    url: http://rh:8000/admin
+#    routes:
+#      - name: rh-admin-host
+#        hosts: [admin.rh.lyneerp.local]
+#        strip_path: false
+#        paths: ["/"]

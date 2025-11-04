@@ -1,7 +1,7 @@
 
 # Lyneerp/hr/serializers.py
 from rest_framework import serializers
-from .models import (
+from hr.models import (
     Department, Employee, LeaveRequest, AIProcessingResult,
     Position, LeaveType, LeaveBalance, Attendance, Payroll,
     PerformanceReview, Recruitment, JobApplication, Interview,

@@ -1,10 +1,543 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+<!-- Lyneerp/hr/templates/hr/partials/attendance.html -->
+<div class="space-y-6" x-data="attendanceView()">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h3 class="text-2xl font-bold text-gray-800">Gestion du pointage</h3>
+        <div class="flex space-x-3">
+            <button @click="showBulkCheckIn = true" 
+                    class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
+                <i class="fas fa-users mr-2"></i>Pointage collectif
+            </button>
+            <button @click="exportAttendanceReport()" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                <i class="fas fa-download mr-2"></i>Exporter
+            </button>
+        </div>
+    </div>
 
-</body>
-</html>
+    <!-- Filters -->
+    <div class="bg-white p-4 rounded-lg shadow-sm border">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mois</label>
+                <select x-model="selectedMonth" @change="loadAttendances()"
+                        class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <template x-for="month in months" :key="month.value">
+                        <option :value="month.value" x-text="month.label" 
+                                :selected="month.value === selectedMonth"></option>
+                    </template>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Année</label>
+                <select x-model="selectedYear" @change="loadAttendances()"
+                        class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <template x-for="year in years" :key="year">
+                        <option :value="year" x-text="year" 
+                                :selected="year === selectedYear"></option>
+                    </template>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Département</label>
+                <select x-model="selectedDepartment" @change="loadAttendances()"
+                        class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Tous les départements</option>
+                    <template x-for="dept in departments" :key="dept.id">
+                        <option :value="dept.id" x-text="dept.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button @click="loadAttendances()" 
+                        class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                    <i class="fas fa-sync-alt mr-2"></i>Actualiser
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-user-check text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-sm font-medium text-gray-500">Présents</h3>
+                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.present || 0"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-red-100 text-red-600">
+                    <i class="fas fa-user-times text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-sm font-medium text-gray-500">Absents</h3>
+                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.absent || 0"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                    <i class="fas fa-clock text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-sm font-medium text-gray-500">Retards</h3>
+                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.late || 0"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-business-time text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-sm font-medium text-gray-500">Heures supp.</h3>
+                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.overtime || 0"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Check-in Modal -->
+    <div x-show="showBulkCheckIn" x-cloak 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h4 class="text-xl font-semibold mb-4">Pointage collectif</h4>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner les employés</label>
+                <div class="max-h-60 overflow-y-auto border rounded">
+                    <template x-for="employee in activeEmployees" :key="employee.id">
+                        <label class="flex items-center p-3 border-b hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" :value="employee.id" x-model="selectedEmployees" 
+                                   class="rounded text-blue-600 focus:ring-blue-500">
+                            <div class="ml-3 flex-1">
+                                <span class="font-medium text-gray-900" 
+                                      x-text="employee.first_name + ' ' + employee.last_name"></span>
+                                <span class="text-sm text-gray-500 ml-2" x-text="employee.matricule"></span>
+                                <div class="text-xs text-gray-400" x-text="employee.department_name || 'Non assigné'"></div>
+                            </div>
+                        </label>
+                    </template>
+                </div>
+                <div class="mt-2 text-sm text-gray-500" 
+                     x-text="`${selectedEmployees.length} employé(s) sélectionné(s)`"></div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
+                <input type="time" x-model="bulkCheckInTime" 
+                       class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       :value="getCurrentTime()">
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button @click="showBulkCheckIn = false; selectedEmployees = []; bulkCheckInTime = ''" 
+                        class="px-4 py-2 border rounded hover:bg-gray-50 transition">
+                    Annuler
+                </button>
+                <button @click="bulkCheckIn()" 
+                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                        :disabled="selectedEmployees.length === 0">
+                    <i class="fas fa-check mr-2"></i>Pointer l'arrivée
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50">
+            <div class="flex justify-between items-center">
+                <h4 class="text-lg font-semibold">Détail du pointage</h4>
+                <div class="text-sm text-gray-500" 
+                     x-text="`Mois: ${getMonthName(selectedMonth)} ${selectedYear}`"></div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Employé
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Arrivée
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Départ
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Heures travaillées
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Heures supp.
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Statut
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="attendance in attendances" :key="attendance.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-gray-500 text-sm"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900" 
+                                             x-text="attendance.employee_name"></div>
+                                        <div class="text-sm text-gray-500" 
+                                             x-text="attendance.employee_matricule"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
+                                x-text="formatDate(attendance.date)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
+                                x-text="attendance.check_in || '--:--'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
+                                x-text="attendance.check_out || '--:--'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
+                                x-text="attendance.worked_hours ? attendance.worked_hours + 'h' : '--'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
+                                x-text="attendance.overtime_hours ? attendance.overtime_hours + 'h' : '--'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
+                                      :class="getStatusClass(attendance.status)"
+                                      x-text="attendance.status"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex justify-end space-x-2">
+                                    <button @click="editAttendance(attendance)" 
+                                            class="text-blue-600 hover:text-blue-900">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button @click="deleteAttendance(attendance.id)" 
+                                            class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="attendances.length === 0" class="text-center py-12">
+            <i class="fas fa-clock text-gray-300 text-6xl mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Aucun pointage</h3>
+            <p class="text-gray-500 mb-4">Aucun pointage trouvé pour la période sélectionnée.</p>
+            <button @click="loadAttendances()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                <i class="fas fa-sync-alt mr-2"></i>Actualiser
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-8">
+            <div class="inline-flex items-center">
+                <i class="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
+                <span class="text-gray-600">Chargement des pointages...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Attendance Modal -->
+    <div x-show="showEditModal" x-cloak 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h4 class="text-xl font-semibold mb-4">Modifier le pointage</h4>
+            
+            <form @submit.prevent="updateAttendance(editingAttendance)">
+                <div class="space-y-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                        <p class="text-sm text-gray-900" x-text="editingAttendance.employee_name"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <p class="text-sm text-gray-900" x-text="formatDate(editingAttendance.date)"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
+                        <input type="time" x-model="editingAttendance.check_in" 
+                               class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Heure de départ</label>
+                        <input type="time" x-model="editingAttendance.check_out" 
+                               class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                        <select x-model="editingAttendance.status" 
+                                class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="PRESENT">Présent</option>
+                            <option value="ABSENT">Absent</option>
+                            <option value="LATE">En retard</option>
+                            <option value="HALF_DAY">Demi-journée</option>
+                            <option value="LEAVE">Congé</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea x-model="editingAttendance.notes" rows="3"
+                                  class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Notes optionnelles..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" @click="showEditModal = false" 
+                            class="px-4 py-2 border rounded hover:bg-gray-50 transition">
+                        Annuler
+                    </button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function attendanceView() {
+        return {
+            // State
+            showBulkCheckIn: false,
+            showEditModal: false,
+            loading: false,
+            selectedMonth: new Date().getMonth() + 1,
+            selectedYear: new Date().getFullYear(),
+            selectedDepartment: '',
+            selectedEmployees: [],
+            bulkCheckInTime: '',
+            attendances: [],
+            departments: [],
+            editingAttendance: {},
+
+            // Data
+            months: [
+                { value: 1, label: 'Janvier' },
+                { value: 2, label: 'Février' },
+                { value: 3, label: 'Mars' },
+                { value: 4, label: 'Avril' },
+                { value: 5, label: 'Mai' },
+                { value: 6, label: 'Juin' },
+                { value: 7, label: 'Juillet' },
+                { value: 8, label: 'Août' },
+                { value: 9, label: 'Septembre' },
+                { value: 10, label: 'Octobre' },
+                { value: 11, label: 'Novembre' },
+                { value: 12, label: 'Décembre' }
+            ],
+            years: [2023, 2024, 2025],
+
+            // Computed
+            get activeEmployees() {
+                return this.employees.filter(emp => emp.is_active);
+            },
+
+            get attendanceStats() {
+                const present = this.attendances.filter(a => a.status === 'PRESENT').length;
+                const absent = this.attendances.filter(a => a.status === 'ABSENT').length;
+                const late = this.attendances.filter(a => a.status === 'LATE').length;
+                const overtime = this.attendances.reduce((sum, a) => sum + (parseFloat(a.overtime_hours) || 0), 0);
+
+                return {
+                    present,
+                    absent,
+                    late,
+                    overtime: overtime.toFixed(1)
+                };
+            },
+
+            // Methods
+            getCurrentTime() {
+                const now = new Date();
+                return now.toTimeString().split(' ')[0].substring(0, 5);
+            },
+
+            getMonthName(month) {
+                const monthObj = this.months.find(m => m.value === month);
+                return monthObj ? monthObj.label : '';
+            },
+
+            getStatusClass(status) {
+                const classes = {
+                    'PRESENT': 'bg-green-100 text-green-800',
+                    'ABSENT': 'bg-red-100 text-red-800',
+                    'LATE': 'bg-yellow-100 text-yellow-800',
+                    'HALF_DAY': 'bg-blue-100 text-blue-800',
+                    'LEAVE': 'bg-purple-100 text-purple-800'
+                };
+                return classes[status] || 'bg-gray-100 text-gray-800';
+            },
+
+            async loadAttendances() {
+                this.loading = true;
+                try {
+                    let url = `/attendances/?month=${this.selectedMonth}&year=${this.selectedYear}`;
+                    if (this.selectedDepartment) {
+                        url += `&department=${this.selectedDepartment}`;
+                    }
+
+                    const data = await this.apiCall(url);
+                    this.attendances = data.results || data;
+                } catch (error) {
+                    console.error('Failed to load attendances:', error);
+                    this.showToast('Erreur lors du chargement des pointages', 'error');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async loadDepartments() {
+                try {
+                    const data = await this.apiCall('/departments/');
+                    this.departments = data.results || data;
+                } catch (error) {
+                    console.error('Failed to load departments:', error);
+                }
+            },
+
+            async bulkCheckIn() {
+                if (this.selectedEmployees.length === 0) {
+                    this.showToast('Veuillez sélectionner au moins un employé', 'error');
+                    return;
+                }
+
+                try {
+                    await this.apiCall('/attendances/bulk_check_in/', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            employee_ids: this.selectedEmployees,
+                            time: this.bulkCheckInTime || this.getCurrentTime()
+                        })
+                    });
+
+                    this.showToast('Pointage collectif effectué avec succès', 'success');
+                    this.showBulkCheckIn = false;
+                    this.selectedEmployees = [];
+                    this.bulkCheckInTime = '';
+                    this.loadAttendances();
+                } catch (error) {
+                    this.showToast('Erreur lors du pointage collectif', 'error');
+                }
+            },
+
+            editAttendance(attendance) {
+                this.editingAttendance = { ...attendance };
+                this.showEditModal = true;
+            },
+
+            async updateAttendance(attendanceData) {
+                try {
+                    await this.apiCall(`/attendances/${attendanceData.id}/`, {
+                        method: 'PUT',
+                        body: JSON.stringify(attendanceData)
+                    });
+
+                    this.showToast('Pointage mis à jour avec succès', 'success');
+                    this.showEditModal = false;
+                    this.loadAttendances();
+                } catch (error) {
+                    this.showToast('Erreur lors de la mise à jour', 'error');
+                }
+            },
+
+            async deleteAttendance(attendanceId) {
+                if (!confirm('Êtes-vous sûr de vouloir supprimer ce pointage ?')) {
+                    return;
+                }
+
+                try {
+                    await this.apiCall(`/attendances/${attendanceId}/`, {
+                        method: 'DELETE'
+                    });
+
+                    this.showToast('Pointage supprimé avec succès', 'success');
+                    this.loadAttendances();
+                } catch (error) {
+                    this.showToast('Erreur lors de la suppression', 'error');
+                }
+            },
+
+            async exportAttendanceReport() {
+                try {
+                    // Simple export implementation - you might want to implement a proper export endpoint
+                    const csvContent = this.generateCSV();
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `pointage_${this.selectedMonth}_${this.selectedYear}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showToast('Rapport exporté avec succès', 'success');
+                } catch (error) {
+                    this.showToast('Erreur lors de l\'export', 'error');
+                }
+            },
+
+            generateCSV() {
+                const headers = ['Employé', 'Matricule', 'Date', 'Arrivée', 'Départ', 'Heures travaillées', 'Heures supp.', 'Statut'];
+                const rows = this.attendances.map(att => [
+                    att.employee_name,
+                    att.employee_matricule,
+                    formatDate(att.date),
+                    att.check_in || '',
+                    att.check_out || '',
+                    att.worked_hours || '',
+                    att.overtime_hours || '',
+                    att.status
+                ]);
+
+                return [headers, ...rows].map(row => row.join(',')).join('\n');
+            },
+
+            // Initialization
+            init() {
+                this.loadAttendances();
+                this.loadDepartments();
+                this.bulkCheckInTime = this.getCurrentTime();
+            }
+        };
+    }
+
+    // Utility functions
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString('fr-FR');
+    }
+
+    // Register with Alpine
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('attendanceView', attendanceView);
+    });
+</script>

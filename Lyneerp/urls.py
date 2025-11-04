@@ -1,22 +1,19 @@
-"""
-URL configuration for Lyneerp project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from hr.api.routers import urlpatterns as hr_urls
+from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/rh/', include((hr_urls, 'hr'))),
+    # path("api/rh/", include("hr.routers")),
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('docs/', SpectacularSwaggerView.as_view(url_name='schema')),
+
+    path('', HRDashboardView.as_view(), name='hr-dashboard'),
+    path('employees/', EmployeeManagementView.as_view(), name='hr-employees'),
+    path('recruitment/', RecruitmentView.as_view(), name='hr-recruitment'),
+    path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
+    path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
 ]

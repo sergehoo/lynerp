@@ -1,0 +1,397 @@
+<!-- Lyneerp/hr/templates/hr/base.html -->
+<!DOCTYPE html>
+<html lang="fr" class="h-full" x-data="hrApp()" :class="{'dark': dark}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>LyneERP - Plateforme RH Intelligente</title>
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui'] },
+          colors: {
+            brand: { 50:'#eef6ff',100:'#d9ebff',200:'#b8d9ff',300:'#8bc1ff',400:'#5ea7ff',500:'#388fff',600:'#1e70f0',700:'#1657c2',800:'#143f8d',900:'#122f68' }
+          },
+          boxShadow: { card:'0 8px 24px rgba(0,0,0,.06)' }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    [x-cloak]{display:none}
+    .glass{backdrop-filter: blur(10px); background: rgba(255,255,255,.7)}
+    .dark .glass{background: rgba(17,24,39,.6)}
+    .scroll-slim::-webkit-scrollbar{height:8px;width:8px}
+    .scroll-slim::-webkit-scrollbar-thumb{background-color:#cbd5e1;border-radius:9999px}
+    .dark .scroll-slim::-webkit-scrollbar-thumb{background-color:#475569}
+    .skeleton{background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 37%,#e5e7eb 63%);background-size:400% 100%;animation:shimmer 1.2s ease-in-out infinite}
+    .dark .skeleton{background:linear-gradient(90deg,#334155 25%,#1f2937 37%,#334155 63%)}
+    @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+    .tooltip{position:relative}
+    .tooltip .bubble{opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}
+    .tooltip:hover .bubble{opacity:1;transform:translateY(0)}
+    .kbd{font-variant: all-small-caps; font-size:10px;border:1px solid #e2e8f0;border-bottom-width:2px;padding:.15rem .35rem;border-radius:.4rem}
+    .dark .kbd{border-color:#334155}
+  </style>
+</head>
+
+<body class="h-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100" @keydown.window.prevent.cmd.k="openCmd=true" @keydown.window.prevent.ctrl.k="openCmd=true" @keydown.window.prevent.cmd.j="toggleDark()" @keydown.window.prevent.ctrl.j="toggleDark()">
+<div class="h-screen w-screen flex overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside class="flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 glass transition-all duration-300"
+         :class="sidebarCollapsed ? 'w-18' : 'w-72'">
+    <!-- Brand & toggle -->
+    <div class="h-16 flex items-center justify-between px-3">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white grid place-content-center shadow-card">
+          <i class="fa-solid fa-users-gear"></i>
+        </div>
+        <div x-show="!sidebarCollapsed" x-cloak>
+          <div class="font-semibold text-lg">LyneERP</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400 -mt-1">Ressources Humaines</div>
+        </div>
+      </div>
+      <button @click="sidebarCollapsed = !sidebarCollapsed" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Réduire/étendre la barre latérale">
+        <i class="fa-solid fa-angles-left" :class="sidebarCollapsed?'rotate-180':''"></i>
+      </button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 overflow-auto scroll-slim px-2 py-2">
+      <template x-for="item in navigation" :key="item.id">
+        <div class="tooltip">
+          <a href="#"
+             @click.prevent="switchView(item.id)"
+             class="flex items-center gap-3 rounded-xl px-3 py-2 mb-1 transition select-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+             :class="activeNav===item.id ? 'bg-brand-50 text-brand-700 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'">
+            <i :class="item.icon + ' text-lg w-6'"></i>
+            <span x-show="!sidebarCollapsed" x-cloak class="font-medium" x-text="item.name"></span>
+            <span x-show="!sidebarCollapsed && item.badge" x-cloak class="ml-auto text-[10px] rounded-full px-2 py-0.5 bg-brand-100 text-brand-700" x-text="item.badge"></span>
+          </a>
+          <div x-show="sidebarCollapsed" x-cloak class="bubble absolute left-12 top-1/2 -translate-y-1/2 text-xs bg-gray-900 text-white rounded px-2 py-1">
+            <span x-text="item.name"></span>
+          </div>
+        </div>
+      </template>
+    </nav>
+
+    <!-- Footer -->
+    <div class="p-2 border-t border-gray-200 dark:border-gray-800">
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg"
+                :class="online ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200'">
+            <span class="w-2 h-2 rounded-full" :class="online ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+            <span x-text="online ? 'En ligne' : 'Hors ligne'"></span>
+          </span>
+        </div>
+        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" @click="openSettings = true" aria-label="Ouvrir la configuration">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <section class="flex-1 flex flex-col min-w-0">
+    <!-- Topbar -->
+    <header class="sticky top-0 z-20 glass border-b border-gray-200 dark:border-gray-800">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="h-16 flex items-center justify-between">
+          <div class="min-w-0">
+            <h1 class="font-semibold text-lg truncate" x-text="viewTitle"></h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400" x-text="viewDesc"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+              <i class="fa-solid fa-building"></i><span x-text="tenantId"></span>
+            </div>
+            <button @click="toggleDark()" class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i></button>
+            <button @click="openCmd=true" class="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+              <i class="fa-solid fa-magnifying-glass"></i><span class="text-sm">Commande</span><span class="kbd">⌘K</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auth hint / 401-403 -->
+      <div x-show="authHint" x-cloak class="border-t border-amber-200/40 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            Accès interdit ou non authentifié. Vérifie le <b>Tenant</b> et colle un <b>token JWT</b> valide dans la configuration (icône engrenage).
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-auto scroll-slim">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        <!-- Global overlay loader -->
+        <div x-show="loading" x-cloak class="fixed inset-0 z-30 bg-black/20 grid place-content-center">
+          <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4 shadow-2xl flex items-center gap-3">
+            <span class="animate-spin h-5 w-5 rounded-full border-2 border-gray-300 border-t-brand-600"></span>
+            <span class="text-sm">Chargement…</span>
+          </div>
+        </div>
+
+        <!-- Skeleton header KPIs (visible si currentView=dashboard et data vide) -->
+        <div x-show="currentView==='dashboard' && !Object.keys(dashboardStats).length && !authHint" x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <template x-for="i in 4" :key="i">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-800">
+              <div class="skeleton h-3 w-28 mb-2 rounded"></div>
+              <div class="skeleton h-7 w-16 rounded"></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Views -->
+        <div x-show="currentView === 'dashboard' && !authHint" x-cloak>
+          {% include "hr/partials/dashboard.html" %}
+          <!-- Empty state example -->
+          <div x-show="!Object.keys(dashboardStats).length" class="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center">
+            <div class="text-3xl mb-2">🧭</div>
+            <p class="font-medium">Aucune donnée à afficher pour le moment.</p>
+            <p class="text-sm text-gray-500">Ajoute des employés, crée des campagnes de recrutement, puis reviens ici.</p>
+          </div>
+        </div>
+
+        <div x-show="currentView === 'employees' && !authHint" x-cloak>
+          {% include "hr/partials/employees.html" %}
+        </div>
+
+        <div x-show="currentView === 'recruitment' && !authHint" x-cloak>
+          {% include "hr/partials/recruitment.html" %}
+        </div>
+
+        <div x-show="currentView === 'leaves' && !authHint" x-cloak>
+          {% include "hr/partials/leaves.html" %}
+        </div>
+
+        <div x-show="currentView === 'attendance' && !authHint" x-cloak>
+          {% include "hr/partials/attendance.html" %}
+        </div>
+
+      </div>
+    </main>
+  </section>
+</div>
+
+<!-- Command Palette -->
+<div x-show="openCmd" x-cloak class="fixed inset-0 z-40 flex items-start justify-center pt-24 px-4 bg-black/50" @keydown.escape.window="openCmd=false" @click.self="openCmd=false">
+  <div class="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+    <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+      <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+      <input type="text" x-model="cmdQuery" placeholder="Rechercher une page ou une action…"
+             class="w-full bg-transparent outline-none placeholder-gray-400"/>
+      <kbd class="kbd">ESC</kbd>
+    </div>
+    <div class="max-h-80 overflow-auto scroll-slim divide-y divide-gray-100 dark:divide-gray-800">
+      <template x-for="it in cmdResults" :key="it.key">
+        <button @click="it.action(); openCmd=false"
+                class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-3">
+          <i :class="it.icon"></i>
+          <div>
+            <div class="font-medium" x-text="it.label"></div>
+            <div class="text-xs text-gray-500" x-text="it.desc"></div>
+          </div>
+        </button>
+      </template>
+      <div x-show="cmdResults.length===0" class="px-4 py-6 text-sm text-gray-500">Aucun résultat.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Drawer -->
+<div x-show="openSettings" x-cloak class="fixed inset-0 z-40 bg-black/40" @click.self="openSettings=false" @keydown.escape.window="openSettings=false">
+  <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
+    <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-gray-800">
+      <div class="font-semibold">Configuration</div>
+      <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800" @click="openSettings=false"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="p-5 space-y-5">
+      <div>
+        <label class="text-sm text-gray-500">API Base</label>
+        <input type="text" x-model="apiBase" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
+        <p class="text-xs text-gray-500 mt-1">Ex: /api/rh ou http://localhost:8000/api/rh</p>
+      </div>
+      <div>
+        <label class="text-sm text-gray-500">Tenant ID</label>
+        <input type="text" x-model="tenantId" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
+      </div>
+      <div>
+        <label class="text-sm text-gray-500">Bearer Token</label>
+        <textarea x-model="token" rows="4" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"></textarea>
+        <p class="text-xs text-gray-500 mt-1">Colle le JWT Keycloak ici pour authentifier les appels.</p>
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="rounded" x-model="dark"/><span>Mode sombre</span></label>
+        <button @click="saveConf()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="fixed bottom-4 right-4 z-50 space-y-2">
+  <template x-for="(toast, i) in toasts" :key="i">
+    <div x-show="toast.visible" x-transition class="rounded-xl shadow-2xl px-4 py-3 text-white"
+         :class="{'bg-emerald-600': toast.type==='success','bg-rose-600': toast.type==='error','bg-slate-700': toast.type==='info','bg-amber-600': toast.type==='warning'}">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid" :class="{'fa-circle-check': toast.type==='success','fa-circle-exclamation': toast.type==='error','fa-circle-info': toast.type==='info','fa-triangle-exclamation': toast.type==='warning'}"></i>
+        <div x-text="toast.message"></div>
+        <button class="ml-2 opacity-80 hover:opacity-100" @click="removeToast(i)"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+  </template>
+</div>
+
+<script>
+  const Conf = {
+    apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
+    tenantId: localStorage.getItem('lyneerp_tenant') || 'acme',
+    token: localStorage.getItem('lyneerp_token') || '',
+    dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
+    save(){ localStorage.setItem('lyneerp_api', this.apiBase); localStorage.setItem('lyneerp_tenant', this.tenantId); localStorage.setItem('lyneerp_token', this.token); localStorage.setItem('lyneerp_dark', this.dark ? '1':'0'); }
+  };
+
+  function hrApp(){
+    return {
+      // UI
+      sidebarCollapsed:false, openCmd:false, openSettings:false, cmdQuery:'',
+      loading:false, toasts:[], dark:Conf.dark, authHint:false, online:navigator.onLine,
+
+      // Config
+      apiBase:Conf.apiBase, tenantId:Conf.tenantId, token:Conf.token,
+
+      // Data
+      currentView:'dashboard', activeNav:'dashboard', dashboardStats:{}, employees:[], recruitments:[],
+
+      navigation: [
+        { id:'dashboard',  name:'Tableau de bord', icon:'fa-solid fa-chart-pie'},
+        { id:'employees',  name:'Employés',        icon:'fa-solid fa-users'},
+        { id:'recruitment',name:'Recrutement',     icon:'fa-solid fa-briefcase'},
+        { id:'leaves',     name:'Congés',          icon:'fa-solid fa-calendar-check'},
+        { id:'attendance', name:'Pointage',        icon:'fa-solid fa-clock'},
+      ],
+
+      get viewTitle(){ const i=this.navigation.find(n=>n.id===this.currentView); return i?i.name:'LyneERP RH'; },
+      get viewDesc(){ return ({
+        dashboard:'Vue d’ensemble de votre activité RH',
+        employees:'Gérez votre effectif et les informations employés',
+        recruitment:'Recrutez avec l’aide de l’IA',
+        leaves:'Suivez et approuvez les demandes de congés',
+        attendance:'Surveillez la présence et les heures'
+      })[this.currentView] || 'Plateforme RH intelligente'; },
+
+      toggleDark(){ this.dark=!this.dark; Conf.dark=this.dark; Conf.save(); },
+
+      switchView(key){ this.currentView=key; this.activeNav=key; this.prefetch(key); },
+
+      // Command palette
+      get cmdResults(){
+        const q=this.cmdQuery.toLowerCase().trim();
+        const items=[
+          {key:'v1',label:'Aller au Tableau de bord',desc:'Vue synthèse',icon:'fa-solid fa-chart-pie',action:()=>this.switchView('dashboard')},
+          {key:'v2',label:'Aller à Employés',desc:'Lister et gérer',icon:'fa-solid fa-users',action:()=>this.switchView('employees')},
+          {key:'v3',label:'Aller à Recrutement',desc:'Offres & candidats',icon:'fa-solid fa-briefcase',action:()=>this.switchView('recruitment')},
+          {key:'v4',label:'Aller à Congés',desc:'Demandes de congé',icon:'fa-solid fa-calendar-check',action:()=>this.switchView('leaves')},
+          {key:'v5',label:'Aller à Pointage',desc:'Présences',icon:'fa-solid fa-clock',action:()=>this.switchView('attendance')},
+          {key:'cfg',label:'Ouvrir Configuration',desc:'API / Tenant / Token',icon:'fa-solid fa-gear',action:()=>this.openSettings=true},
+          {key:'dm',label:'Basculer Mode sombre',desc:'Raccourci ⌘/Ctrl + J',icon:'fa-solid fa-moon',action:()=>this.toggleDark()},
+        ];
+        if(!q) return items;
+        return items.filter(it=>it.label.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
+      },
+
+      // API
+      async apiCall(path, options={}){
+        this.loading=true; this.authHint=false;
+        try{
+          const headers={'Content-Type':'application/json','X-Tenant-Id': this.tenantId};
+          if(this.token) headers['Authorization']=`Bearer ${this.token}`;
+          const url=`${this.apiBase}${path.startsWith('/')?'':'/'}${path}`;
+          const res=await fetch(url,{...options,headers});
+          if(!res.ok){
+            // Show 401/403 helper
+            if(res.status===401||res.status===403){ this.authHint=true; }
+            let detail='';
+            try{ const j=await res.json(); detail=j.detail||j.error||''; }catch(_){}
+            throw new Error(`${res.status} ${res.statusText}${detail? ' - '+detail : ''}`);
+          }
+          return res.status===204 ? null : await res.json();
+        }catch(e){
+          console.error(e); this.showToast(e.message||'Erreur API','error'); throw e;
+        }finally{ this.loading=false; }
+      },
+
+      // Prefetch
+      prefetch(k){
+        if(k==='dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
+        if(k==='employees' && !this.employees.length) this.loadEmployees();
+        if(k==='recruitment' && !this.recruitments.length) this.loadRecruitments();
+      },
+
+      // Data loaders
+      async loadDashboardStats(){ try{ this.dashboardStats=await this.apiCall('/dashboard/stats/'); }catch(_){} },
+      async loadEmployees(){ try{ const d=await this.apiCall('/employees/'); this.employees=d.results||d; }catch(_){} },
+      async loadRecruitments(){ try{ const d=await this.apiCall('/recruitments/'); this.recruitments=d.results||d; }catch(_){} },
+
+      // Toasts
+      showToast(message,type='info'){ const t={message,type,visible:true}; this.toasts.push(t); setTimeout(()=>{t.visible=false; this.toasts=this.toasts.filter(x=>x!==t)},3800); },
+      removeToast(i){ this.toasts.splice(i,1); },
+
+      // Config
+      saveConf(){ Conf.apiBase=this.apiBase; Conf.tenantId=this.tenantId; Conf.token=this.token; Conf.dark=this.dark; Conf.save(); this.showToast('Configuration enregistrée','success'); },
+
+      // Online/Offline
+      handleOnline(){ this.online=true; this.showToast('Connexion rétablie','success'); },
+      handleOffline(){ this.online=false; this.showToast('Vous êtes hors ligne','warning'); },
+
+      // Init
+      init(){
+        // Conf
+        this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
+        this.tenantId=localStorage.getItem('lyneerp_tenant')||this.tenantId;
+        this.token=localStorage.getItem('lyneerp_token')||this.token;
+        this.dark=(localStorage.getItem('lyneerp_dark')==='1')||this.dark;
+
+        // Data
+        this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
+
+        // Network
+        window.addEventListener('online', ()=>this.handleOnline());
+        window.addEventListener('offline', ()=>this.handleOffline());
+      }
+    }
+  }
+
+  // Alpine helpers for keyboard (⌘/Ctrl modifiers)
+  document.addEventListener('alpine:init', () => {
+    Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
+    Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
+  });
+
+  // Utilities (global, si besoin dans tes partials)
+  window.formatDate = (s)=> s? new Date(s).toLocaleDateString('fr-FR'): '';
+  window.formatDateTime = (s)=> s? new Date(s).toLocaleString('fr-FR'): '';
+</script>
+</body>
+</html>

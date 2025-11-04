@@ -1,0 +1,210 @@
+
+networks:
+  default:
+    name: lyneerp_default
+  proxy:
+    external: true   # crée-le une fois:  docker network create proxy
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  rh_media:
+
+services:
+  # === Reverse proxy (Traefik) ===
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --api.dashboard=true
+      # ACME (optionnel) - commente ces 3 lignes si tu restes en HTTP
+      # - --certificatesresolvers.dev.acme.httpchallenge=true
+      # - --certificatesresolvers.dev.acme.httpchallenge.entrypoint=web
+      # - --certificatesresolvers.dev.acme.email=admin@example.com
+      # - --certificatesresolvers.dev.acme.storage=/letsencrypt/acme.json
+      # - --serversTransport.insecureSkipVerify=true   # utile si self-signed en back
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8088:8080"   # Dashboard Traefik (http://localhost:8088) - à sécuriser en prod
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # - ./ops/traefik/letsencrypt:/letsencrypt
+    networks:
+      - proxy
+
+    labels:
+      - "traefik.enable=true"
+      # Dashboard Traefik (dev)
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      # Pour forcer HTTPS si tu actives ACME:
+      # - "traefik.http.routers.traefik-sec.rule=Host(`traefik.localhost`)"
+      # - "traefik.http.routers.traefik-sec.entrypoints=websecure"
+      # - "traefik.http.routers.traefik-sec.tls.certresolver=dev"
+      # - "traefik.http.routers.traefik.middlewares=redirect-https@file"
+
+  # === API Gateway (Kong) ===
+  kong:
+    image: kong:3
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ./ops/kong/kong.yml:/kong/kong.yml:ro
+    depends_on:
+      - rh
+      - keycloak
+      - minio
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lyneerp_default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      # Route publique: api.localhost -> Kong proxy (8000)
+      - "traefik.http.routers.api.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      # Admin Kong optionnel (local)
+      - "traefik.http.routers.kong-admin.rule=Host(`kong.localhost`)"
+      - "traefik.http.routers.kong-admin.entrypoints=web"
+      - "traefik.http.services.kong-admin.loadbalancer.server.port=8001"
+
+  # === SSO (Keycloak) ===
+  keycloak:
+    image: quay.io/keycloak/keycloak:26
+    command: ["start-dev","--hostname-strict=false"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    networks:
+      - lyneerp_default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.localhost`)"
+      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+    # tu peux retirer le mapping direct si tu passes par Traefik
+    ports: ["8080:8080"]
+
+  # === Stockage fichiers (MinIO) ===
+  minio:
+    image: minio/minio
+    command: ["server","/data","--console-address",":9001"]
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    volumes:
+      - minio_data:/data
+    networks:
+      - lyneerp_default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      # Console Web
+      - "traefik.http.routers.minio-console.rule=Host(`minio.localhost`)"
+      - "traefik.http.routers.minio-console.entrypoints=web"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      # S3 API (facultatif) - utile si tu veux passer par traefik aussi
+      - "traefik.http.routers.minio-s3.rule=Host(`s3.localhost`)"
+      - "traefik.http.routers.minio-s3.entrypoints=web"
+      - "traefik.http.services.minio-s3.loadbalancer.server.port=9000"
+    ports: ["9000:9000","9001:9001"]  # conserve si tu veux accès direct hors Traefik
+
+  # === Base de données ===
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: rh_core
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - lyneerp_default
+    ports: ["5432:5432"]
+
+  # === Cache ===
+  redis:
+    image: redis:7-alpine
+    networks:
+      - lyneerp_default
+    volumes:
+      - redis_data:/data
+    ports: ["6379:6379"]
+
+  # === Service de licences ===
+  licensing:
+    build: ./apps/licensing
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/licensing
+      REDIS_URL: redis://redis:6379/0
+      LICENSE_SIGNING_SECRET: change_me
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - lyneerp_default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lic.rule=Host(`licensing.localhost`)"
+      - "traefik.http.routers.lic.entrypoints=web"
+      - "traefik.http.services.lic.loadbalancer.server.port=8000"
+    ports: ["8010:8000"]  # optionnel si tu exposes via Traefik
+
+  # === Application Django RH ===
+  rh:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.rh
+    env_file:
+      - ./docker/rh.env
+    depends_on:
+      - postgres
+      - keycloak
+      - minio
+      - licensing
+    volumes:
+      - ./:/app:cached
+      - rh_media:/app/media
+    command: ["/bin/sh", "/app/docker/entrypoint.sh"]
+    networks:
+      - lyneerp_default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rh.rule=Host(`rh.localhost`)"
+      - "traefik.http.routers.rh.entrypoints=web"
+      - "traefik.http.services.rh.loadbalancer.server.port=8000"
+    ports: ["8000:8000"]  # optionnel si Accès direct; via Traefik: http://rh.localhost
+
+  # === Mailpit (emails de dev) ===
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_MAX_MESSAGES: 10000
+    networks:
+      - lyneerp_default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailpit.rule=Host(`mail.localhost`)"
+      - "traefik.http.routers.mailpit.entrypoints=web"
+      - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # UI (optionnel si tu passes par Traefik)
