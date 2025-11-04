@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.contrib import staticfiles
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -51,13 +53,14 @@ MIDDLEWARE = [
 
     "tenants.middleware.TenantMiddleware",
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-"tenants.middleware.TenantSessionMiddleware",
+    "tenants.middleware.TenantSessionMiddleware",
 ]
 
 ROOT_URLCONF = 'Lyneerp.urls'
@@ -158,7 +161,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# Static / Media
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # dossier cible de collectstatic
+
+# (facultatif) si tu as un dossier /static dans le code source pour tes assets non collectés
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'  # Redirection après connexion réussie
@@ -167,8 +178,8 @@ LOGOUT_REDIRECT_URL = '/login/'
 # Optionnel : nom du cookie “tenant”
 TENANT_SESSION_KEY = "current_tenant"
 REMEMBER_ME_SESSION_AGE = 60 * 60 * 24 * 30  # 30 jours
-SESSION_COOKIE_AGE = 60 * 60 * 2             # 2h (si pas remember me)
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True       # expir. à la fermeture (par défaut)
+SESSION_COOKIE_AGE = 60 * 60 * 2  # 2h (si pas remember me)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # expir. à la fermeture (par défaut)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
