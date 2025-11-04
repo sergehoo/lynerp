@@ -8,6 +8,8 @@ from hr.api.routers import urlpatterns as hr_urls
 from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView
 from django.contrib.auth import views as auth_views
 
+from tenants.auth_views import keycloak_direct_login
+
 
 def healthz(_):
     # ⚡ rapide : sans requête DB
@@ -29,6 +31,8 @@ urlpatterns = [
     path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
 
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path("auth/keycloak/direct-login/", keycloak_direct_login, name="kc_direct_login"),
+
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 if settings.DEBUG:

@@ -14,6 +14,8 @@ from pathlib import Path
 
 from django.contrib import staticfiles
 
+# from Lyneerp.settings import env
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -181,6 +183,20 @@ REMEMBER_ME_SESSION_AGE = 60 * 60 * 24 * 30  # 30 jours
 SESSION_COOKIE_AGE = 60 * 60 * 2  # 2h (si pas remember me)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # expir. à la fermeture (par défaut)
 
+
+KEYCLOAK_BASE_URL = os.getenv("KEYCLOAK_BASE_URL", default="https://sso.lyneerp.com"),
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", default="lyneerp-web")
+KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", default="")  # vide si client public
+KEYCLOAK_USE_REALM_PER_TENANT = True  # ou False si un seul realm global
+
+# Mapping tenant -> realm (exemple)
+TENANT_REALMS = {
+    "acme": "acme-realm",
+    "demo": "lyneerp",
+}
+
+# Où stocker les infos utilisateur dans la session
+OIDC_SESSION_KEY = "oidc_user"
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
