@@ -100,7 +100,7 @@ services:
       - pg_data:/var/lib/postgresql/data
     networks:
       - default
-    ports: ["5432:5432"]
+
 
   # === Cache ===
   redis:
