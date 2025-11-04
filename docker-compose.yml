@@ -146,7 +146,7 @@ services:
       context: .
       dockerfile: ./Dockerfile
     env_file: .env
-    command: ["entrypoint.sh", "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "lyneerp.asgi:application"]
+    command: ["/entrypoint.sh", "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "lyneerp.asgi:application"]
     depends_on:
       postgres:
         condition: service_healthy
