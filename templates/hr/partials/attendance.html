@@ -1,543 +1,468 @@
 <!-- Lyneerp/hr/templates/hr/partials/attendance.html -->
-<div class="space-y-6" x-data="attendanceView()">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-        <h3 class="text-2xl font-bold text-gray-800">Gestion du pointage</h3>
-        <div class="flex space-x-3">
-            <button @click="showBulkCheckIn = true" 
-                    class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
-                <i class="fas fa-users mr-2"></i>Pointage collectif
-            </button>
-            <button @click="exportAttendanceReport()" 
-                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
-                <i class="fas fa-download mr-2"></i>Exporter
-            </button>
-        </div>
+<div class="space-y-6" x-data="attendanceView()" x-init="init()">
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <h3 class="text-2xl font-bold text-gray-800">Pointage</h3>
+      <p class="text-gray-600">Vue calendrier mensuelle, édition rapide et exports.</p>
     </div>
-
-    <!-- Filters -->
-    <div class="bg-white p-4 rounded-lg shadow-sm border">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mois</label>
-                <select x-model="selectedMonth" @change="loadAttendances()"
-                        class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <template x-for="month in months" :key="month.value">
-                        <option :value="month.value" x-text="month.label" 
-                                :selected="month.value === selectedMonth"></option>
-                    </template>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Année</label>
-                <select x-model="selectedYear" @change="loadAttendances()"
-                        class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <template x-for="year in years" :key="year">
-                        <option :value="year" x-text="year" 
-                                :selected="year === selectedYear"></option>
-                    </template>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Département</label>
-                <select x-model="selectedDepartment" @change="loadAttendances()"
-                        class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Tous les départements</option>
-                    <template x-for="dept in departments" :key="dept.id">
-                        <option :value="dept.id" x-text="dept.name"></option>
-                    </template>
-                </select>
-            </div>
-            <div class="flex items-end">
-                <button @click="loadAttendances()" 
-                        class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
-                    <i class="fas fa-sync-alt mr-2"></i>Actualiser
-                </button>
-            </div>
-        </div>
+    <div class="flex gap-2">
+      <button @click="showBulkCheckIn = true"
+              class="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">
+        <i class="fas fa-users mr-2"></i>Pointage collectif
+      </button>
+      <button @click="exportCSV"
+              class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700">
+        <i class="fas fa-download mr-2"></i>Exporter CSV
+      </button>
     </div>
+  </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="bg-white p-4 rounded-lg shadow-sm border">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-green-100 text-green-600">
-                    <i class="fas fa-user-check text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <h3 class="text-sm font-medium text-gray-500">Présents</h3>
-                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.present || 0"></p>
-                </div>
-            </div>
+  <!-- Filtres + sélecteur de période -->
+  <div class="bg-white p-4 border rounded-2xl shadow-sm">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <button @click="prevMonth()" class="p-2 rounded-xl border hover:bg-gray-50">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="flex items-center gap-2">
+          <select x-model.number="selectedMonth" @change="reload()" class="rounded-xl border px-3 py-2">
+            <template x-for="m in months" :key="m.value">
+              <option :value="m.value" x-text="m.label"></option>
+            </template>
+          </select>
+          <select x-model.number="selectedYear" @change="reload()" class="rounded-xl border px-3 py-2">
+            <template x-for="y in years" :key="y"><option :value="y" x-text="y"></option></template>
+          </select>
         </div>
+        <button @click="goToday()" class="px-3 py-2 rounded-xl border hover:bg-gray-50">Aujourd’hui</button>
+        <button @click="nextMonth()" class="p-2 rounded-xl border hover:bg-gray-50">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
 
-        <div class="bg-white p-4 rounded-lg shadow-sm border">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-red-100 text-red-600">
-                    <i class="fas fa-user-times text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <h3 class="text-sm font-medium text-gray-500">Absents</h3>
-                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.absent || 0"></p>
-                </div>
-            </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="relative">
+          <input type="text" placeholder="Rechercher (nom, matricule)…"
+                 class="w-full pl-9 pr-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500"
+                 x-model="search" @input.debounce.350ms="applyFilters()">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
         </div>
-
-        <div class="bg-white p-4 rounded-lg shadow-sm border">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                    <i class="fas fa-clock text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <h3 class="text-sm font-medium text-gray-500">Retards</h3>
-                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.late || 0"></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-lg shadow-sm border">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                    <i class="fas fa-business-time text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <h3 class="text-sm font-medium text-gray-500">Heures supp.</h3>
-                    <p class="text-2xl font-semibold text-gray-900" x-text="attendanceStats.overtime || 0"></p>
-                </div>
-            </div>
-        </div>
+        <select x-model="filterDept" @change="applyFilters()" class="rounded-xl border px-3 py-2">
+          <option value="">Tous les départements</option>
+          <template x-for="d in departments" :key="d.id"><option :value="d.id" x-text="d.name"></option></template>
+        </select>
+        <select x-model="filterActive" @change="applyFilters()" class="rounded-xl border px-3 py-2">
+          <option value="">Actif + Inactif</option>
+          <option value="true">Actif</option>
+          <option value="false">Inactif</option>
+        </select>
+      </div>
     </div>
+  </div>
 
-    <!-- Bulk Check-in Modal -->
-    <div x-show="showBulkCheckIn" x-cloak 
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h4 class="text-xl font-semibold mb-4">Pointage collectif</h4>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner les employés</label>
-                <div class="max-h-60 overflow-y-auto border rounded">
-                    <template x-for="employee in activeEmployees" :key="employee.id">
-                        <label class="flex items-center p-3 border-b hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" :value="employee.id" x-model="selectedEmployees" 
-                                   class="rounded text-blue-600 focus:ring-blue-500">
-                            <div class="ml-3 flex-1">
-                                <span class="font-medium text-gray-900" 
-                                      x-text="employee.first_name + ' ' + employee.last_name"></span>
-                                <span class="text-sm text-gray-500 ml-2" x-text="employee.matricule"></span>
-                                <div class="text-xs text-gray-400" x-text="employee.department_name || 'Non assigné'"></div>
-                            </div>
-                        </label>
-                    </template>
-                </div>
-                <div class="mt-2 text-sm text-gray-500" 
-                     x-text="`${selectedEmployees.length} employé(s) sélectionné(s)`"></div>
-            </div>
-
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
-                <input type="time" x-model="bulkCheckInTime" 
-                       class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       :value="getCurrentTime()">
-            </div>
-
-            <div class="flex justify-end space-x-3">
-                <button @click="showBulkCheckIn = false; selectedEmployees = []; bulkCheckInTime = ''" 
-                        class="px-4 py-2 border rounded hover:bg-gray-50 transition">
-                    Annuler
-                </button>
-                <button @click="bulkCheckIn()" 
-                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
-                        :disabled="selectedEmployees.length === 0">
-                    <i class="fas fa-check mr-2"></i>Pointer l'arrivée
-                </button>
-            </div>
-        </div>
+  <!-- Stats -->
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
+      <div class="p-2 rounded-full bg-green-100 text-green-600"><i class="fas fa-user-check"></i></div>
+      <div class="ml-3">
+        <div class="text-sm text-gray-500">Présents</div>
+        <div class="text-2xl font-bold" x-text="attendanceStats.present"></div>
+      </div>
     </div>
-
-    <!-- Attendance Table -->
-    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div class="px-6 py-4 border-b bg-gray-50">
-            <div class="flex justify-between items-center">
-                <h4 class="text-lg font-semibold">Détail du pointage</h4>
-                <div class="text-sm text-gray-500" 
-                     x-text="`Mois: ${getMonthName(selectedMonth)} ${selectedYear}`"></div>
-            </div>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Employé
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Arrivée
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Départ
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Heures travaillées
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Heures supp.
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Statut
-                        </th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <template x-for="attendance in attendances" :key="attendance.id">
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-user text-gray-500 text-sm"></i>
-                                    </div>
-                                    <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900" 
-                                             x-text="attendance.employee_name"></div>
-                                        <div class="text-sm text-gray-500" 
-                                             x-text="attendance.employee_matricule"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
-                                x-text="formatDate(attendance.date)"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
-                                x-text="attendance.check_in || '--:--'"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
-                                x-text="attendance.check_out || '--:--'"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
-                                x-text="attendance.worked_hours ? attendance.worked_hours + 'h' : '--'"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" 
-                                x-text="attendance.overtime_hours ? attendance.overtime_hours + 'h' : '--'"></td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
-                                      :class="getStatusClass(attendance.status)"
-                                      x-text="attendance.status"></span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex justify-end space-x-2">
-                                    <button @click="editAttendance(attendance)" 
-                                            class="text-blue-600 hover:text-blue-900">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button @click="deleteAttendance(attendance.id)" 
-                                            class="text-red-600 hover:text-red-900">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Empty State -->
-        <div x-show="attendances.length === 0" class="text-center py-12">
-            <i class="fas fa-clock text-gray-300 text-6xl mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Aucun pointage</h3>
-            <p class="text-gray-500 mb-4">Aucun pointage trouvé pour la période sélectionnée.</p>
-            <button @click="loadAttendances()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
-                <i class="fas fa-sync-alt mr-2"></i>Actualiser
-            </button>
-        </div>
-
-        <!-- Loading State -->
-        <div x-show="loading" class="text-center py-8">
-            <div class="inline-flex items-center">
-                <i class="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
-                <span class="text-gray-600">Chargement des pointages...</span>
-            </div>
-        </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
+      <div class="p-2 rounded-full bg-red-100 text-red-600"><i class="fas fa-user-times"></i></div>
+      <div class="ml-3">
+        <div class="text-sm text-gray-500">Absents</div>
+        <div class="text-2xl font-bold" x-text="attendanceStats.absent"></div>
+      </div>
     </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
+      <div class="p-2 rounded-full bg-yellow-100 text-yellow-600"><i class="fas fa-clock"></i></div>
+      <div class="ml-3">
+        <div class="text-sm text-gray-500">Retards</div>
+        <div class="text-2xl font-bold" x-text="attendanceStats.late"></div>
+      </div>
+    </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
+      <div class="p-2 rounded-full bg-blue-100 text-blue-600"><i class="fas fa-business-time"></i></div>
+      <div class="ml-3">
+        <div class="text-sm text-gray-500">Heures supp.</div>
+        <div class="text-2xl font-bold" x-text="attendanceStats.overtime"></div>
+      </div>
+    </div>
+  </div>
 
-    <!-- Edit Attendance Modal -->
-    <div x-show="showEditModal" x-cloak 
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 w-full max-w-md">
-            <h4 class="text-xl font-semibold mb-4">Modifier le pointage</h4>
-            
-            <form @submit.prevent="updateAttendance(editingAttendance)">
-                <div class="space-y-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                        <p class="text-sm text-gray-900" x-text="editingAttendance.employee_name"></p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <p class="text-sm text-gray-900" x-text="formatDate(editingAttendance.date)"></p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
-                        <input type="time" x-model="editingAttendance.check_in" 
-                               class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Heure de départ</label>
-                        <input type="time" x-model="editingAttendance.check_out" 
-                               class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                        <select x-model="editingAttendance.status" 
-                                class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="PRESENT">Présent</option>
-                            <option value="ABSENT">Absent</option>
-                            <option value="LATE">En retard</option>
-                            <option value="HALF_DAY">Demi-journée</option>
-                            <option value="LEAVE">Congé</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                        <textarea x-model="editingAttendance.notes" rows="3"
-                                  class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="Notes optionnelles..."></textarea>
-                    </div>
-                </div>
+  <!-- Légende -->
+  <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>Présent</span>
+    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>Absent</span>
+    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-500"></span>Retard</span>
+    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span>Demi-journée</span>
+    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-purple-500"></span>Congé</span>
+    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gray-300"></span>Aucun pointage</span>
+    <span class="inline-flex items-center gap-2 ml-auto">
+      <span class="px-2 py-0.5 rounded bg-gray-100 border">WE</span> Week-end
+    </span>
+  </div>
 
-                <div class="flex justify-end space-x-3">
-                    <button type="button" @click="showEditModal = false" 
-                            class="px-4 py-2 border rounded hover:bg-gray-50 transition">
-                        Annuler
+  <!-- Calendrier -->
+  <div class="bg-white rounded-2xl shadow-sm border overflow-auto">
+    <table class="min-w-full">
+      <thead class="bg-gray-50 sticky top-0 z-10">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Employé</th>
+          <template x-for="d in calendarDays" :key="d.date">
+            <th class="px-2 py-3 text-center text-xs font-semibold text-gray-500 uppercase"
+                :class="{'bg-slate-50': d.isWeekend }">
+              <div x-text="d.day"></div>
+              <div class="text-gray-400" x-text="d.label"></div>
+            </th>
+          </template>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- skeleton -->
+        <template x-if="loading">
+          <template x-for="i in 6" :key="'sk'+i">
+            <tr class="border-t">
+              <td class="px-4 py-3"><div class="h-4 w-48 skeleton rounded"></div></td>
+              <template x-for="d in calendarDays" :key="'skd'+d.date">
+                <td class="px-2 py-2"><div class="h-6 w-10 mx-auto skeleton rounded"></div></td>
+              </template>
+            </tr>
+          </template>
+        </template>
+
+        <!-- rows -->
+        <template x-for="emp in filteredEmployees" :key="emp.id">
+          <tr class="border-t hover:bg-gray-50">
+            <!-- col employé -->
+            <td class="px-4 py-3 sticky left-0 bg-white">
+              <div class="text-sm font-semibold" x-text="`${emp.first_name} ${emp.last_name}`"></div>
+              <div class="text-xs text-gray-500" x-text="emp.matricule"></div>
+              <div class="text-xs text-gray-400" x-text="emp.department_name || emp.department?.name || ''"></div>
+            </td>
+
+            <!-- cells jour -->
+            <template x-for="d in calendarDays" :key="emp.id + '-' + d.date">
+              <td class="px-2 py-2 text-center"
+                  :class="{'bg-slate-50': d.isWeekend, 'ring-1 ring-blue-300': d.isToday}">
+                <template x-if="attCell(emp.id, d.date)">
+                  <div class="inline-flex flex-col items-center gap-0.5">
+                    <button @click="openCellEditor(emp.id, d.date)"
+                            class="text-[11px] px-1 py-0.5 rounded border hover:bg-gray-50">
+                      <span x-text="attCell(emp.id, d.date).check_in || '—'"></span> /
+                      <span x-text="attCell(emp.id, d.date).check_out || '—'"></span>
                     </button>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
-                        Enregistrer
+                    <span class="w-3 h-3 rounded-full mt-0.5"
+                          :class="statusDot(attCell(emp.id, d.date).status)"></span>
+                  </div>
+                </template>
+                <template x-if="!attCell(emp.id, d.date) && !d.isWeekend">
+                  <button @click="openCellEditor(emp.id, d.date)"
+                          class="w-6 h-6 rounded bg-gray-200 hover:bg-gray-300 inline-flex items-center justify-center text-[10px]">+</button>
+                </template>
+
+                <!-- Popover éditeur -->
+                <div x-show="isEditorOpen(emp.id, d.date)" x-cloak
+                     class="absolute z-20 mt-2 p-3 bg-white border rounded-xl shadow-lg text-left"
+                     :style="popoverPos($event)">
+                  <div class="text-sm font-semibold mb-2" x-text="formatDate(d.date)"></div>
+
+                  <div class="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <label class="text-xs text-gray-600">Entrée</label>
+                      <input type="time" x-model="editor.form.check_in"
+                             class="w-full border rounded px-2 py-1 text-sm">
+                    </div>
+                    <div>
+                      <label class="text-xs text-gray-600">Sortie</label>
+                      <input type="time" x-model="editor.form.check_out"
+                             class="w-full border rounded px-2 py-1 text-sm">
+                    </div>
+                  </div>
+
+                  <label class="text-xs text-gray-600">Statut</label>
+                  <select x-model="editor.form.status" class="w-full border rounded px-2 py-1 text-sm mb-2">
+                    <option value="PRESENT">PRESENT</option>
+                    <option value="LATE">LATE</option>
+                    <option value="ABSENT">ABSENT</option>
+                    <option value="HALF_DAY">HALF_DAY</option>
+                    <option value="LEAVE">LEAVE</option>
+                  </select>
+
+                  <div class="flex items-center justify-end gap-2">
+                    <button @click="closeEditor()" class="px-2 py-1 rounded border text-sm">Annuler</button>
+                    <button @click="saveCell()" class="px-2 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+                      Enregistrer
                     </button>
+                  </div>
                 </div>
-            </form>
+              </td>
+            </template>
+          </tr>
+        </template>
+
+        <!-- empty -->
+        <tr x-show="!loading && !filteredEmployees.length">
+          <td colspan="40" class="py-12 text-center text-gray-500">Aucun employé à afficher pour ces filtres.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Modal Bulk -->
+  <div x-show="showBulkCheckIn" x-cloak class="fixed inset-0 bg-black/50 z-30 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="text-lg font-semibold">Pointage collectif</h4>
+        <button @click="showBulkCheckIn=false" class="p-2 rounded hover:bg-gray-100"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto border rounded p-2">
+        <template x-for="e in filteredEmployees" :key="'bulk'+e.id">
+          <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50">
+            <input type="checkbox" class="rounded" :value="e.id" x-model="selectedEmployees">
+            <span class="text-sm" x-text="`${e.first_name} ${e.last_name}`"></span>
+            <span class="text-xs text-gray-500 ml-auto" x-text="e.matricule"></span>
+          </label>
+        </template>
+      </div>
+      <div class="flex items-center gap-3 mt-4">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-700">Heure</label>
+          <input type="time" x-model="bulkTime" class="border rounded px-2 py-1">
         </div>
+        <button @click="bulkCheckIn" class="ml-auto px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">
+          Pointer l’arrivée
+        </button>
+      </div>
     </div>
+  </div>
 </div>
 
 <script>
-    function attendanceView() {
-        return {
-            // State
-            showBulkCheckIn: false,
-            showEditModal: false,
-            loading: false,
-            selectedMonth: new Date().getMonth() + 1,
-            selectedYear: new Date().getFullYear(),
-            selectedDepartment: '',
-            selectedEmployees: [],
-            bulkCheckInTime: '',
-            attendances: [],
-            departments: [],
-            editingAttendance: {},
+function attendanceView(){
+  return {
+    // période
+    selectedMonth: new Date().getMonth()+1,
+    selectedYear: new Date().getFullYear(),
+    months: [
+      { value:1, label:'Janvier' },{ value:2, label:'Février' },{ value:3, label:'Mars' },
+      { value:4, label:'Avril' },{ value:5, label:'Mai' },{ value:6, label:'Juin' },
+      { value:7, label:'Juillet' },{ value:8, label:'Août' },{ value:9, label:'Septembre' },
+      { value:10, label:'Octobre' },{ value:11, label:'Novembre' },{ value:12, label:'Décembre' }
+    ],
+    years: [2023, 2024, 2025, 2026],
 
-            // Data
-            months: [
-                { value: 1, label: 'Janvier' },
-                { value: 2, label: 'Février' },
-                { value: 3, label: 'Mars' },
-                { value: 4, label: 'Avril' },
-                { value: 5, label: 'Mai' },
-                { value: 6, label: 'Juin' },
-                { value: 7, label: 'Juillet' },
-                { value: 8, label: 'Août' },
-                { value: 9, label: 'Septembre' },
-                { value: 10, label: 'Octobre' },
-                { value: 11, label: 'Novembre' },
-                { value: 12, label: 'Décembre' }
-            ],
-            years: [2023, 2024, 2025],
+    // data
+    loading: false,
+    calendarDays: [],
+    attendances: [],
+    attendanceStats: { present:0, absent:0, late:0, overtime:'0.0' },
 
-            // Computed
-            get activeEmployees() {
-                return this.employees.filter(emp => emp.is_active);
-            },
+    // référentiels/shared depuis l’app principale
+    employees: [],        // injectée si hrApp la fournit globalement
+    departments: [],
+    filteredEmployees: [],
+    filterDept: '',
+    filterActive: '',
+    search: '',
 
-            get attendanceStats() {
-                const present = this.attendances.filter(a => a.status === 'PRESENT').length;
-                const absent = this.attendances.filter(a => a.status === 'ABSENT').length;
-                const late = this.attendances.filter(a => a.status === 'LATE').length;
-                const overtime = this.attendances.reduce((sum, a) => sum + (parseFloat(a.overtime_hours) || 0), 0);
+    // bulk
+    showBulkCheckIn:false,
+    selectedEmployees: [],
+    bulkTime: new Date().toTimeString().slice(0,5),
 
-                return {
-                    present,
-                    absent,
-                    late,
-                    overtime: overtime.toFixed(1)
-                };
-            },
+    // editor popover
+    editor: { open:false, empId:null, date:null, form:{ check_in:'', check_out:'', status:'PRESENT' } },
 
-            // Methods
-            getCurrentTime() {
-                const now = new Date();
-                return now.toTimeString().split(' ')[0].substring(0, 5);
-            },
+    // helpers
+    formatDate(d){ return new Date(d).toLocaleDateString('fr-FR'); },
+    statusDot(s){
+      return {
+        'PRESENT':'bg-green-500',
+        'ABSENT':'bg-red-500',
+        'LATE':'bg-yellow-500',
+        'HALF_DAY':'bg-blue-500',
+        'LEAVE':'bg-purple-500'
+      }[s] || 'bg-gray-300';
+    },
 
-            getMonthName(month) {
-                const monthObj = this.months.find(m => m.value === month);
-                return monthObj ? monthObj.label : '';
-            },
+    // positions du popover (simple auto à côté du bouton cliqué)
+    popoverPos(ev){ return 'transform:translateX(-50%);'; },
 
-            getStatusClass(status) {
-                const classes = {
-                    'PRESENT': 'bg-green-100 text-green-800',
-                    'ABSENT': 'bg-red-100 text-red-800',
-                    'LATE': 'bg-yellow-100 text-yellow-800',
-                    'HALF_DAY': 'bg-blue-100 text-blue-800',
-                    'LEAVE': 'bg-purple-100 text-purple-800'
-                };
-                return classes[status] || 'bg-gray-100 text-gray-800';
-            },
+    // construit les jours du mois
+    buildDays(){
+      const out=[]; const d=new Date(this.selectedYear, this.selectedMonth-1, 1);
+      const todayISO = new Date().toISOString().slice(0,10);
+      while(d.getMonth()===this.selectedMonth-1){
+        const iso = d.toISOString().slice(0,10);
+        out.push({
+          date: iso,
+          day: String(d.getDate()).padStart(2,'0'),
+          label: ['Di','Lu','Ma','Me','Je','Ve','Sa'][d.getDay()],
+          isWeekend: d.getDay()===0||d.getDay()===6,
+          isToday: iso===todayISO
+        });
+        d.setDate(d.getDate()+1);
+      }
+      this.calendarDays = out;
+    },
 
-            async loadAttendances() {
-                this.loading = true;
-                try {
-                    let url = `/attendances/?month=${this.selectedMonth}&year=${this.selectedYear}`;
-                    if (this.selectedDepartment) {
-                        url += `&department=${this.selectedDepartment}`;
-                    }
+    // map attendance par (employee, date)
+    attCell(empId, isoDate){
+      return this.attendances.find(a => a.employee===empId && a.date===isoDate) || null;
+    },
 
-                    const data = await this.apiCall(url);
-                    this.attendances = data.results || data;
-                } catch (error) {
-                    console.error('Failed to load attendances:', error);
-                    this.showToast('Erreur lors du chargement des pointages', 'error');
-                } finally {
-                    this.loading = false;
-                }
-            },
+    // ouverture éditeur
+    openCellEditor(empId, isoDate){
+      const existing = this.attCell(empId, isoDate);
+      this.editor.open = true;
+      this.editor.empId = empId;
+      this.editor.date = isoDate;
+      this.editor.form = {
+        check_in: existing?.check_in || '',
+        check_out: existing?.check_out || '',
+        status: existing?.status || 'PRESENT'
+      };
+    },
+    closeEditor(){ this.editor = { open:false, empId:null, date:null, form:{check_in:'',check_out:'',status:'PRESENT'} }; },
+    isEditorOpen(empId, isoDate){ return this.editor.open && this.editor.empId===empId && this.editor.date===isoDate; },
 
-            async loadDepartments() {
-                try {
-                    const data = await this.apiCall('/departments/');
-                    this.departments = data.results || data;
-                } catch (error) {
-                    console.error('Failed to load departments:', error);
-                }
-            },
-
-            async bulkCheckIn() {
-                if (this.selectedEmployees.length === 0) {
-                    this.showToast('Veuillez sélectionner au moins un employé', 'error');
-                    return;
-                }
-
-                try {
-                    await this.apiCall('/attendances/bulk_check_in/', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            employee_ids: this.selectedEmployees,
-                            time: this.bulkCheckInTime || this.getCurrentTime()
-                        })
-                    });
-
-                    this.showToast('Pointage collectif effectué avec succès', 'success');
-                    this.showBulkCheckIn = false;
-                    this.selectedEmployees = [];
-                    this.bulkCheckInTime = '';
-                    this.loadAttendances();
-                } catch (error) {
-                    this.showToast('Erreur lors du pointage collectif', 'error');
-                }
-            },
-
-            editAttendance(attendance) {
-                this.editingAttendance = { ...attendance };
-                this.showEditModal = true;
-            },
-
-            async updateAttendance(attendanceData) {
-                try {
-                    await this.apiCall(`/attendances/${attendanceData.id}/`, {
-                        method: 'PUT',
-                        body: JSON.stringify(attendanceData)
-                    });
-
-                    this.showToast('Pointage mis à jour avec succès', 'success');
-                    this.showEditModal = false;
-                    this.loadAttendances();
-                } catch (error) {
-                    this.showToast('Erreur lors de la mise à jour', 'error');
-                }
-            },
-
-            async deleteAttendance(attendanceId) {
-                if (!confirm('Êtes-vous sûr de vouloir supprimer ce pointage ?')) {
-                    return;
-                }
-
-                try {
-                    await this.apiCall(`/attendances/${attendanceId}/`, {
-                        method: 'DELETE'
-                    });
-
-                    this.showToast('Pointage supprimé avec succès', 'success');
-                    this.loadAttendances();
-                } catch (error) {
-                    this.showToast('Erreur lors de la suppression', 'error');
-                }
-            },
-
-            async exportAttendanceReport() {
-                try {
-                    // Simple export implementation - you might want to implement a proper export endpoint
-                    const csvContent = this.generateCSV();
-                    const blob = new Blob([csvContent], { type: 'text/csv' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `pointage_${this.selectedMonth}_${this.selectedYear}.csv`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                    
-                    this.showToast('Rapport exporté avec succès', 'success');
-                } catch (error) {
-                    this.showToast('Erreur lors de l\'export', 'error');
-                }
-            },
-
-            generateCSV() {
-                const headers = ['Employé', 'Matricule', 'Date', 'Arrivée', 'Départ', 'Heures travaillées', 'Heures supp.', 'Statut'];
-                const rows = this.attendances.map(att => [
-                    att.employee_name,
-                    att.employee_matricule,
-                    formatDate(att.date),
-                    att.check_in || '',
-                    att.check_out || '',
-                    att.worked_hours || '',
-                    att.overtime_hours || '',
-                    att.status
-                ]);
-
-                return [headers, ...rows].map(row => row.join(',')).join('\n');
-            },
-
-            // Initialization
-            init() {
-                this.loadAttendances();
-                this.loadDepartments();
-                this.bulkCheckInTime = this.getCurrentTime();
-            }
+    // save (POST create si inexistant, sinon PATCH)
+    async saveCell(){
+      try{
+        // cherche l’enregistrement
+        const existing = this.attCell(this.editor.empId, this.editor.date);
+        const payload = {
+          employee: this.editor.empId,
+          date: this.editor.date,
+          ...this.editor.form
         };
-    }
+        if (existing){
+          await this.apiCall(`/attendances/${existing.id}/`, { method:'PATCH', body: JSON.stringify(payload) });
+        } else {
+          await this.apiCall(`/attendances/`, { method:'POST', body: JSON.stringify(payload) });
+        }
+        await this.loadAttendances();
+        this.closeEditor();
+      }catch(e){ this.toast('Enregistrement impossible','error'); }
+    },
 
-    // Utility functions
-    function formatDate(dateString) {
-        if (!dateString) return '';
-        return new Date(dateString).toLocaleDateString('fr-FR');
-    }
+    // export CSV côté client
+    exportCSV(){
+      const cols = ['matricule','nom','prenom','date','check_in','check_out','status'];
+      const rows = [];
+      for(const a of this.attendances){
+        const emp = this.employees.find(e=>e.id===a.employee);
+        rows.push([
+          emp?.matricule||'',
+          (emp?.last_name||'').replaceAll(';',','),
+          (emp?.first_name||'').replaceAll(';',','),
+          a.date,
+          a.check_in||'',
+          a.check_out||'',
+          a.status||''
+        ]);
+      }
+      const csv = [cols.join(';'), ...rows.map(r=>r.join(';'))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `attendance_${this.selectedYear}-${String(this.selectedMonth).padStart(2,'0')}.csv`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      this.toast('Export CSV généré','success');
+    },
 
-    // Register with Alpine
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('attendanceView', attendanceView);
-    });
+    // API helper (même style que le reste de l’app)
+    async apiCall(path, options={}){
+      const headers = { 'X-Tenant-Id': Conf.tenantId, 'Content-Type':'application/json' };
+      if (Conf.token) headers['Authorization'] = `Bearer ${Conf.token}`;
+      const res = await fetch(`${Conf.apiBase}${path.startsWith('/')?'':'/'}${path}`, { ...options, headers });
+      if(!res.ok){
+        let detail=''; try{ const j=await res.json(); detail=j.detail||j.error||''; }catch{}
+        throw new Error(`${res.status} ${res.statusText}${detail?' - '+detail:''}`);
+      }
+      return res.status===204 ? null : res.json();
+    },
+
+    // chargements
+    async loadRefs(){
+      try{ const d=await this.apiCall('/departments/'); this.departments=d.results||d; }catch{}
+      // si la liste d’employés n’est pas fournie par la vue globale, on la charge
+      if (!this.employees?.length){
+        try{
+          const e=await this.apiCall('/employees/?page_size=1000&ordering=last_name');
+          this.employees = e.results || e;
+        }catch{}
+      }
+      this.applyFilters();
+    },
+
+    async loadAttendances(){
+      this.loading = true;
+      try{
+        const data = await this.apiCall(`/attendances/?month=${this.selectedMonth}&year=${this.selectedYear}`);
+        this.attendances = data.results || data;
+        this.computeStats();
+      }catch(e){ this.toast('Chargement du pointage impossible','error'); }
+      finally{ this.loading=false; }
+    },
+
+    computeStats(){
+      const p = this.attendances.filter(a=>a.status==='PRESENT').length;
+      const a = this.attendances.filter(a=>a.status==='ABSENT').length;
+      const l = this.attendances.filter(a=>a.status==='LATE').length;
+      const ot = (this.attendances || []).reduce((s,x)=>s+(x.overtime_hours||0),0);
+      this.attendanceStats = { present:p, absent:a, late:l, overtime: ot.toFixed(1) };
+    },
+
+    // filtres employés
+    applyFilters(){
+      const s = (this.search||'').toLowerCase().trim();
+      this.filteredEmployees = (this.employees||[]).filter(e=>{
+        const okDept = this.filterDept ? (e.department===this.filterDept || e.department_id===this.filterDept) : true;
+        const okAct = this.filterActive==='' ? true : (String(!!e.is_active)===this.filterActive);
+        const okText = !s || [e.first_name,e.last_name,e.matricule].filter(Boolean).join(' ').toLowerCase().includes(s);
+        return okDept && okAct && okText;
+      });
+    },
+
+    // bulk check-in
+    async bulkCheckIn(){
+      if(!this.selectedEmployees.length){ this.toast('Sélectionnez au moins un employé','warning'); return; }
+      try{
+        await this.apiCall('/attendances/bulk_check_in/', {
+          method:'POST',
+          body: JSON.stringify({ employee_ids: this.selectedEmployees, time: this.bulkTime })
+        });
+        this.toast('Pointage collectif effectué','success');
+        this.showBulkCheckIn=false; this.selectedEmployees=[];
+        this.loadAttendances();
+      }catch{ this.toast('Erreur pointage collectif','error'); }
+    },
+
+    // navigation période
+    reload(){ this.buildDays(); this.loadAttendances(); },
+    prevMonth(){ if(this.selectedMonth===1){ this.selectedMonth=12; this.selectedYear--; } else this.selectedMonth--; this.reload(); },
+    nextMonth(){ if(this.selectedMonth===12){ this.selectedMonth=1; this.selectedYear++; } else this.selectedMonth++; this.reload(); },
+    goToday(){ const t=new Date(); this.selectedMonth=t.getMonth()+1; this.selectedYear=t.getFullYear(); this.reload(); },
+
+    // toasts (rely on app globale si dispo)
+    toast(msg,type='info'){ if(window.dispatchEvent){ window.dispatchEvent(new CustomEvent('toast',{detail:{msg,type}})); } console.log(`[${type}]`,msg); },
+
+    async init(){
+      this.buildDays();
+      await this.loadRefs();
+      await this.loadAttendances();
+    }
+  };
+}
+
+// petit style skeleton
 </script>
+<style>
+.skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:loading 1.5s infinite}
+@keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
