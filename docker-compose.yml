@@ -111,26 +111,6 @@ services:
       - redis_data:/data
     ports: ["6379:6379"]
 
-  # === Service de licences ===
-#  licensing:
-#    build: ./apps/licensing
-#    environment:
-#      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/licensing
-#      REDIS_URL: redis://redis:6379/0
-#      LICENSE_SIGNING_SECRET: change_me
-#    depends_on:
-#      - postgres
-#      - redis
-#    networks:
-#      - default
-#      - proxy
-#    labels:
-#      - "traefik.enable=true"
-#      - "traefik.http.routers.lic.rule=Host(`licensing.localhost`)"
-#      - "traefik.http.routers.lic.entrypoints=web"
-#      - "traefik.http.services.lic.loadbalancer.server.port=8000"
-#    ports: ["8010:8000"]  # optionnel si tu exposes via Traefik
-
   # === Application Django RH ===
   rh:
     build:
