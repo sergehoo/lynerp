@@ -104,10 +104,10 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # "hr.auth.KeycloakJWTAuthentication",  # on l’ajoute plus bas
+        "hr.auth.KeycloakJWTAuthentication",  # on l’ajoute plus bas
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        # "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }
 SPECTACULAR_SETTINGS = {"TITLE": "LYNE-ERP RH API", "VERSION": "1.0.0"}
@@ -120,8 +120,8 @@ if os.getenv("DB_ENGINE") == "postgres":
             "NAME": os.getenv("DB_NAME"),
             "USER": os.getenv("DB_USER"),
             "PASSWORD": os.getenv("DB_PASSWORD"),
-            "HOST": os.getenv("DB_HOST", "localhost"),
-            "PORT": os.getenv("DB_PORT", "5432"),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT"),
         }
     }
 else:
