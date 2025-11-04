@@ -10,8 +10,8 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 CSRF_TRUSTED_ORIGINS = [
     "http://www.lynerp.com",
-    "https://media.lynerp.com",
-    "http://media.lynerp.com",
+    "https://rh.lynerp.com",
+    "http://rh.lynerp.com",
     "http://lynerp.com",
     "https://lynerp.com",
 ]
