@@ -44,9 +44,9 @@ services:
     networks: [web]
     restart: unless-stopped
 
-  # === MinIO (S3) ===
+  # === MinIO (S3) — Community (AGPL) ===
   lyneminio:
-    image: quay.io/minio/aistor/minio:latest
+    image: minio/minio:latest   # ou "latest" si tu préfères
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
