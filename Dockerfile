@@ -18,7 +18,7 @@ RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 
 # Code + scripts
 COPY . /app
-RUN chmod +x /app/docker/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8000
 
