@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'storages',  # pour MinIO (S3)
     'hr',
     'tenants',
+    'redis',
 ]
 
 MIDDLEWARE = [
