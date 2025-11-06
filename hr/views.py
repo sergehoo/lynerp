@@ -6,7 +6,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 
-class HRTemplateView(TemplateView):
+class HRTemplateView(LoginRequiredMixin, TemplateView):
     """Vue de base pour les templates HR"""
 
     @method_decorator(ensure_csrf_cookie)

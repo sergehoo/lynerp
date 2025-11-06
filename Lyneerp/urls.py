@@ -11,6 +11,7 @@ from hr.api.routers import urlpatterns as hr_urls
 from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView
 from django.contrib.auth import views as auth_views
 
+from hr.views_auth import ExchangeTokenView
 from tenants.auth_views import keycloak_direct_login
 
 
@@ -40,8 +41,10 @@ urlpatterns = [
                   path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
                   path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
 
-                  # path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+                  path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
                   path("auth/keycloak/login", keycloak_direct_login, name="keycloak_direct_login"),
+                  path("auth/exchange/", ExchangeTokenView.as_view(), name="auth-exchange"),
+
                   path("api/rh/auth/whoami/", WhoAmI.as_view(), name="rh-whoami"),
 
                   path('logout/', auth_views.LogoutView.as_view(), name='logout'),
