@@ -67,7 +67,7 @@ class HasRHAccess(BasePermission):
             self.message = "Rôle insuffisant"
             return False
 
-        # 2) Licence & siège
+        # 2) Licence &siège
         try:
             if USE_REMOTE:
                 r = requests.get(f"{LIC_URL}/status", params={"tenant": tenant, "module": MODULE, "user_sub": sub},
