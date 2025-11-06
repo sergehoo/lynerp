@@ -239,7 +239,8 @@ OIDC_OP_USER_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/userinfo"
 OIDC_OP_JWKS_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/certs"
 
 OIDC_OP_TOKEN_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
-
+# Algorithme de signature attendu pour les ID tokens (Keycloak = RS256 par défaut)
+OIDC_RP_SIGN_ALGO = "RS256"
 # 1) Scopes demandés (sinon certains IdP ne renvoient pas email/username)
 OIDC_RP_SCOPES = "openid email profile"
 
