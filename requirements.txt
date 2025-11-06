@@ -62,3 +62,4 @@ zipp==3.23.0
 uvicorn
 gunicorn
 whitenoise
+mozilla_django_oidc
