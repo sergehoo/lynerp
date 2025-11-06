@@ -98,10 +98,10 @@
           <button type="button" class="py-3 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
             <i class="fab fa-microsoft text-indigo-600 mr-2"></i><span class="text-sm font-medium text-gray-700">Azure AD</span>
           </button>
-          <button type="button" class="py-3 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
-                  onclick="document.getElementById('kcLoginForm').dispatchEvent(new Event('submit'))">
-            <i class="fas fa-key text-green-600 mr-2"></i><span class="text-sm font-medium text-gray-700">Keycloak</span>
-          </button>
+         <button type="button" class="py-3 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
+        onclick="window.location.href='/oidc/authenticate/?next=' + encodeURIComponent(document.getElementById('next')?.value || '/')">
+  <i class="fas fa-key text-green-600 mr-2"></i><span class="text-sm font-medium text-gray-700">Keycloak</span>
+</button>
         </div>
       </section>
 
@@ -154,12 +154,15 @@
 
   async function establishAppSession(accessToken, tenant){
     try{
-      // Exemple: échanger le token côté backend pour créer la session Django
-      // await fetch("/auth/exchange/", {
-      //   method:"POST",
-      //   headers:{ "Content-Type":"application/json", "X-Tenant-Id": tenant },
-      //   body: JSON.stringify({ access_token: accessToken })
-      // });
+       await fetch("/auth/exchange/", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "X-Tenant-Id": tenant || "",
+          "X-CSRFToken": getCookie("csrftoken") || ""
+        },
+        body: JSON.stringify({ access_token: accessToken, remember: document.getElementById("remember_me")?.checked || false })
+      });
       return true;
     }catch{ return false; }
   }

@@ -34,7 +34,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "lyneerp.com,rh.lyneerp.com").split(",")
-
+CSRF_TRUSTED_ORIGINS = ["https://lyneerp.com", "https://*.lyneerp.com"]
 # Application definition
 
 INSTALLED_APPS = [
@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'mozilla_django_oidc',
     'rest_framework',
     'drf_spectacular',
     'storages',  # pour MinIO (S3)
@@ -108,11 +109,16 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+AUTHENTICATION_BACKENDS = [
+    "mozilla_django_oidc.auth.OIDCAuthenticationBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "hr.auth.KeycloakJWTAuthentication",  # on l’ajoute plus bas
+        "rest_framework.authentication.SessionAuthentication",
+        "hr.auth.KeycloakJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -174,9 +180,13 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'  # Redirection après connexion réussie
-LOGOUT_REDIRECT_URL = '/login/'
+LOGIN_URL = "/oidc/authenticate/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+# LOGIN_URL = '/login/'
+# LOGIN_REDIRECT_URL = '/'  # Redirection après connexion réussie
+# LOGOUT_REDIRECT_URL = '/login/'
 
 # Optionnel : nom du cookie “tenant”
 TENANT_SESSION_KEY = "current_tenant"
@@ -185,22 +195,31 @@ SESSION_COOKIE_AGE = 60 * 60 * 2  # 2h (si pas remember me)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # expir. à la fermeture (par défaut)
 
 
-KEYCLOAK_BASE_URL = os.getenv("KEYCLOAK_BASE_URL", default="https://sso.lyneerp.com"),
-KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", default="lyneerp-web")
-KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", default="")  # vide si client public
+KEYCLOAK_BASE_URL = os.getenv("KEYCLOAK_BASE_URL", "https://sso.lyneerp.com")
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
+KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")  # vide si client public
 KEYCLOAK_USE_REALM_PER_TENANT = True  # ou False si un seul realm global
 
 # Mapping tenant -> realm (exemple)
 TENANT_REALMS = {
-    "acme": "acme-realm",
+    "acme": "lyneerp",
     "demo": "lyneerp",
 }
+OIDC_SESSION_KEY = "oidc_user"
 # Optionnel
 TENANT_SUBDOMAIN_REGEX = r"^(?P<tenant>[a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$"
 DEFAULT_TENANT = None  # ou "default"
 # Où stocker les infos utilisateur dans la session
-OIDC_SESSION_KEY = "oidc_user"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
+OIDC_RP_CLIENT_SECRET = None                     # None pour client public
+OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
+OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth"
+OIDC_OP_TOKEN_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/token"
+OIDC_OP_USER_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/userinfo"
+OIDC_OP_JWKS_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/certs"

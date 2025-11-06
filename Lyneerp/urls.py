@@ -17,23 +17,23 @@ def healthz(_):
 
 
 urlpatterns = [
-    path("healthz", healthz),
-    path('admin/', admin.site.urls),
-    path('api/rh/', include((hr_urls, 'hr'))),
-    # path("api/rh/", include("hr.routers")),
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/', SpectacularSwaggerView.as_view(url_name='schema')),
+                  path("healthz", healthz),
+                  path('admin/', admin.site.urls),
+                  path('api/rh/', include((hr_urls, 'hr'))),
+                  # path("api/rh/", include("hr.routers")),
+                  path('schema/', SpectacularAPIView.as_view(), name='schema'),
+                  path('docs/', SpectacularSwaggerView.as_view(url_name='schema')),
+                  path('oidc/', include('mozilla_django_oidc.urls')),
+                  path('', HRDashboardView.as_view(), name='hr-dashboard'),
+                  path('employees/', EmployeeManagementView.as_view(), name='hr-employees'),
+                  path('recruitment/', RecruitmentView.as_view(), name='hr-recruitment'),
+                  path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
+                  path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
 
-    path('', HRDashboardView.as_view(), name='hr-dashboard'),
-    path('employees/', EmployeeManagementView.as_view(), name='hr-employees'),
-    path('recruitment/', RecruitmentView.as_view(), name='hr-recruitment'),
-    path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
-    path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
+                  path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+                  path("auth/keycloak/login", keycloak_direct_login, name="keycloak_direct_login"),
 
-    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-    path("auth/keycloak/direct-login/", keycloak_direct_login, name="kc_direct_login"),
-
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+                  path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+              ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
