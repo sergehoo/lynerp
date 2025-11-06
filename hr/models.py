@@ -183,12 +183,12 @@ class Employee(models.Model):
     )
 
     class Meta:
-        unique_together = (("tenant_id", "email"), ("tenant_id", "matricule"))
+        unique_together = (("tenant", "email"), ("tenant", "matricule"))
         db_table = 'hr_employees'
         verbose_name = 'Employé'
         verbose_name_plural = 'Employés'
         indexes = [
-            models.Index(fields=['tenant_id', 'is_active']),
+            models.Index(fields=['tenant', 'is_active']),
             models.Index(fields=['department']),
             models.Index(fields=['hire_date']),
             models.Index(fields=['contract_type']),
