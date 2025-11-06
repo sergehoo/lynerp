@@ -9,6 +9,7 @@ from django.db.models import Count
 from django.urls import reverse
 from django.utils import timezone
 
+from tenants.models import License, SeatAssignment
 from .models import (
     Department, Position, Employee, EmploymentContract, SalaryHistory, HRDocument,
     LeaveType, HolidayCalendar, Holiday, WorkScheduleTemplate, LeaveRequest,
@@ -223,6 +224,7 @@ class EmployeeAdmin(admin.ModelAdmin):
             'classes': ['collapse']
         })
     ]
+
     # inlines = [EmploymentContractInline, SalaryHistoryInline, HRDocumentInline, LeaveBalanceInline]
 
     def full_name(self, obj):
@@ -853,6 +855,20 @@ class ContractHistoryAdmin(admin.ModelAdmin):
     list_select_related = ['contract', 'performed_by']
     readonly_fields = ['performed_at']
     date_hierarchy = 'performed_at'
+
+
+@admin.register(License)
+class LicenseAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "module", "plan", "seats", "valid_until", "active")
+    list_filter = ("module", "active", "plan")
+    search_fields = ("tenant",)
+
+
+@admin.register(SeatAssignment)
+class SeatAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "module", "user_sub", "active", "activated_at")
+    list_filter = ("module", "active")
+    search_fields = ("tenant", "user_sub")
 
 
 # Application des actions aux modèles concernés

@@ -510,3 +510,20 @@ class TenantSubscription(models.Model):
     class Meta:
         db_table = "tenant_subscriptions"
         indexes = [models.Index(fields=["tenant", "service", "started_at"]), ]
+class License(models.Model):
+    tenant = models.SlugField()
+    module = models.SlugField()  # "rh"
+    plan = models.CharField(max_length=32)  # Starter/Pro/Enterprise
+    seats = models.PositiveIntegerField(default=5)
+    valid_until = models.DateField()
+    active = models.BooleanField(default=True)
+
+class SeatAssignment(models.Model):
+    tenant = models.SlugField()
+    module = models.SlugField()
+    user_sub = models.CharField(max_length=128)  # sub du JWT
+    active = models.BooleanField(default=True)
+    activated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = (("tenant", "module", "user_sub"),)

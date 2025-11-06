@@ -12,6 +12,7 @@ from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, L
 from django.contrib.auth import views as auth_views
 
 from hr.views_auth import ExchangeTokenView
+from tenants.api_license import LicenseStatusView, LicenseClaimSeatView
 from tenants.auth_views import keycloak_direct_login
 
 
@@ -44,7 +45,8 @@ urlpatterns = [
                   path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
                   path("auth/keycloak/login", keycloak_direct_login, name="keycloak_direct_login"),
                   path("auth/exchange/", ExchangeTokenView.as_view(), name="auth-exchange"),
-
+                  path("api/rh/license/status/", LicenseStatusView.as_view(), name="rh-license-status"),
+                  path("api/rh/license/claim-seat/", LicenseClaimSeatView.as_view(), name="rh-license-claim"),
                   path("api/rh/auth/whoami/", WhoAmI.as_view(), name="rh-whoami"),
 
                   path('logout/', auth_views.LogoutView.as_view(), name='logout'),
