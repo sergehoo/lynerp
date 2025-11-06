@@ -182,7 +182,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 LOGIN_URL = "/oidc/authenticate/"
 LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "auth/keycloak/login"
+LOGOUT_REDIRECT_URL = "/"
 
 # LOGIN_URL = '/login/'
 # LOGIN_REDIRECT_URL = '/'  # Redirection après connexion réussie
