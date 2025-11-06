@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from hr.storage import TenantPath
+from tenants.models import Tenant
 
 
 class Department(models.Model):
@@ -125,7 +126,7 @@ class Employee(models.Model):
     hire_date = models.DateField()
     contract_type = models.CharField(max_length=64)
     extra = models.JSONField(default=dict, blank=True)
-    tenant_id = models.CharField(max_length=64, db_index=True)
+    tenant = models.ForeignKey(Tenant, on_delete=models.SET_NULL, db_index=True)
 
     # Champs ajoutés
     position = models.ForeignKey(
