@@ -432,7 +432,7 @@
         }catch(e){
           console.error(e);
           this.authHint = true;
-          setTimeout(()=> window.location.assign('/auth/keycloak/login/?next=/'), 800);
+          setTimeout(()=> window.location.assign('/auth/keycloak/login/'), 800);
           throw e;
         }
       },
