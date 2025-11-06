@@ -18,11 +18,13 @@ def healthz(_):
     # ⚡ rapide : sans requête DB
     return JsonResponse({"status": "ok"})
 
+
 def home(request):
     if request.user.is_authenticated:
         # ta home réelle
         return redirect("/")  # ou la page que tu veux
     return redirect("/oidc/authenticate/")  # lance le flow OIDC
+
 
 urlpatterns = [
                   path("healthz", healthz),
@@ -38,7 +40,7 @@ urlpatterns = [
                   path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
                   path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
 
-                  path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+                  # path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
                   path("auth/keycloak/login", keycloak_direct_login, name="keycloak_direct_login"),
                   path("api/rh/auth/whoami/", WhoAmI.as_view(), name="rh-whoami"),
 
