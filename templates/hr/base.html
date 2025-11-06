@@ -206,7 +206,7 @@
           {% include "hr/partials/attendance.html" %}
         </div>
 
-        <!-- Blocage licence (fallback si aucune vue n’est visible) -->
+        <!-- Blocage licence -->
         <div x-show="licenseBlocker.visible" x-cloak class="max-w-xl mx-auto">
           <div class="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-gray-900 p-6 text-center shadow-sm">
             <div class="text-4xl mb-2">⛔</div>
@@ -298,7 +298,7 @@
   /* ====== Keycloak config (front) ====== */
   const KC = { issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core" };
 
-  /* ====== JWT helpers ====== */
+  /* ====== Helpers ====== */
   function base64UrlDecode(str){
     str = str.replace(/-/g,'+').replace(/_/g,'/'); const pad = str.length % 4; if(pad) str += '='.repeat(4 - pad);
     try { return atob(str); } catch { return ''; }
@@ -307,8 +307,6 @@
     if(!token) return null; const parts = token.split('.'); if(parts.length !== 3) return null;
     try { return JSON.parse(base64UrlDecode(parts[1])); } catch { return null; }
   }
-
-  /* ====== Token storage ====== */
   function getStoredAccessToken(){
     return localStorage.getItem('lyneerp_token')
         || sessionStorage.getItem('lyneerp_token')
@@ -319,8 +317,6 @@
   function getStoredRefreshToken(){
     return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
   }
-
-  /* ====== Refresh token ====== */
   async function refreshTokenIfNeeded(exp){
     const now = Math.floor(Date.now()/1000);
     if(!exp || exp - now > 30) return false;
@@ -339,8 +335,6 @@
     if(p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
     return true;
   }
-
-  /* ====== Logout ====== */
   function kcLogout(){
     const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
     ['lyneerp_token','kc_access_token','kc_refresh_token','kc_id_token'].forEach(k=>{
@@ -350,11 +344,21 @@
                 (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
     window.location.assign(url);
   }
+  function deriveTenantFromHost(host){
+    // ex: acme.rh.lyneerp.com -> acme
+    const parts = (host || location.hostname).split('.');
+    // cherche le segment juste avant "rh.lyneerp.com"
+    const idx = parts.findIndex((p,i)=> parts.slice(i).join('.') === 'rh.lyneerp.com');
+    if(idx > 0) return parts[idx-1];
+    // fallback: premier segment si 3+ segments
+    if(parts.length >= 3) return parts[0];
+    return '';
+  }
 
   /* ====== Conf persistée ====== */
   const Conf = {
     apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
-    tenantId: localStorage.getItem('lyneerp_tenant') || '',
+    tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
     token: getStoredAccessToken(),
     dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
     save(){
@@ -405,27 +409,24 @@
       /* ===== Auth end-to-end ===== */
       async ensureAuthenticated(){
         try{
-          // 1) Token présent ?
           if(!this.token){ this.token = getStoredAccessToken(); }
           const claims = parseJwt(this.token);
           if(!claims){ throw new Error('JWT invalide'); }
 
-          // 2) Refresh si proche expiration
           await refreshTokenIfNeeded(claims.exp);
           this.token = getStoredAccessToken();
 
-          // 3) Déduire tenant
-          this.tenantId = this.tenantId || claims.tenant || claims.tenant_id || claims.org || '';
+          // Déduire tenant via token ou host
+          this.tenantId = this.tenantId || claims.tenant || claims.tenant_id || deriveTenantFromHost(location.hostname) || '';
 
-          // 4) Confirmer côté backend
+          // Confirmer côté backend
           const who = await this.apiCall('/auth/whoami/');
-          this.user = who.user || {preferred_username: claims.preferred_username, username: claims.preferred_username};
-          if(!this.tenantId && who.tenant){ this.tenantId = who.tenant; }
+          this.user = who?.user || {preferred_username: claims.preferred_username, username: claims.preferred_username};
+          if(!this.tenantId && who?.tenant){ this.tenantId = who.tenant; }
 
-          // 5) Charger la licence
+          // Charger licence
           await this.fetchLicense();
 
-          // 6) Persist
           Conf.token = this.token; Conf.tenantId = this.tenantId; Conf.save();
           this.showToast('Authentifié','success');
         }catch(e){
@@ -440,19 +441,17 @@
       async fetchLicense(){
         try{
           const res = await this.apiCall('/license/status/');
-          // Attendu: {status:'active'|'expiring'|'expired'|'invalid', plan:'Starter|Pro|Enterprise', valid_until:'2025-12-31'}
-          this.license.status = res.status || 'unknown';
-          this.license.plan = res.plan || null;
-          this.license.valid_until = res.valid_until || null;
+          this.license.status = res?.status || 'unknown';
+          this.license.plan = res?.plan || null;
+          this.license.valid_until = res?.valid_until || null;
           if(this.license.status === 'expired' || this.license.status === 'invalid'){
             this.licenseBlocker.visible = true;
-            this.licenseBlocker.detail = res.detail || 'Licence RH invalide ou expirée.';
+            this.licenseBlocker.detail = res?.detail || 'Licence RH invalide ou expirée.';
           }else{
             this.licenseBlocker.visible = false;
             this.licenseBlocker.detail = '';
           }
         }catch(e){
-          // Si l’endpoint n’existe pas, on ignore silencieusement
           console.warn('license/status error', e);
         }
       },
@@ -474,7 +473,6 @@
           if(r && r.url){ window.location.assign(r.url); }
           else { window.location.assign('/billing/portal'); }
         }catch{
-          // Fallback si 404
           window.location.assign('/billing/portal');
         }
       },
@@ -494,7 +492,6 @@
           const payload = res.status===204 ? null : (isJson ? await res.json().catch(()=>null) : null);
 
           if(!res.ok){
-            // Interception fine des 403 licence
             const detail = payload?.detail || payload?.message || '';
             const code   = payload?.code || '';
             const matchLicense = /licence rh|license rh|license.*expired|licence.*expirée/i.test(detail) || /license_invalid|license_expired/i.test(code);
@@ -547,12 +544,11 @@
       /* Init */
       async init(){
         this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
-        this.tenantId=localStorage.getItem('lyneerp_tenant')||this.tenantId;
+        this.tenantId=localStorage.getItem('lyneerp_tenant')||deriveTenantFromHost(location.hostname)||this.tenantId;
         this.token=getStoredAccessToken() || this.token;
 
         await this.ensureAuthenticated();
 
-        // Charger les données uniquement si la licence est valide/expiring
         if(!this.licenseBlocker.visible){
           this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
         }
