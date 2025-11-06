@@ -23,15 +23,15 @@ from .models import (
 # === FILTRES PERSONNALISÉS ===
 class TenantFilter(admin.SimpleListFilter):
     title = 'Tenant'
-    parameter_name = 'tenant_id'
+    parameter_name = 'tenant'
 
     def lookups(self, request, model_admin):
-        tenants = set([c['tenant_id'] for c in model_admin.model.objects.values('tenant_id').distinct()])
+        tenants = set([c['tenant'] for c in model_admin.model.objects.values('tenant').distinct()])
         return [(t, t) for t in tenants]
 
     def queryset(self, request, queryset):
         if self.value():
-            return queryset.filter(tenant_id=self.value())
+            return queryset.filter(tenant=self.value())
         return queryset
 
 
@@ -129,14 +129,14 @@ class JobApplicationInline(admin.TabularInline):
 # === ADMIN CLASSES ===
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'parent', 'manager', 'employees_count', 'is_active', 'tenant_id', 'created_at']
+    list_display = ['name', 'code', 'parent', 'manager', 'employees_count', 'is_active', 'tenant', 'created_at']
     list_filter = [TenantFilter, ActiveFilter, 'created_at']
     search_fields = ['name', 'code', 'description']
     list_select_related = ['parent', 'manager']
     readonly_fields = ['employees_count', 'full_path', 'created_at', 'updated_at']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['name', 'code', 'description', 'parent', 'tenant_id']
+            'fields': ['name', 'code', 'description', 'parent', 'tenant']
         }),
         ('Gestion', {
             'fields': ['manager', 'budget', 'is_active']
@@ -161,14 +161,14 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(Position)
 class PositionAdmin(admin.ModelAdmin):
-    list_display = ['title', 'code', 'department', 'level', 'salary_range', 'is_active', 'tenant_id']
+    list_display = ['title', 'code', 'department', 'level', 'salary_range', 'is_active', 'tenant']
     list_filter = [TenantFilter, ActiveFilter, 'level', 'department']
     search_fields = ['title', 'code', 'description']
     list_select_related = ['department']
     readonly_fields = ['created_at']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['title', 'code', 'department', 'description', 'tenant_id']
+            'fields': ['title', 'code', 'department', 'description', 'tenant']
         }),
         ('Grille salariale', {
             'fields': ['salary_min', 'salary_max', 'level']
@@ -192,7 +192,7 @@ class PositionAdmin(admin.ModelAdmin):
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ['matricule', 'full_name', 'email', 'department', 'position', 'hire_date', 'is_active', 'tenant_id']
+    list_display = ['matricule', 'full_name', 'email', 'department', 'position', 'hire_date', 'is_active', 'tenant']
     list_filter = [TenantFilter, ActiveFilter, 'department', 'contract_type', 'work_schedule', 'hire_date']
     search_fields = ['first_name', 'last_name', 'email', 'matricule', 'phone']
     list_select_related = ['department', 'position', 'user_account']
@@ -220,7 +220,7 @@ class EmployeeAdmin(admin.ModelAdmin):
             'classes': ['collapse']
         }),
         ('Métadonnées', {
-            'fields': ['created_at', 'updated_at', 'tenant_id', 'extra'],
+            'fields': ['created_at', 'updated_at', 'tenant', 'extra'],
             'classes': ['collapse']
         })
     ]
@@ -243,7 +243,7 @@ class EmployeeAdmin(admin.ModelAdmin):
 class EmploymentContractAdmin(admin.ModelAdmin):
     list_display = [
         'contract_number', 'employee', 'contract_type', 'start_date', 'end_date',
-        'status', 'is_active', 'is_probation_period', 'base_salary', 'tenant_id'
+        'status', 'is_active', 'is_probation_period', 'base_salary', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'contract_type', 'start_date', 'department']
     search_fields = ['contract_number', 'employee__first_name', 'employee__last_name']
@@ -256,7 +256,7 @@ class EmploymentContractAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Informations générales', {
             'fields': [
-                'contract_number', 'employee', 'contract_type', 'department', 'position', 'tenant_id'
+                'contract_number', 'employee', 'contract_type', 'department', 'position', 'tenant'
             ]
         }),
         ('Période du contrat', {
@@ -338,7 +338,7 @@ class EmploymentContractAdmin(admin.ModelAdmin):
 
 @admin.register(SalaryHistory)
 class SalaryHistoryAdmin(admin.ModelAdmin):
-    list_display = ['employee', 'effective_date', 'gross_salary', 'reason', 'tenant_id']
+    list_display = ['employee', 'effective_date', 'gross_salary', 'reason', 'tenant']
     list_filter = [TenantFilter, 'effective_date']
     search_fields = ['employee__first_name', 'employee__last_name', 'reason']
     list_select_related = ['employee']
@@ -348,7 +348,7 @@ class SalaryHistoryAdmin(admin.ModelAdmin):
 
 @admin.register(HRDocument)
 class HRDocumentAdmin(admin.ModelAdmin):
-    list_display = ['employee', 'category', 'title', 'uploaded_at', 'tenant_id']
+    list_display = ['employee', 'category', 'title', 'uploaded_at', 'tenant']
     list_filter = [TenantFilter, 'category', 'uploaded_at']
     search_fields = ['employee__first_name', 'employee__last_name', 'title']
     list_select_related = ['employee']
@@ -357,7 +357,7 @@ class HRDocumentAdmin(admin.ModelAdmin):
 
 @admin.register(LeaveType)
 class LeaveTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'max_days', 'is_paid', 'requires_approval', 'is_active', 'tenant_id']
+    list_display = ['name', 'code', 'max_days', 'is_paid', 'requires_approval', 'is_active', 'tenant']
     list_filter = [TenantFilter, ActiveFilter, 'is_paid', 'requires_approval']
     search_fields = ['name', 'code', 'description']
     readonly_fields = ['created_at']
@@ -365,7 +365,7 @@ class LeaveTypeAdmin(admin.ModelAdmin):
 
 @admin.register(HolidayCalendar)
 class HolidayCalendarAdmin(admin.ModelAdmin):
-    list_display = ['name', 'country', 'tenant_id']
+    list_display = ['name', 'country', 'tenant']
     list_filter = [TenantFilter, 'country']
     search_fields = ['name']
     inlines = [HolidayInline]
@@ -382,7 +382,7 @@ class HolidayAdmin(admin.ModelAdmin):
 
 @admin.register(WorkScheduleTemplate)
 class WorkScheduleTemplateAdmin(admin.ModelAdmin):
-    list_display = ['name', 'tenant_id']
+    list_display = ['name', 'tenant']
     list_filter = [TenantFilter]
     search_fields = ['name']
 
@@ -391,7 +391,7 @@ class WorkScheduleTemplateAdmin(admin.ModelAdmin):
 class LeaveRequestAdmin(admin.ModelAdmin):
     list_display = [
         'employee', 'leave_type', 'start_date', 'end_date', 'number_of_days',
-        'status', 'approved_by', 'requested_at', 'tenant_id'
+        'status', 'approved_by', 'requested_at', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'leave_type', 'start_date', 'requested_at']
     search_fields = [
@@ -402,7 +402,7 @@ class LeaveRequestAdmin(admin.ModelAdmin):
     readonly_fields = ['requested_at', 'approved_at', 'number_of_days', 'is_approved', 'is_pending']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['employee', 'leave_type', 'tenant_id']
+            'fields': ['employee', 'leave_type', 'tenant']
         }),
         ('Période', {
             'fields': ['start_date', 'end_date', 'number_of_days']
@@ -450,7 +450,7 @@ class LeaveBalanceAdmin(admin.ModelAdmin):
 
 @admin.register(LeaveApprovalStep)
 class LeaveApprovalStepAdmin(admin.ModelAdmin):
-    list_display = ['leave_request', 'step', 'approver', 'status', 'decided_at', 'tenant_id']
+    list_display = ['leave_request', 'step', 'approver', 'status', 'decided_at', 'tenant']
     list_filter = [TenantFilter, 'status', 'step']
     search_fields = ['leave_request__employee__first_name', 'approver__first_name']
     list_select_related = ['leave_request', 'approver']
@@ -459,7 +459,7 @@ class LeaveApprovalStepAdmin(admin.ModelAdmin):
 
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
-    list_display = ['employee', 'date', 'check_in', 'check_out', 'worked_hours', 'status', 'tenant_id']
+    list_display = ['employee', 'date', 'check_in', 'check_out', 'worked_hours', 'status', 'tenant']
     list_filter = [TenantFilter, 'status', 'date']
     search_fields = ['employee__first_name', 'employee__last_name', 'notes']
     list_select_related = ['employee']
@@ -471,7 +471,7 @@ class AttendanceAdmin(admin.ModelAdmin):
 class PayrollAdmin(admin.ModelAdmin):
     list_display = [
         'payroll_number', 'employee', 'period_start', 'period_end', 'pay_date',
-        'gross_salary', 'net_salary', 'status', 'tenant_id'
+        'gross_salary', 'net_salary', 'status', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'period_start']
     search_fields = ['employee__first_name', 'employee__last_name', 'payroll_number']
@@ -480,7 +480,7 @@ class PayrollAdmin(admin.ModelAdmin):
     date_hierarchy = 'period_start'
     fieldsets = [
         ('Informations générales', {
-            'fields': ['payroll_number', 'employee', 'tenant_id']
+            'fields': ['payroll_number', 'employee', 'tenant']
         }),
         ('Période', {
             'fields': ['period_start', 'period_end', 'pay_date']
@@ -504,7 +504,7 @@ class PayrollAdmin(admin.ModelAdmin):
 class PerformanceReviewAdmin(admin.ModelAdmin):
     list_display = [
         'employee', 'reviewer', 'review_date', 'overall_rating',
-        'performance_level', 'status', 'tenant_id'
+        'performance_level', 'status', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'review_date']
     search_fields = ['employee__first_name', 'employee__last_name', 'reviewer__first_name']
@@ -522,7 +522,7 @@ class PerformanceReviewAdmin(admin.ModelAdmin):
 class RecruitmentAdmin(admin.ModelAdmin):
     list_display = [
         'title', 'reference', 'department', 'position', 'status',
-        'publication_date', 'applications_count', 'is_active', 'tenant_id'
+        'publication_date', 'applications_count', 'is_active', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'contract_type', 'publication_date']
     search_fields = ['title', 'reference', 'department__name', 'position__title']
@@ -531,7 +531,7 @@ class RecruitmentAdmin(admin.ModelAdmin):
     filter_horizontal = ['recruiters']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['title', 'reference', 'department', 'position', 'tenant_id']
+            'fields': ['title', 'reference', 'department', 'position', 'tenant']
         }),
         ('Description', {
             'fields': ['job_description', 'requirements']
@@ -574,7 +574,7 @@ class RecruitmentAdmin(admin.ModelAdmin):
 class JobApplicationAdmin(admin.ModelAdmin):
     list_display = [
         'full_name', 'email', 'recruitment', 'status', 'ai_score',
-        'is_ai_approved', 'applied_at', 'tenant_id'
+        'is_ai_approved', 'applied_at', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'applied_at']
     search_fields = ['first_name', 'last_name', 'email', 'recruitment__title']
@@ -585,7 +585,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
     ]
     fieldsets = [
         ('Informations candidat', {
-            'fields': ['first_name', 'last_name', 'email', 'phone', 'recruitment', 'tenant_id']
+            'fields': ['first_name', 'last_name', 'email', 'phone', 'recruitment', 'tenant']
         }),
         ('Documents', {
             'fields': ['cv', 'cover_letter', 'portfolio']
@@ -623,7 +623,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
 class AIProcessingResultAdmin(admin.ModelAdmin):
     list_display = [
         'job_application', 'status', 'overall_match_score', 'processing_time',
-        'processed_at', 'tenant_id'
+        'processed_at', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'processed_at']
     search_fields = ['job_application__first_name', 'job_application__last_name']
@@ -631,7 +631,7 @@ class AIProcessingResultAdmin(admin.ModelAdmin):
     readonly_fields = ['processed_at']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['job_application', 'status', 'tenant_id']
+            'fields': ['job_application', 'status', 'tenant']
         }),
         ('Données extraites', {
             'fields': [
@@ -661,7 +661,7 @@ class AIProcessingResultAdmin(admin.ModelAdmin):
 class InterviewAdmin(admin.ModelAdmin):
     list_display = [
         'job_application', 'interview_type', 'scheduled_date', 'status',
-        'overall_rating', 'is_past_due', 'tenant_id'
+        'overall_rating', 'is_past_due', 'tenant'
     ]
     list_filter = [TenantFilter, 'interview_type', 'status', 'scheduled_date']
     search_fields = [
@@ -673,7 +673,7 @@ class InterviewAdmin(admin.ModelAdmin):
     filter_horizontal = ['interviewers']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['job_application', 'interview_type', 'tenant_id']
+            'fields': ['job_application', 'interview_type', 'tenant']
         }),
         ('Planning', {
             'fields': ['scheduled_date', 'duration', 'location', 'meeting_link']
@@ -703,7 +703,7 @@ class InterviewAdmin(admin.ModelAdmin):
 
 @admin.register(InterviewFeedback)
 class InterviewFeedbackAdmin(admin.ModelAdmin):
-    list_display = ['interview', 'interviewer', 'rating', 'created_at', 'tenant_id']
+    list_display = ['interview', 'interviewer', 'rating', 'created_at', 'tenant']
     list_filter = [TenantFilter, 'created_at']
     search_fields = ['interview__job_application__first_name', 'interviewer__first_name']
     list_select_related = ['interview', 'interviewer']
@@ -714,7 +714,7 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
 class RecruitmentAnalyticsAdmin(admin.ModelAdmin):
     list_display = [
         'recruitment', 'total_applications', 'hires', 'conversion_rate',
-        'ai_efficiency', 'last_calculated', 'tenant_id'
+        'ai_efficiency', 'last_calculated', 'tenant'
     ]
     list_filter = [TenantFilter]
     search_fields = ['recruitment__title']
@@ -738,7 +738,7 @@ class RecruitmentAnalyticsAdmin(admin.ModelAdmin):
 class JobOfferAdmin(admin.ModelAdmin):
     list_display = [
         'job_application', 'title', 'proposed_salary', 'start_date',
-        'status', 'sent_at', 'tenant_id'
+        'status', 'sent_at', 'tenant'
     ]
     list_filter = [TenantFilter, 'status', 'contract_type', 'sent_at']
     search_fields = [
@@ -751,7 +751,7 @@ class JobOfferAdmin(admin.ModelAdmin):
 
 @admin.register(RecruitmentWorkflow)
 class RecruitmentWorkflowAdmin(admin.ModelAdmin):
-    list_display = ['name', 'is_default', 'is_active', 'tenant_id', 'created_at']
+    list_display = ['name', 'is_default', 'is_active', 'tenant', 'created_at']
     list_filter = [TenantFilter, 'is_default', 'is_active']
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at']
@@ -813,7 +813,7 @@ close_recruitments.short_description = "Clôturer les recrutements sélectionné
 # Lyneerp/hr/admin.py (ajouts)
 @admin.register(ContractType)
 class ContractTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'is_permanent', 'has_probation', 'is_active', 'tenant_id']
+    list_display = ['name', 'code', 'is_permanent', 'has_probation', 'is_active', 'tenant']
     list_filter = [TenantFilter, ActiveFilter, 'is_permanent']
     search_fields = ['name', 'code', 'description']
     readonly_fields = ['created_at', 'updated_at']
@@ -822,7 +822,7 @@ class ContractTypeAdmin(admin.ModelAdmin):
 
 @admin.register(ContractAmendment)
 class ContractAmendmentAdmin(admin.ModelAdmin):
-    list_display = ['amendment_number', 'contract', 'amendment_type', 'effective_date', 'status', 'tenant_id']
+    list_display = ['amendment_number', 'contract', 'amendment_type', 'effective_date', 'status', 'tenant']
     list_filter = [TenantFilter, 'amendment_type', 'status', 'effective_date']
     search_fields = ['amendment_number', 'contract__contract_number']
     list_select_related = ['contract']
@@ -831,7 +831,7 @@ class ContractAmendmentAdmin(admin.ModelAdmin):
 
 @admin.register(ContractTemplate)
 class ContractTemplateAdmin(admin.ModelAdmin):
-    list_display = ['name', 'contract_type', 'is_active', 'is_default', 'tenant_id']
+    list_display = ['name', 'contract_type', 'is_active', 'is_default', 'tenant']
     list_filter = [TenantFilter, ActiveFilter, 'contract_type']
     search_fields = ['name', 'contract_type__name']
     list_select_related = ['contract_type']
@@ -840,7 +840,7 @@ class ContractTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(ContractAlert)
 class ContractAlertAdmin(admin.ModelAdmin):
-    list_display = ['contract', 'alert_type', 'title', 'due_date', 'priority', 'status', 'is_overdue', 'tenant_id']
+    list_display = ['contract', 'alert_type', 'title', 'due_date', 'priority', 'status', 'is_overdue', 'tenant']
     list_filter = [TenantFilter, 'alert_type', 'priority', 'status', 'due_date']
     search_fields = ['title', 'contract__contract_number']
     list_select_related = ['contract', 'assigned_to']
@@ -849,7 +849,7 @@ class ContractAlertAdmin(admin.ModelAdmin):
 
 @admin.register(ContractHistory)
 class ContractHistoryAdmin(admin.ModelAdmin):
-    list_display = ['contract', 'action', 'performed_by', 'performed_at', 'tenant_id']
+    list_display = ['contract', 'action', 'performed_by', 'performed_at', 'tenant']
     list_filter = [TenantFilter, 'action', 'performed_at']
     search_fields = ['contract__contract_number', 'description']
     list_select_related = ['contract', 'performed_by']
