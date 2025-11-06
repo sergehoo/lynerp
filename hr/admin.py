@@ -857,18 +857,7 @@ class ContractHistoryAdmin(admin.ModelAdmin):
     date_hierarchy = 'performed_at'
 
 
-@admin.register(License)
-class LicenseAdmin(admin.ModelAdmin):
-    list_display = ("tenant", "module", "plan", "seats", "valid_until", "active")
-    list_filter = ("module", "active", "plan")
-    search_fields = ("tenant",)
 
-
-@admin.register(SeatAssignment)
-class SeatAssignmentAdmin(admin.ModelAdmin):
-    list_display = ("tenant", "module", "user_sub", "active", "activated_at")
-    list_filter = ("module", "active")
-    search_fields = ("tenant", "user_sub")
 
 
 # Application des actions aux modèles concernés

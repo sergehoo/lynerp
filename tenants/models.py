@@ -510,20 +510,93 @@ class TenantSubscription(models.Model):
     class Meta:
         db_table = "tenant_subscriptions"
         indexes = [models.Index(fields=["tenant", "service", "started_at"]), ]
+
+
 class License(models.Model):
-    tenant = models.SlugField()
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Ajout d'un ID
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="licenses"
+    )
     module = models.SlugField()  # "rh"
     plan = models.CharField(max_length=32)  # Starter/Pro/Enterprise
     seats = models.PositiveIntegerField(default=5)
     valid_until = models.DateField()
     active = models.BooleanField(default=True)
 
-class SeatAssignment(models.Model):
-    tenant = models.SlugField()
-    module = models.SlugField()
-    user_sub = models.CharField(max_length=128)  # sub du JWT
-    active = models.BooleanField(default=True)
-    activated_at = models.DateTimeField(default=timezone.now)
+    # Ajout des champs manquants pour la cohérence
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'licenses'
+        verbose_name = 'Licence'
+        verbose_name_plural = 'Licences'
+        unique_together = ['tenant', 'module']  # Un seul type de licence par module et tenant
+        indexes = [
+            models.Index(fields=['tenant', 'module']),
+            models.Index(fields=['active']),
+            models.Index(fields=['valid_until']),
+        ]
+
+    def __str__(self):
+        return f"{self.tenant.name} - {self.module} ({self.plan})"
+
+    @property
+    def is_valid(self):
+        """Vérifie si la licence est active et non expirée"""
+        return self.active and self.valid_until >= timezone.now().date()
+
+    @property
+    def available_seats(self):
+        """Nombre de sièges disponibles"""
+        assigned_count = self.seat_assignments.filter(active=True).count()
+        return max(0, self.seats - assigned_count)
+
+    @property
+    def is_fully_utilized(self):
+        """Vérifie si tous les sièges sont occupés"""
+        return self.available_seats <= 0
+
+
+class SeatAssignment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Ajout d'un ID
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="seat_assignments"  # Correction du related_name
+    )
+    license = models.ForeignKey(  # Lien vers la licence
+        License,
+        on_delete=models.CASCADE,
+        related_name="seat_assignments",
+        null=True,
+        blank=True
+    )
+    module = models.SlugField()
+    user_sub = models.CharField(max_length=128)  # sub du JWT
+    user_email = models.EmailField()  # Ajout de l'email pour référence
+    active = models.BooleanField(default=True)
+    activated_at = models.DateTimeField(default=timezone.now)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'seat_assignments'
+        verbose_name = 'Attribution de siège'
+        verbose_name_plural = 'Attributions de sièges'
         unique_together = (("tenant", "module", "user_sub"),)
+        indexes = [
+            models.Index(fields=['tenant', 'module']),
+            models.Index(fields=['user_sub']),
+            models.Index(fields=['active']),
+        ]
+
+    def __str__(self):
+        return f"{self.user_email} - {self.module} ({'Actif' if self.active else 'Inactif'})"
+
+    def deactivate(self):
+        """Désactive l'attribution de siège"""
+        self.active = False
+        self.deactivated_at = timezone.now()
+        self.save()
