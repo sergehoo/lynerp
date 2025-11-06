@@ -128,7 +128,7 @@ class Employee(models.Model):
     extra = models.JSONField(default=dict, blank=True)
     tenant = models.ForeignKey(
         Tenant,
-        on_delete=models.PROTECT,  # tenant requis
+        on_delete=models.PROTECT,db_column='tenant_id',  # tenant requis
         db_index=True,
     )
 
