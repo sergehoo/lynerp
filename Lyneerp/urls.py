@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from hr.api.routers import urlpatterns as hr_urls
@@ -15,6 +16,11 @@ def healthz(_):
     # ⚡ rapide : sans requête DB
     return JsonResponse({"status": "ok"})
 
+def home(request):
+    if request.user.is_authenticated:
+        # ta home réelle
+        return redirect("/")  # ou la page que tu veux
+    return redirect("/oidc/authenticate/")  # lance le flow OIDC
 
 urlpatterns = [
                   path("healthz", healthz),
