@@ -2,18 +2,18 @@
 <!DOCTYPE html>
 <html lang="fr" class="h-full" x-data="hrApp()" :class="{'dark': dark}">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>LyneERP - Plateforme RH Intelligente</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>LyneERP • RH</title>
 
   <!-- Alpine.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Fonts & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
   <script>
@@ -30,7 +30,6 @@
       }
     }
   </script>
-
   <style>
     [x-cloak]{display:none}
     .glass{backdrop-filter: blur(10px); background: rgba(255,255,255,.7)}
@@ -49,13 +48,16 @@
   </style>
 </head>
 
-<body class="h-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100" @keydown.window.prevent.cmd.k="openCmd=true" @keydown.window.prevent.ctrl.k="openCmd=true" @keydown.window.prevent.cmd.j="toggleDark()" @keydown.window.prevent.ctrl.j="toggleDark()">
-<div class="h-screen w-screen flex overflow-hidden">
+<body class="h-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100"
+      @keydown.window.prevent.cmd.k="openCmd=true"
+      @keydown.window.prevent.ctrl.k="openCmd=true"
+      @keydown.window.prevent.cmd.j="toggleDark()"
+      @keydown.window.prevent.ctrl.j="toggleDark()">
 
+<div class="h-screen w-screen flex overflow-hidden">
   <!-- Sidebar -->
   <aside class="flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 glass transition-all duration-300"
          :class="sidebarCollapsed ? 'w-18' : 'w-72'">
-    <!-- Brand & toggle -->
     <div class="h-16 flex items-center justify-between px-3">
       <div class="flex items-center gap-3">
         <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white grid place-content-center shadow-card">
@@ -71,7 +73,6 @@
       </button>
     </div>
 
-    <!-- Nav -->
     <nav class="flex-1 overflow-auto scroll-slim px-2 py-2">
       <template x-for="item in navigation" :key="item.id">
         <div class="tooltip">
@@ -90,7 +91,6 @@
       </template>
     </nav>
 
-    <!-- Footer -->
     <div class="p-2 border-t border-gray-200 dark:border-gray-800">
       <div class="flex items-center justify-between text-xs">
         <div class="flex items-center gap-2">
@@ -118,27 +118,28 @@
             <p class="text-xs text-gray-500 dark:text-gray-400" x-text="viewDesc"></p>
           </div>
           <div class="flex items-center gap-3">
-  <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
-    <i class="fa-solid fa-building"></i><span x-text="tenantId || '-'"></span>
-  </div>
-  <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
-    <i class="fa-solid fa-user"></i><span x-text="user?.username || user?.preferred_username || 'Utilisateur'"></span>
-  </div>
-  <button @click="toggleDark()" class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i></button>
-  <button @click="logout()" class="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm">
-    <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
-  </button>
-</div>
+            <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+              <i class="fa-solid fa-building"></i><span x-text="tenantId || '-'"></span>
+            </div>
+            <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+              <i class="fa-solid fa-user"></i><span x-text="user?.username || user?.preferred_username || 'Utilisateur'"></span>
+            </div>
+            <button @click="toggleDark()" class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i></button>
+            <button @click="openCmd=true" class="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+              <i class="fa-solid fa-magnifying-glass"></i><span class="text-sm">Commande</span><span class="kbd">⌘K</span>
+            </button>
+            <button @click="logout()" class="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm">
+              <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Auth hint / 401-403 -->
+      <!-- Auth hint -->
       <div x-show="authHint" x-cloak class="border-t border-amber-200/40 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-sm flex items-center gap-2">
           <i class="fa-solid fa-triangle-exclamation"></i>
-          <div>
-            Accès interdit ou non authentifié. Vérifie le <b>Tenant</b> et colle un <b>token JWT</b> valide dans la configuration (icône engrenage).
-          </div>
+          <div>Accès non authentifié/autorisé. Redirection vers la page de connexion…</div>
         </div>
       </div>
     </header>
@@ -146,7 +147,6 @@
     <!-- Content -->
     <main class="flex-1 overflow-auto scroll-slim">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-
         <!-- Global overlay loader -->
         <div x-show="loading" x-cloak class="fixed inset-0 z-30 bg-black/20 grid place-content-center">
           <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4 shadow-2xl flex items-center gap-3">
@@ -155,7 +155,7 @@
           </div>
         </div>
 
-        <!-- Skeleton header KPIs (visible si currentView=dashboard et data vide) -->
+        <!-- Skeleton header KPIs -->
         <div x-show="currentView==='dashboard' && !Object.keys(dashboardStats).length && !authHint" x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <template x-for="i in 4" :key="i">
             <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-800">
@@ -168,11 +168,10 @@
         <!-- Views -->
         <div x-show="currentView === 'dashboard' && !authHint" x-cloak>
           {% include "hr/partials/dashboard.html" %}
-          <!-- Empty state example -->
           <div x-show="!Object.keys(dashboardStats).length" class="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center">
             <div class="text-3xl mb-2">🧭</div>
             <p class="font-medium">Aucune donnée à afficher pour le moment.</p>
-            <p class="text-sm text-gray-500">Ajoute des employés, crée des campagnes de recrutement, puis reviens ici.</p>
+            <p class="text-sm text-gray-500">Ajoutez des employés, créez des campagnes de recrutement, puis revenez ici.</p>
           </div>
         </div>
 
@@ -191,7 +190,6 @@
         <div x-show="currentView === 'attendance' && !authHint" x-cloak>
           {% include "hr/partials/attendance.html" %}
         </div>
-
       </div>
     </main>
   </section>
@@ -233,7 +231,7 @@
       <div>
         <label class="text-sm text-gray-500">API Base</label>
         <input type="text" x-model="apiBase" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
-        <p class="text-xs text-gray-500 mt-1">Ex: /api/rh ou http://localhost:8000/api/rh</p>
+        <p class="text-xs text-gray-500 mt-1">Ex: /api/rh ou https://rh.lyneerp.com/api/rh</p>
       </div>
       <div>
         <label class="text-sm text-gray-500">Tenant ID</label>
@@ -242,7 +240,7 @@
       <div>
         <label class="text-sm text-gray-500">Bearer Token</label>
         <textarea x-model="token" rows="4" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"></textarea>
-        <p class="text-xs text-gray-500 mt-1">Colle le JWT Keycloak ici pour authentifier les appels.</p>
+        <p class="text-xs text-gray-500 mt-1">Collez le JWT Keycloak ici si nécessaire.</p>
       </div>
       <div class="flex items-center justify-between">
         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="rounded" x-model="dark"/><span>Mode sombre</span></label>
@@ -267,12 +265,85 @@
 </div>
 
 <script>
+  // ===== Keycloak client config (front) =====
+  const KC = {
+    issuer: "https://sso.lyneerp.com/realms/lyneerp",
+    clientId: "rh-core",
+  };
+
+  // ===== JWT helpers =====
+  function base64UrlDecode(str){
+    str = str.replace(/-/g,'+').replace(/_/g,'/');
+    const pad = str.length % 4; if(pad) str += '='.repeat(4 - pad);
+    try { return atob(str); } catch { return ''; }
+  }
+  function parseJwt(token){
+    if(!token) return null;
+    const parts = token.split('.');
+    if(parts.length !== 3) return null;
+    try { return JSON.parse(base64UrlDecode(parts[1])); } catch { return null; }
+  }
+
+  // ===== Token storage helpers =====
+  function getStoredAccessToken(){
+    return localStorage.getItem('lyneerp_token')
+        || sessionStorage.getItem('lyneerp_token')
+        || localStorage.getItem('kc_access_token')
+        || sessionStorage.getItem('kc_access_token')
+        || '';
+  }
+  function getStoredRefreshToken(){
+    return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
+  }
+
+  // ===== Refresh token if expiring soon =====
+  async function refreshTokenIfNeeded(exp){
+    const now = Math.floor(Date.now()/1000);
+    if(!exp || exp - now > 30) return false;
+    const refresh = getStoredRefreshToken();
+    if(!refresh) return false;
+
+    const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
+      method: "POST",
+      headers: {"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: KC.clientId,
+        refresh_token: refresh
+      })
+    });
+    if(!res.ok) return false;
+    const p = await res.json();
+    const remember = !!localStorage.getItem('kc_access_token');
+    const storage = remember ? localStorage : sessionStorage;
+    if(p.access_token) storage.setItem("kc_access_token", p.access_token);
+    if(p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
+    return true;
+  }
+
+  // ===== Logout =====
+  function kcLogout(){
+    const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
+    ['lyneerp_token','kc_access_token','kc_refresh_token','kc_id_token'].forEach(k=>{
+      localStorage.removeItem(k); sessionStorage.removeItem(k);
+    });
+    const url = `${KC.issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent('/login/')}` +
+                (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
+    window.location.assign(url);
+  }
+
+  // ===== Persisted UI conf =====
   const Conf = {
     apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
-    tenantId: localStorage.getItem('lyneerp_tenant') || 'acme',
-    token: localStorage.getItem('lyneerp_token') || '',
+    tenantId: localStorage.getItem('lyneerp_tenant') || '',
+    token: getStoredAccessToken(),
     dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
-    save(){ localStorage.setItem('lyneerp_api', this.apiBase); localStorage.setItem('lyneerp_tenant', this.tenantId); localStorage.setItem('lyneerp_token', this.token); localStorage.setItem('lyneerp_dark', this.dark ? '1':'0'); }
+    save(){
+      localStorage.setItem('lyneerp_api', this.apiBase);
+      localStorage.setItem('lyneerp_tenant', this.tenantId || '');
+      if(this.token) localStorage.setItem('lyneerp_token', this.token);
+      localStorage.setItem('lyneerp_dark', this.dark ? '1':'0');
+    }
   };
 
   function hrApp(){
@@ -281,8 +352,8 @@
       sidebarCollapsed:false, openCmd:false, openSettings:false, cmdQuery:'',
       loading:false, toasts:[], dark:Conf.dark, authHint:false, online:navigator.onLine,
 
-      // Config
-      apiBase:Conf.apiBase, tenantId:Conf.tenantId, token:Conf.token,
+      // Auth & Conf
+      apiBase:Conf.apiBase, tenantId:Conf.tenantId, token:Conf.token, user:null,
 
       // Data
       currentView:'dashboard', activeNav:'dashboard', dashboardStats:{}, employees:[], recruitments:[],
@@ -305,8 +376,99 @@
       })[this.currentView] || 'Plateforme RH intelligente'; },
 
       toggleDark(){ this.dark=!this.dark; Conf.dark=this.dark; Conf.save(); },
-
       switchView(key){ this.currentView=key; this.activeNav=key; this.prefetch(key); },
+
+      // ===== AUTH CHECK =====
+      async ensureAuthenticated(){
+        try{
+          // 1) Token
+          if(!this.token){ this.token = getStoredAccessToken(); }
+          const claims = parseJwt(this.token);
+          if(!claims){ throw new Error('JWT invalide'); }
+
+          // 2) Refresh if needed
+          await refreshTokenIfNeeded(claims.exp);
+          this.token = getStoredAccessToken();
+
+          // 3) Infer tenant from token if missing
+          this.tenantId = this.tenantId || claims.tenant || claims.tenant_id || claims.org || '';
+
+          // 4) Confirm with backend
+          const who = await this.apiCall('/auth/whoami/');
+          this.user = who.user || {preferred_username: claims.preferred_username, username: claims.preferred_username};
+          if(!this.tenantId && who.tenant){ this.tenantId = who.tenant; }
+
+          // 5) Persist
+          Conf.token = this.token; Conf.tenantId = this.tenantId; Conf.save();
+          this.showToast('Authentifié','success');
+        }catch(e){
+          console.error(e);
+          this.authHint = true;
+          setTimeout(()=> window.location.assign('/login/?next=/'), 800);
+          throw e;
+        }
+      },
+
+      // ===== API helper =====
+      async apiCall(path, options={}){
+        this.loading=true; this.authHint=false;
+        try{
+          const headers={'Content-Type':'application/json'};
+          if(this.tenantId) headers['X-Tenant-Id'] = this.tenantId;
+          if(this.token) headers['Authorization']=`Bearer ${this.token}`;
+
+          const url=`${this.apiBase}${path.startsWith('/')?'':'/'}${path}`;
+          const res=await fetch(url,{...options,headers});
+          if(!res.ok){
+            if(res.status===401||res.status===403){ this.authHint=true; }
+            let detail=''; try{ const j=await res.json(); detail=j.detail||j.error||''; }catch(_){}
+            throw new Error(`${res.status} ${res.statusText}${detail? ' - '+detail : ''}`);
+          }
+          return res.status===204 ? null : await res.json();
+        }catch(e){
+          console.error(e); this.showToast(e.message||'Erreur API','error'); throw e;
+        }finally{ this.loading=false; }
+      },
+
+      // Prefetch
+      prefetch(k){
+        if(k==='dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
+        if(k==='employees' && !this.employees.length) this.loadEmployees();
+        if(k==='recruitment' && !this.recruitments.length) this.loadRecruitments();
+      },
+
+      // Loaders
+      async loadDashboardStats(){ try{ this.dashboardStats=await this.apiCall('/dashboard/stats/'); }catch(_){} },
+      async loadEmployees(){ try{ const d=await this.apiCall('/employees/'); this.employees=d.results||d; }catch(_){} },
+      async loadRecruitments(){ try{ const d=await this.apiCall('/recruitments/'); this.recruitments=d.results||d; }catch(_){} },
+
+      // Toasts
+      showToast(message,type='info'){ const t={message,type,visible:true}; this.toasts.push(t); setTimeout(()=>{t.visible=false; this.toasts=this.toasts.filter(x=>x!==t)},3800); },
+      removeToast(i){ this.toasts.splice(i,1); },
+
+      // Conf
+      saveConf(){ Conf.apiBase=this.apiBase; Conf.tenantId=this.tenantId; Conf.token=this.token; Conf.dark=this.dark; Conf.save(); this.showToast('Configuration enregistrée','success'); },
+
+      // Online/Offline
+      handleOnline(){ this.online=true; this.showToast('Connexion rétablie','success'); },
+      handleOffline(){ this.online=false; this.showToast('Vous êtes hors ligne','warning'); },
+
+      // Logout
+      logout(){ kcLogout(); },
+
+      // Init
+      async init(){
+        this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
+        this.tenantId=localStorage.getItem('lyneerp_tenant')||this.tenantId;
+        this.token=getStoredAccessToken() || this.token;
+
+        await this.ensureAuthenticated();
+
+        this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
+
+        window.addEventListener('online', ()=>this.handleOnline());
+        window.addEventListener('offline', ()=>this.handleOffline());
+      },
 
       // Command palette
       get cmdResults(){
@@ -323,70 +485,10 @@
         if(!q) return items;
         return items.filter(it=>it.label.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
       },
-
-      // API
-      async apiCall(path, options={}){
-        this.loading=true; this.authHint=false;
-        try{
-          const headers={'Content-Type':'application/json','X-Tenant-Id': this.tenantId};
-          if(this.token) headers['Authorization']=`Bearer ${this.token}`;
-          const url=`${this.apiBase}${path.startsWith('/')?'':'/'}${path}`;
-          const res=await fetch(url,{...options,headers});
-          if(!res.ok){
-            // Show 401/403 helper
-            if(res.status===401||res.status===403){ this.authHint=true; }
-            let detail='';
-            try{ const j=await res.json(); detail=j.detail||j.error||''; }catch(_){}
-            throw new Error(`${res.status} ${res.statusText}${detail? ' - '+detail : ''}`);
-          }
-          return res.status===204 ? null : await res.json();
-        }catch(e){
-          console.error(e); this.showToast(e.message||'Erreur API','error'); throw e;
-        }finally{ this.loading=false; }
-      },
-
-      // Prefetch
-      prefetch(k){
-        if(k==='dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
-        if(k==='employees' && !this.employees.length) this.loadEmployees();
-        if(k==='recruitment' && !this.recruitments.length) this.loadRecruitments();
-      },
-
-      // Data loaders
-      async loadDashboardStats(){ try{ this.dashboardStats=await this.apiCall('/dashboard/stats/'); }catch(_){} },
-      async loadEmployees(){ try{ const d=await this.apiCall('/employees/'); this.employees=d.results||d; }catch(_){} },
-      async loadRecruitments(){ try{ const d=await this.apiCall('/recruitments/'); this.recruitments=d.results||d; }catch(_){} },
-
-      // Toasts
-      showToast(message,type='info'){ const t={message,type,visible:true}; this.toasts.push(t); setTimeout(()=>{t.visible=false; this.toasts=this.toasts.filter(x=>x!==t)},3800); },
-      removeToast(i){ this.toasts.splice(i,1); },
-
-      // Config
-      saveConf(){ Conf.apiBase=this.apiBase; Conf.tenantId=this.tenantId; Conf.token=this.token; Conf.dark=this.dark; Conf.save(); this.showToast('Configuration enregistrée','success'); },
-
-      // Online/Offline
-      handleOnline(){ this.online=true; this.showToast('Connexion rétablie','success'); },
-      handleOffline(){ this.online=false; this.showToast('Vous êtes hors ligne','warning'); },
-
-      // Init
-      init(){
-        // Conf
-        this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
-        this.tenantId=localStorage.getItem('lyneerp_tenant')||this.tenantId;
-        this.token=localStorage.getItem('lyneerp_token')||this.token;
-        this.dark=(localStorage.getItem('lyneerp_dark')==='1')||this.dark;
-
-        // Data
-        this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
-
-        // Network
-        window.addEventListener('online', ()=>this.handleOnline());
-        window.addEventListener('offline', ()=>this.handleOffline());
-      }
     }
   }
 
-  // Alpine helpers for keyboard (⌘/Ctrl modifiers)
+  // Alpine helpers for keyboard
   document.addEventListener('alpine:init', () => {
     Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
     Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);

@@ -97,7 +97,10 @@ class HRDashboardViewSet(viewsets.ViewSet):
         """Récupérer les statistiques du tableau de bord"""
         tenant_id = request.headers.get("X-Tenant-Id")
         if not tenant_id:
-            return Response({"detail": "X-Tenant-Id manquant"}, status=400)
+            oidc = getattr(request, "oidc", {}) or {}
+            tenant_id = oidc.get("tenant") or oidc.get("tenant_id")
+        if not tenant_id:
+            return Response({"detail": "X-Tenant-Id manquant et aucun tenant dans le token"}, status=400)
 
         # Calculer les statistiques
         total_employees = Employee.objects.filter(tenant_id=tenant_id).count()
@@ -159,7 +162,10 @@ class HRDashboardViewSet(viewsets.ViewSet):
         """Statistiques de recrutement"""
         tenant_id = request.headers.get("X-Tenant-Id")
         if not tenant_id:
-            return Response({"detail": "X-Tenant-Id manquant"}, status=400)
+            oidc = getattr(request, "oidc", {}) or {}
+            tenant_id = oidc.get("tenant") or oidc.get("tenant_id")
+        if not tenant_id:
+            return Response({"detail": "X-Tenant-Id manquant et aucun tenant dans le token"}, status=400)
 
         total_recruitments = Recruitment.objects.filter(tenant_id=tenant_id).count()
         active_recruitments = Recruitment.objects.filter(
@@ -207,7 +213,10 @@ class HRDashboardViewSet(viewsets.ViewSet):
         """Statistiques détaillées des employés"""
         tenant_id = request.headers.get("X-Tenant-Id")
         if not tenant_id:
-            return Response({"detail": "X-Tenant-Id manquant"}, status=400)
+            oidc = getattr(request, "oidc", {}) or {}
+            tenant_id = oidc.get("tenant") or oidc.get("tenant_id")
+        if not tenant_id:
+            return Response({"detail": "X-Tenant-Id manquant et aucun tenant dans le token"}, status=400)
 
         # Répartition par département
         by_department = dict(

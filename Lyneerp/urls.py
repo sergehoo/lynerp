@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+from hr.api.api_auth import WhoAmI
 from hr.api.routers import urlpatterns as hr_urls
 from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView
 from django.contrib.auth import views as auth_views
@@ -38,6 +40,7 @@ urlpatterns = [
 
                   path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
                   path("auth/keycloak/login", keycloak_direct_login, name="keycloak_direct_login"),
+                  path("api/rh/auth/whoami/", WhoAmI.as_view(), name="rh-whoami"),
 
                   path('logout/', auth_views.LogoutView.as_view(), name='logout'),
               ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
