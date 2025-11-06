@@ -234,10 +234,21 @@ OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Key
 OIDC_RP_CLIENT_SECRET = None                     # None pour client public
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
 OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth"
-OIDC_OP_TOKEN_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/token"
+# OIDC_OP_TOKEN_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/token"
 OIDC_OP_USER_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/userinfo"
 OIDC_OP_JWKS_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/certs"
 
+OIDC_OP_TOKEN_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
+
+# 1) Scopes demandés (sinon certains IdP ne renvoient pas email/username)
+OIDC_RP_SCOPES = "openid email profile"
+
+# 2) Timeout des appels OIDC (échange code->token)
+OIDC_TIMEOUT = 10
+
+# 3) (Optionnel) Stocker les tokens en session si tu en as besoin après login
+OIDC_STORE_ID_TOKEN = True
+OIDC_STORE_ACCESS_TOKEN = True
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 CACHES = {
