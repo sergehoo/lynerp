@@ -34,7 +34,6 @@ load_dotenv()
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "lyneerp.com,rh.lyneerp.com").split(",")
-CSRF_TRUSTED_ORIGINS = ["https://lyneerp.com", "https://*.lyneerp.com"]
 # Application definition
 
 INSTALLED_APPS = [
@@ -215,6 +214,14 @@ DEFAULT_TENANT = None  # ou "default"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+CSRF_TRUSTED_ORIGINS = ["https://rh.lyneerp.com", "https://*.lyneerp.com"]
 
 OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
 OIDC_RP_CLIENT_SECRET = None                     # None pour client public
