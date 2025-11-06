@@ -15,6 +15,9 @@ from django.contrib.auth import get_user_model, login as dj_login, logout as dj_
 
 from jose import jwt  # python-jose
 
+from hr.auth_utils import ensure_seat_for_user
+from tenants.models import Tenant
+
 User = get_user_model()
 
 TENANT_COOKIE_KEY = getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
@@ -191,7 +194,12 @@ def keycloak_direct_login(request: HttpRequest):
     request.session.modified = True
 
     dj_login(request, user)
+    tenant = Tenant.objects.get(id=tenant_id)
+    sub = jwt.get_unverified_claims(access_token).get("sub") if access_token else None
+    email = user.email
 
+    # Auto-assign si tu veux un onboarding fluide
+    ensure_seat_for_user(tenant, "rh", sub, email)
     return JsonResponse({"ok": True, "redirect": next_url})
 
 
