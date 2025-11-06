@@ -90,7 +90,7 @@ class BaseTenantViewSet:
 # -----------------------------
 class HRDashboardViewSet(viewsets.ViewSet):
     """Vues pour le tableau de bord RH"""
-    permission_classes = [IsAuthenticated, HasRHLicense]
+    # permission_classes = [IsAuthenticated, HasRHLicense]
 
     @action(detail=False, methods=['get'])
     def stats(self, request):

@@ -117,15 +117,18 @@
             <h1 class="font-semibold text-lg truncate" x-text="viewTitle"></h1>
             <p class="text-xs text-gray-500 dark:text-gray-400" x-text="viewDesc"></p>
           </div>
-          <div class="flex items-center gap-2">
-            <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
-              <i class="fa-solid fa-building"></i><span x-text="tenantId"></span>
-            </div>
-            <button @click="toggleDark()" class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i></button>
-            <button @click="openCmd=true" class="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <i class="fa-solid fa-magnifying-glass"></i><span class="text-sm">Commande</span><span class="kbd">⌘K</span>
-            </button>
-          </div>
+          <div class="flex items-center gap-3">
+  <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+    <i class="fa-solid fa-building"></i><span x-text="tenantId || '-'"></span>
+  </div>
+  <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+    <i class="fa-solid fa-user"></i><span x-text="user?.username || user?.preferred_username || 'Utilisateur'"></span>
+  </div>
+  <button @click="toggleDark()" class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i></button>
+  <button @click="logout()" class="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm">
+    <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
+  </button>
+</div>
         </div>
       </div>
 
