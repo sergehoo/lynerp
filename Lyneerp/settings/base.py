@@ -221,6 +221,12 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
+# Sufficient pour un retour GET top-level depuis IdP
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# Recommandé si tu utilises des sous-domaines
+SESSION_COOKIE_DOMAIN = ".lyneerp.com"
+
 CSRF_TRUSTED_ORIGINS = ["https://rh.lyneerp.com", "https://*.lyneerp.com"]
 
 OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
@@ -230,3 +236,12 @@ OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth
 OIDC_OP_TOKEN_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/token"
 OIDC_OP_USER_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/userinfo"
 OIDC_OP_JWKS_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/certs"
+
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+CACHES = {
+  "default": {
+    "BACKEND": "django.core.cache.backends.redis.RedisCache",
+    "LOCATION": "redis://redis:6379/1",
+  }
+}
