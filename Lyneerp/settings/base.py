@@ -59,10 +59,11 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    "tenants.middleware.TenantSessionMiddleware",
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "tenants.middleware.TenantSessionMiddleware",
+
 ]
 
 ROOT_URLCONF = 'Lyneerp.urls'
@@ -194,7 +195,9 @@ TENANT_REALMS = {
     "acme": "acme-realm",
     "demo": "lyneerp",
 }
-
+# Optionnel
+TENANT_SUBDOMAIN_REGEX = r"^(?P<tenant>[a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$"
+DEFAULT_TENANT = None  # ou "default"
 # Où stocker les infos utilisateur dans la session
 OIDC_SESSION_KEY = "oidc_user"
 # Default primary key field type

@@ -1,6 +1,9 @@
 # tenants/middleware.py
 from __future__ import annotations
 
+import re
+
+import jwt
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from tenants.models import Tenant
@@ -22,22 +25,60 @@ class TenantSessionMiddleware:
         return self.get_response(request)
 
 
+TENANT_HEADER = "HTTP_X_TENANT_ID"
+TENANT_SESSION_KEY = getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
+TENANT_REGEX = getattr(settings, "TENANT_SUBDOMAIN_REGEX", r"^(?P<tenant>[a-z0-9-]+)\.")
+
+
+def _tenant_from_host(host: str) -> str | None:
+    # ex: acme.rh.lyneerp.com -> "acme"
+    m = re.match(TENANT_REGEX, host, re.IGNORECASE)
+    if m:
+        return m.group("tenant")
+    return None
+
+
+def _tenant_from_bearer(request) -> str | None:
+    auth = request.META.get("HTTP_AUTHORIZATION", "")
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth.split(" ", 1)[1].strip()
+    try:
+        # On ne valide pas la signature ici (déjà fait par la vue/API si nécessaire),
+        # on lit juste le claim pour orienter le tenant.
+        payload = jwt.decode(token, options={"verify_signature": False})
+        # 1) claim direct
+        if "tenant" in payload:
+            return payload["tenant"]
+        # 2) groupe/role style "tenant:acme"
+        roles = (payload.get("realm_access", {}) or {}).get("roles", [])
+        for r in roles:
+            if r.startswith("tenant:"):
+                return r.split(":", 1)[1]
+    except Exception:
+        return None
+    return None
+
+
 class TenantMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        slug = request.headers.get("X-Tenant-Id")
-        if not slug:
-            host = request.get_host().split(":")[0]
-            parts = host.split(".")
-            # ex: acme.lyneerp.com -> "acme"
-            if len(parts) >= 3 and parts[-2:] == ["lyneerp", "com"]:
-                slug = parts[0]
-        # si auth déjà faite en amont, on peut lire request.auth (payload JWT)
-        if not slug and hasattr(request, "auth") and isinstance(request.auth, dict):
-            slug = request.auth.get("tenant_id")
-        request.tenant = CurrentTenant()
-        request.tenant.slug = slug
-        if slug:
-            try:
-                request.tenant.obj = Tenant.objects.get(slug=slug)
-            except Tenant.DoesNotExist:
-                request.tenant.obj = None
+        # 1) Host
+        host = request.get_host().split(":")[0]
+        tenant = _tenant_from_host(host)
+
+        # 2) Header (si proxy/traefik/kong ajoute X-Tenant-Id)
+        if not tenant:
+            tenant = request.META.get(TENANT_HEADER)
+
+        # 3) Token Bearer
+        if not tenant:
+            tenant = _tenant_from_bearer(request)
+
+        # 4) Fallback : éventuellement une valeur par défaut (ex: "default")
+        if not tenant:
+            tenant = getattr(settings, "DEFAULT_TENANT", None)
+
+        request.tenant_id = tenant
+        # Si tu veux encore garder une session, ok, mais pas obligatoire :
+        if hasattr(request, "session"):
+            request.session[TENANT_SESSION_KEY] = tenant
