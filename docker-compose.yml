@@ -207,6 +207,7 @@ services:
       - traefik.http.routers.mailpit.entrypoints=websecure
       - traefik.http.routers.mailpit.tls.certresolver=${TRAEFIK_CERTRESOLVER}
       - traefik.http.services.mailpit-svc.loadbalancer.server.port=8025
+
   lyneadminer:
     #    profiles: ["admin"]
     image: adminer
