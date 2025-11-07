@@ -13,13 +13,13 @@ class Department(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=120)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
-    # tenant_id = models.CharField(max_length=64, db_index=True, null=True, blank=True)
-    tenant_id = models.ForeignKey(
+    tenant = models.ForeignKey(
         Tenant,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='managed_departments'
+        related_name='departments',
+        db_column='tenant_id'
     )
     # Champs ajoutés
     code = models.CharField(max_length=20, blank=True, help_text="Code département (ex: IT, HR, FIN)")
@@ -64,6 +64,7 @@ class Department(models.Model):
             start_date__lte=today,
             end_date__gte=today
         ).count()
+
     @property
     def employees_count(self):
         return self.employee_set.filter(is_active=True).count()
@@ -135,7 +136,7 @@ class Employee(models.Model):
     extra = models.JSONField(default=dict, blank=True)
     tenant = models.ForeignKey(
         Tenant,
-        on_delete=models.PROTECT,db_column='tenant_id',  # tenant requis
+        on_delete=models.PROTECT, db_column='tenant_id',  # tenant requis
         db_index=True,
     )
 
