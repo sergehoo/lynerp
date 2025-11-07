@@ -347,328 +347,318 @@
 </div>
 
 <script>
-    /* ====== Keycloak config (front) ====== */
-    const KC = {issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core"};
+  /* ====== Keycloak config (front) ====== */
+  const KC = { issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core" };
 
-    /* ====== Helpers ====== */
-    function base64UrlDecode(str) {
-        str = str.replace(/-/g, '+').replace(/_/g, '/');
-        const pad = str.length % 4;
-        if (pad) str += '='.repeat(4 - pad);
-        try { return atob(str); } catch { return ''; }
+  /* ====== Helpers ====== */
+  function base64UrlDecode(str){
+    str = str.replace(/-/g,'+').replace(/_/g,'/'); const pad = str.length % 4; if(pad) str += '='.repeat(4 - pad);
+    try { return atob(str); } catch { return ''; }
+  }
+  function parseJwt(token){
+    if(!token) return null; const parts = token.split('.'); if(parts.length !== 3) return null;
+    try { return JSON.parse(base64UrlDecode(parts[1])); } catch { return null; }
+  }
+  function getStoredAccessToken(){
+    return localStorage.getItem('lyneerp_token')
+        || sessionStorage.getItem('lyneerp_token')
+        || localStorage.getItem('kc_access_token')
+        || sessionStorage.getItem('kc_access_token')
+        || '';
+  }
+  function getStoredRefreshToken(){
+    return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
+  }
+  async function refreshTokenIfNeeded(exp){
+    const now = Math.floor(Date.now()/1000);
+    if(!exp || exp - now > 30) return false;
+    const refresh = getStoredRefreshToken();
+    if(!refresh) return false;
+    const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
+      method: "POST",
+      headers: {"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh })
+    });
+    if(!res.ok) return false;
+    const p = await res.json();
+    const remember = !!localStorage.getItem('kc_access_token');
+    const storage = remember ? localStorage : sessionStorage;
+    if(p.access_token) storage.setItem("kc_access_token", p.access_token);
+    if(p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
+    return true;
+  }
+  function kcLogout(){
+    const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
+    ['lyneerp_token','kc_access_token','kc_refresh_token','kc_id_token'].forEach(k=>{
+      localStorage.removeItem(k); sessionStorage.removeItem(k);
+    });
+    const url = `${KC.issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent('/login/')}` +
+                (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
+    window.location.assign(url);
+  }
+  function deriveTenantFromHost(host){
+    // ex: acme.rh.lyneerp.com -> acme
+    const parts = (host || location.hostname).split('.');
+    const idx = parts.findIndex((p,i)=> parts.slice(i).join('.') === 'rh.lyneerp.com');
+    if(idx > 0) return parts[idx-1];
+    if(parts.length >= 3) return parts[0];
+    return '';
+  }
+  // Build URL: if absolute path or full URL, do not prefix apiBase
+  function buildUrl(apiBase, path){
+    if(/^https?:\/\//i.test(path)) return path;          // full URL
+    if(path.startsWith('/')) return path;                // absolute site path
+    return `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`; // apiBase-relative
+  }
+
+  /* ====== Conf persistée ====== */
+  const Conf = {
+    apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
+    tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
+    token: getStoredAccessToken(),
+    dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
+    save(){
+      localStorage.setItem('lyneerp_api', this.apiBase);
+      localStorage.setItem('lyneerp_tenant', this.tenantId || '');
+      if(this.token) localStorage.setItem('lyneerp_token', this.token);
+      localStorage.setItem('lyneerp_dark', this.dark ? '1':'0');
     }
-    function parseJwt(token) {
-        if (!token) return null;
-        const parts = token.split('.');
-        if (parts.length !== 3) return null;
-        try { return JSON.parse(base64UrlDecode(parts[1])); } catch { return null; }
-    }
-    function getStoredAccessToken() {
-        return localStorage.getItem('lyneerp_token')
-            || sessionStorage.getItem('lyneerp_token')
-            || localStorage.getItem('kc_access_token')
-            || sessionStorage.getItem('kc_access_token')
-            || '';
-    }
-    function getStoredRefreshToken() {
-        return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
-    }
-    async function refreshTokenIfNeeded(exp) {
-        const now = Math.floor(Date.now() / 1000);
-        if (!exp || exp - now > 30) return false;
-        const refresh = getStoredRefreshToken();
-        if (!refresh) return false;
-        const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
-            method: "POST",
-            headers: {"Content-Type":"application/x-www-form-urlencoded"},
-            body: new URLSearchParams({ grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh })
-        });
-        if (!res.ok) return false;
-        const p = await res.json();
-        const remember = !!localStorage.getItem('kc_access_token');
-        const storage = remember ? localStorage : sessionStorage;
-        if (p.access_token) storage.setItem("kc_access_token", p.access_token);
-        if (p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
-        return true;
-    }
-    function kcLogout(){
-        const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
-        ['lyneerp_token','kc_access_token','kc_refresh_token','kc_id_token'].forEach(k=>{
-            localStorage.removeItem(k); sessionStorage.removeItem(k);
-        });
-        const url = `${KC.issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent('/login/')}` +
-                    (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
-        window.location.assign(url);
-    }
-    function deriveTenantFromHost(host){
-        const parts = (host || location.hostname).split('.');
-        const idx = parts.findIndex((p,i)=> parts.slice(i).join('.') === 'rh.lyneerp.com');
-        if(idx > 0) return parts[idx-1];
-        if(parts.length >= 3) return parts[0];
-        return '';
-    }
+  };
 
-    /* ====== Conf persistée ====== */
-    const Conf = {
-        apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
-        tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
-        token: getStoredAccessToken(),
-        dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
-        save(){
-            localStorage.setItem('lyneerp_api', this.apiBase);
-            localStorage.setItem('lyneerp_tenant', this.tenantId || '');
-            if(this.token) localStorage.setItem('lyneerp_token', this.token);
-            localStorage.setItem('lyneerp_dark', this.dark ? '1':'0');
-        }
-    };
+  function hrApp(){
+    return {
+      /* UI */
+      sidebarCollapsed:false, openCmd:false, openSettings:false, cmdQuery:'',
+      loading:false, toasts:[], dark:Conf.dark, online:navigator.onLine,
 
-    function hrApp(){
-        return {
-            /* UI */
-            sidebarCollapsed:false, openCmd:false, openSettings:false, cmdQuery:'',
-            loading:false, toasts:[], dark:Conf.dark, online:navigator.onLine,
+      /* Auth & licence */
+      authHint:false,
+      license:{ status:'unknown', plan:null, valid_until:null },
+      licenseBlocker:{ visible:false, detail:'' },
 
-            /* Auth & licence */
-            authHint:false,
-            license:{ status:'unknown', plan:null, valid_until:null },
-            licenseBlocker:{ visible:false, detail:'' },
+      /* Conf */
+      apiBase:Conf.apiBase, tenantId:Conf.tenantId, token:Conf.token, user:null,
 
-            /* Conf */
-            apiBase:Conf.apiBase, tenantId:Conf.tenantId, token:Conf.token, user:null,
+      /* Data */
+      currentView:'dashboard', activeNav:'dashboard', dashboardStats:{}, employees:[], recruitments:[],
 
-            /* Data */
-            currentView:'dashboard', activeNav:'dashboard', dashboardStats:{}, employees:[], recruitments:[],
+      navigation: [
+        { id:'dashboard',  name:'Tableau de bord', icon:'fa-solid fa-chart-pie'},
+        { id:'employees',  name:'Employés',        icon:'fa-solid fa-users'},
+        { id:'recruitment',name:'Recrutement',     icon:'fa-solid fa-briefcase'},
+        { id:'leaves',     name:'Congés',          icon:'fa-solid fa-calendar-check'},
+        { id:'attendance', name:'Pointage',        icon:'fa-solid fa-clock'},
+      ],
 
-            navigation: [
-                { id:'dashboard',  name:'Tableau de bord', icon:'fa-solid fa-chart-pie'},
-                { id:'employees',  name:'Employés',        icon:'fa-solid fa-users'},
-                { id:'recruitment',name:'Recrutement',     icon:'fa-solid fa-briefcase'},
-                { id:'leaves',     name:'Congés',          icon:'fa-solid fa-calendar-check'},
-                { id:'attendance', name:'Pointage',        icon:'fa-solid fa-clock'},
-            ],
+      get viewTitle(){ const i=this.navigation.find(n=>n.id===this.currentView); return i?i.name:'LyneERP RH'; },
+      get viewDesc(){ return ({
+        dashboard:'Vue d’ensemble de votre activité RH',
+        employees:'Gérez votre effectif et les informations employés',
+        recruitment:'Recrutez avec l’aide de l’IA',
+        leaves:'Suivez et approuvez les demandes de congés',
+        attendance:'Surveillez la présence et les heures'
+      })[this.currentView] || 'Plateforme RH intelligente'; },
 
-            get viewTitle(){ const i=this.navigation.find(n=>n.id===this.currentView); return i?i.name:'LyneERP RH'; },
-            get viewDesc(){ return ({
-                dashboard:'Vue d’ensemble de votre activité RH',
-                employees:'Gérez votre effectif et les informations employés',
-                recruitment:'Recrutez avec l’aide de l’IA',
-                leaves:'Suivez et approuvez les demandes de congés',
-                attendance:'Surveillez la présence et les heures'
-            })[this.currentView] || 'Plateforme RH intelligente'; },
+      toggleDark(){ this.dark=!this.dark; Conf.dark=this.dark; Conf.save(); },
+      switchView(key){ this.currentView=key; this.activeNav=key; this.prefetch(key); },
 
-            toggleDark(){ this.dark=!this.dark; Conf.dark=this.dark; Conf.save(); },
-            switchView(key){ this.currentView=key; this.activeNav=key; this.prefetch(key); },
+      /* ===== Auth end-to-end ===== */
+      async ensureAuthenticated(){
+        try{
+          // 1) récup du token potentiellement présent
+          if(!this.token){ this.token = getStoredAccessToken(); }
 
-            /* ===== Auth end-to-end ===== */
-            // Dans la fonction hrApp(), corriger ensureAuthenticated
-async ensureAuthenticated(){
-    try{
-        // Récupération du token
-        if(!this.token){
-            this.token = getStoredAccessToken();
-        }
-
-        // Mode session-first (plus permissif)
-        try {
-            const who = await this.apiCall('/auth/whoami/', {
-                // Pas d'Authorization header pour utiliser la session
-            });
+          // 2) Tentative "session-first" (PAS d'Authorization → SessionAuthentication)
+          try {
+            const who = await this.apiCall('/api/auth/whoami/', { noAuth: true });
             this.user = who?.user || {};
             this.tenantId = this.tenantId || who?.tenant || deriveTenantFromHost(location.hostname) || '';
             await this.fetchLicense();
-            Conf.tenantId = this.tenantId;
-            Conf.save();
+            Conf.tenantId = this.tenantId; Conf.save();
             this.showToast('Authentifié (session)','success');
             return;
+          } catch (sessionError) {
+            // 3) Fallback JWT
+            if(this.token){
+              const claims = parseJwt(this.token);
+              await refreshTokenIfNeeded(claims?.exp);
+              this.token = getStoredAccessToken();
 
-        } catch(sessionError) {
-            console.log('Session auth failed, trying JWT...');
-
-            // Fallback JWT
-            if(this.token) {
-                const claims = parseJwt(this.token);
-                await refreshTokenIfNeeded(claims?.exp);
-                this.token = getStoredAccessToken();
-
-                const who = await this.apiCall('/auth/whoami/');
-                this.user = who?.user || {
-                    preferred_username: claims?.preferred_username,
-                    username: claims?.preferred_username
-                };
-                this.tenantId = this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id || deriveTenantFromHost(location.hostname) || '';
-                await this.fetchLicense();
-                Conf.token = this.token;
-                Conf.tenantId = this.tenantId;
-                Conf.save();
-                this.showToast('Authentifié (JWT)','success');
-                return;
+              const who = await this.apiCall('/api/auth/whoami/'); // avec Authorization
+              this.user = who?.user || { preferred_username: claims?.preferred_username, username: claims?.preferred_username };
+              this.tenantId = this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id || deriveTenantFromHost(location.hostname) || '';
+              await this.fetchLicense();
+              Conf.token = this.token; Conf.tenantId = this.tenantId; Conf.save();
+              this.showToast('Authentifié (JWT)','success');
+              return;
             }
-
-            // Si les deux échouent
-            throw new Error('Aucune méthode d\'authentification valide');
-        }
-
-    }catch(e){
-        console.error('Authentication error:', e);
-        this.authHint = true;
-        // Redirection plus intelligente
-        setTimeout(() => {
+            throw new Error("Aucune méthode d'authentification valide");
+          }
+        }catch(e){
+          console.error('Authentication error:', e);
+          this.authHint = true;
+          setTimeout(()=>{
             const loginUrl = '/auth/keycloak/login/';
-            if(window.location.pathname !== loginUrl) {
-                window.location.assign(loginUrl);
-            }
-        }, 1500);
-        throw e;
-    }
-},
-            /* ===== License helpers ===== */
-            async fetchLicense(){
-                try{
-                    const res = await this.apiCall('/license/status/');
-                    this.license.status = res?.status || 'unknown';
-                    this.license.plan = res?.plan || null;
-                    this.license.valid_until = res?.valid_until || null;
-                    if(this.license.status === 'expired' || this.license.status === 'invalid'){
-                        this.licenseBlocker.visible = true;
-                        this.licenseBlocker.detail = res?.detail || 'Licence RH invalide ou expirée.';
-                    }else{
-                        this.licenseBlocker.visible = false;
-                        this.licenseBlocker.detail = '';
-                    }
-                }catch(e){
-                    console.warn('license/status error', e);
-                }
-            },
-
-            async refreshLicense(){
-                try{
-                    this.loading = true;
-                    await this.apiCall('/license/refresh/', {method:'POST', body: JSON.stringify({})});
-                    await this.fetchLicense();
-                    if(!this.licenseBlocker.visible){ this.showToast('Licence rafraîchie','success'); }
-                }catch(e){
-                    this.showToast('Impossible de rafraîchir la licence','error');
-                }finally{ this.loading=false; }
-            },
-
-            async openBillingPortal(){
-                try{
-                    const r = await this.apiCall('/license/portal/');
-                    if(r && r.url){ window.location.assign(r.url); }
-                    else { window.location.assign('/billing/portal'); }
-                }catch{
-                    window.location.assign('/billing/portal');
-                }
-            },
-
-            /* ===== API helper ===== */
-            async apiCall(path, options = {}){
-                this.authHint=false;
-                const headers={'Content-Type':'application/json'};
-                if(this.tenantId) headers['X-Tenant-Id'] = this.tenantId;
-                if(this.token) headers['Authorization']=`Bearer ${this.token}`;
-                const url=`${this.apiBase}${path.startsWith('/')?'':'/'}${path}`;
-
-                try{
-                    this.loading=true;
-                    const res=await fetch(url,{...options,headers});
-                    const isJson = (res.headers.get('content-type')||'').includes('application/json');
-                    const payload = res.status===204 ? null : (isJson ? await res.json().catch(()=>null) : null);
-
-                    if(!res.ok){
-                        const detail = payload?.detail || payload?.message || '';
-                        const code   = payload?.code || '';
-                        const matchLicense = /licence rh|license rh|license.*expired|licence.*expirée/i.test(detail) || /license_invalid|license_expired/i.test(code);
-
-                        if(res.status===403 && matchLicense){
-                            this.licenseBlocker.visible = true;
-                            this.licenseBlocker.detail = detail || 'Licence RH invalide ou expirée.';
-                            throw new Error('403 - Licence RH invalide ou expirée');
-                        }
-
-                        if(res.status===401||res.status===403){
-                            this.authHint=true;
-                        }
-                        const msg = `${res.status} ${res.statusText}${detail? ' - '+detail : ''}`;
-                        throw new Error(msg);
-                    }
-                    return payload;
-                }catch(e){
-                    console.error(e); if(!this.licenseBlocker.visible) this.showToast(e.message||'Erreur API','error'); throw e;
-                }finally{ this.loading=false; }
-            },
-
-            /* Prefetch */
-            prefetch(k){
-                if(this.licenseBlocker.visible) return;
-                if(k==='dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
-                if(k==='employees' && !this.employees.length) this.loadEmployees();
-                if(k==='recruitment' && !this.recruitments.length) this.loadRecruitments();
-            },
-
-            /* Data loaders */
-            async loadDashboardStats(){ try{ if(this.licenseBlocker.visible) return; this.dashboardStats=await this.apiCall('/dashboard/stats/'); }catch(_){} },
-            async loadEmployees(){ try{ if(this.licenseBlocker.visible) return; const d=await this.apiCall('/employees/'); this.employees=d?.results||d||[]; }catch(_){} },
-            async loadRecruitments(){ try{ if(this.licenseBlocker.visible) return; const d=await this.apiCall('/recruitments/'); this.recruitments=d?.results||d||[]; }catch(_){} },
-
-            /* Toasts */
-            showToast(message,type='info'){ const t={message,type,visible:true}; this.toasts.push(t); setTimeout(()=>{t.visible=false; this.toasts=this.toasts.filter(x=>x!==t)},3800); },
-            removeToast(i){ this.toasts.splice(i,1); },
-
-            /* Conf */
-            saveConf(){ Conf.apiBase=this.apiBase; Conf.tenantId=this.tenantId; Conf.token=this.token; Conf.dark=this.dark; Conf.save(); this.showToast('Configuration enregistrée','success'); },
-
-            /* Online/Offline */
-            handleOnline(){ this.online=true; this.showToast('Connexion rétablie','success'); },
-            handleOffline(){ this.online=false; this.showToast('Vous êtes hors ligne','warning'); },
-
-            /* Logout */
-            logout(){ kcLogout(); },
-
-            /* Init */
-            async init(){
-                this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
-                this.tenantId=localStorage.getItem('lyneerp_tenant')||deriveTenantFromHost(location.hostname)||this.tenantId;
-                this.token=getStoredAccessToken() || this.token;
-
-                await this.ensureAuthenticated();
-
-                if(!this.licenseBlocker.visible){
-                    this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
-                }
-
-                window.addEventListener('online', ()=>this.handleOnline());
-                window.addEventListener('offline', ()=>this.handleOffline());
-            },
-
-            /* Command palette */
-            get cmdResults(){
-                const q=this.cmdQuery.toLowerCase().trim();
-                const items=[
-                    {key:'v1',label:'Aller au Tableau de bord',desc:'Vue synthèse',icon:'fa-solid fa-chart-pie',action:()=>this.switchView('dashboard')},
-                    {key:'v2',label:'Aller à Employés',desc:'Lister et gérer',icon:'fa-solid fa-users',action:()=>this.switchView('employees')},
-                    {key:'v3',label:'Aller à Recrutement',desc:'Offres & candidats',icon:'fa-solid fa-briefcase',action:()=>this.switchView('recruitment')},
-                    {key:'v4',label:'Aller à Congés',desc:'Demandes de congé',icon:'fa-solid fa-calendar-check',action:()=>this.switchView('leaves')},
-                    {key:'v5',label:'Aller à Pointage',desc:'Présences',icon:'fa-solid fa-clock',action:()=>this.switchView('attendance')},
-                    {key:'cfg',label:'Ouvrir Configuration',desc:'API / Tenant / Token',icon:'fa-solid fa-gear',action:()=>this.openSettings=true},
-                    {key:'bill',label:'Gérer la facturation',desc:'Portail licence',icon:'fa-solid fa-receipt',action:()=>this.openBillingPortal()},
-                    {key:'dm',label:'Basculer Mode sombre',desc:'Raccourci ⌘/Ctrl + J',icon:'fa-solid fa-moon',action:()=>this.toggleDark()},
-                ];
-                if(!q) return items;
-                return items.filter(it=>it.label.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
-            },
+            if(window.location.pathname !== loginUrl){ window.location.assign(loginUrl); }
+          }, 1500);
+          throw e;
         }
+      },
+
+      /* ===== License helpers ===== */
+      async fetchLicense(){
+        try{
+          // Endpoints licence sont exposés sous /api/license/... (absolus)
+          const res = await this.apiCall('/api/license/status/');
+          this.license.status = res?.status || 'unknown';
+          this.license.plan = res?.plan || null;
+          this.license.valid_until = res?.valid_until || null;
+          if(this.license.status === 'expired' || this.license.status === 'invalid'){
+            this.licenseBlocker.visible = true;
+            this.licenseBlocker.detail = res?.detail || 'Licence RH invalide ou expirée.';
+          }else{
+            this.licenseBlocker.visible = false;
+            this.licenseBlocker.detail = '';
+          }
+        }catch(e){
+          console.warn('license/status error', e);
+        }
+      },
+
+      async refreshLicense(){
+        try{
+          this.loading = true;
+          await this.apiCall('/api/license/refresh/', { method:'POST', body: JSON.stringify({}) });
+          await this.fetchLicense();
+          if(!this.licenseBlocker.visible){ this.showToast('Licence rafraîchie','success'); }
+        }catch(e){
+          this.showToast('Impossible de rafraîchir la licence','error');
+        }finally{ this.loading=false; }
+      },
+
+      async openBillingPortal(){
+        try{
+          const r = await this.apiCall('/api/license/portal/');
+          if(r && r.url){ window.location.assign(r.url); }
+          else { window.location.assign('/billing/portal'); }
+        }catch{
+          window.location.assign('/billing/portal');
+        }
+      },
+
+      /* ===== API helper ===== */
+      async apiCall(path, options = {}){
+        this.authHint=false;
+        const { noAuth=false, noTenant=false, ...fetchOptions } = options;
+
+        const headers = {'Content-Type':'application/json'};
+        if(!noTenant && this.tenantId) headers['X-Tenant-Id'] = this.tenantId;
+        if(!noAuth && this.token) headers['Authorization']=`Bearer ${this.token}`;
+
+        const url = buildUrl(this.apiBase, path);
+
+        try{
+          this.loading=true;
+          const res=await fetch(url,{ ...fetchOptions, headers });
+          const isJson = (res.headers.get('content-type')||'').includes('application/json');
+          const payload = res.status===204 ? null : (isJson ? await res.json().catch(()=>null) : null);
+
+          if(!res.ok){
+            const detail = payload?.detail || payload?.message || '';
+            const code   = payload?.code || '';
+            const matchLicense = /licence rh|license rh|license.*expired|licence.*expirée/i.test(detail) || /license_invalid|license_expired/i.test(code);
+
+            if(res.status===403 && matchLicense){
+              this.licenseBlocker.visible = true;
+              this.licenseBlocker.detail = detail || 'Licence RH invalide ou expirée.';
+              throw new Error('403 - Licence RH invalide ou expirée');
+            }
+
+            if(res.status===401||res.status===403){
+              this.authHint=true;
+            }
+            const msg = `${res.status} ${res.statusText}${detail? ' - '+detail : ''}`;
+            throw new Error(msg);
+          }
+          return payload;
+        }catch(e){
+          console.error(e);
+          if(!this.licenseBlocker.visible) this.showToast(e.message||'Erreur API','error');
+          throw e;
+        }finally{ this.loading=false; }
+      },
+
+      /* Prefetch */
+      prefetch(k){
+        if(this.licenseBlocker.visible) return;
+        if(k==='dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
+        if(k==='employees' && !this.employees.length) this.loadEmployees();
+        if(k==='recruitment' && !this.recruitments.length) this.loadRecruitments();
+      },
+
+      /* Data loaders (RH = sous /api/rh via apiBase) */
+      async loadDashboardStats(){ try{ if(this.licenseBlocker.visible) return; this.dashboardStats=await this.apiCall('dashboard/stats/'); }catch(_){} },
+      async loadEmployees(){ try{ if(this.licenseBlocker.visible) return; const d=await this.apiCall('employees/'); this.employees=d?.results||d||[]; }catch(_){} },
+      async loadRecruitments(){ try{ if(this.licenseBlocker.visible) return; const d=await this.apiCall('recruitments/'); this.recruitments=d?.results||d||[]; }catch(_){} },
+
+      /* Toasts */
+      showToast(message,type='info'){ const t={message,type,visible:true}; this.toasts.push(t); setTimeout(()=>{t.visible=false; this.toasts=this.toasts.filter(x=>x!==t)},3800); },
+      removeToast(i){ this.toasts.splice(i,1); },
+
+      /* Conf */
+      saveConf(){ Conf.apiBase=this.apiBase; Conf.tenantId=this.tenantId; Conf.token=this.token; Conf.dark=this.dark; Conf.save(); this.showToast('Configuration enregistrée','success'); },
+
+      /* Online/Offline */
+      handleOnline(){ this.online=true; this.showToast('Connexion rétablie','success'); },
+      handleOffline(){ this.online=false; this.showToast('Vous êtes hors ligne','warning'); },
+
+      /* Logout */
+      logout(){ kcLogout(); },
+
+      /* Init */
+      async init(){
+        this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
+        this.tenantId=localStorage.getItem('lyneerp_tenant')||deriveTenantFromHost(location.hostname)||this.tenantId;
+        this.token=getStoredAccessToken() || this.token;
+
+        await this.ensureAuthenticated();
+
+        if(!this.licenseBlocker.visible){
+          this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
+        }
+
+        window.addEventListener('online', ()=>this.handleOnline());
+        window.addEventListener('offline', ()=>this.handleOffline());
+      },
+
+      /* Command palette */
+      get cmdResults(){
+        const q=this.cmdQuery.toLowerCase().trim();
+        const items=[
+          {key:'v1',label:'Aller au Tableau de bord',desc:'Vue synthèse',icon:'fa-solid fa-chart-pie',action:()=>this.switchView('dashboard')},
+          {key:'v2',label:'Aller à Employés',desc:'Lister et gérer',icon:'fa-solid fa-users',action:()=>this.switchView('employees')},
+          {key:'v3',label:'Aller à Recrutement',desc:'Offres & candidats',icon:'fa-solid fa-briefcase',action:()=>this.switchView('recruitment')},
+          {key:'v4',label:'Aller à Congés',desc:'Demandes de congé',icon:'fa-solid fa-calendar-check',action:()=>this.switchView('leaves')},
+          {key:'v5',label:'Aller à Pointage',desc:'Présences',icon:'fa-solid fa-clock',action:()=>this.switchView('attendance')},
+          {key:'cfg',label:'Ouvrir Configuration',desc:'API / Tenant / Token',icon:'fa-solid fa-gear',action:()=>this.openSettings=true},
+          {key:'bill',label:'Gérer la facturation',desc:'Portail licence',icon:'fa-solid fa-receipt',action:()=>this.openBillingPortal()},
+          {key:'dm',label:'Basculer Mode sombre',desc:'Raccourci ⌘/Ctrl + J',icon:'fa-solid fa-moon',action:()=>this.toggleDark()},
+        ];
+        if(!q) return items;
+        return items.filter(it=>it.label.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
+      },
     }
+  }
 
-    /* Alpine helpers (optionnels) */
-    document.addEventListener('alpine:init', () => {
-        Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
-        Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
-    });
+  /* Alpine helpers (optionnels) */
+  document.addEventListener('alpine:init', () => {
+    Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
+    Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
+  });
 
-    /* Utils globaux */
-    window.formatDate = (s)=> s? new Date(s).toLocaleDateString('fr-FR'): '';
-    window.formatDateTime = (s)=> s? new Date(s).toLocaleString('fr-FR'): '';
+  /* Utils globaux */
+  window.formatDate = (s)=> s? new Date(s).toLocaleDateString('fr-FR'): '';
+  window.formatDateTime = (s)=> s? new Date(s).toLocaleString('fr-FR'): '';
 </script>
 </body>
 </html>
