@@ -513,7 +513,7 @@ async ensureAuthenticated(){
         this.authHint = true;
         // Redirection plus intelligente
         setTimeout(() => {
-            const loginUrl = '';
+            const loginUrl = '/auth/keycloak/login/';
             if(window.location.pathname !== loginUrl) {
                 window.location.assign(loginUrl);
             }
