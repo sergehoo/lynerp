@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import re
+from typing import Callable
+
 import jwt
 from django.conf import settings
+from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from tenants.models import Tenant
-from tenants.utils import resolve_tenant
+from tenants.utils import resolve_tenant, get_tenant_from_request
 
 SUBDOMAIN_RE = re.compile(getattr(
     settings,
@@ -89,24 +92,37 @@ class RequestTenantMiddleware:
         return None
 
 
-# from __future__ import annotations
-#
-# import re
-#
-# import jwt
-# from django.conf import settings
-# from django.utils.deprecation import MiddlewareMixin
-# from tenants.models import Tenant
-# from urllib.parse import urlparse
-#
-# from tenants.utils import resolve_tenant
-#
-#
-# class CurrentTenant:
-#     slug: str | None = None
-#     obj: Tenant | None = None
-#
-#
+class TenantResolutionMiddleware:
+    """
+    Met request.tenant (instance) et request.tenant_id (str).
+    Si aucun tenant résolu pour une route API, renvoie 403 JSON 'Tenant introuvable'.
+    """
+    def __init__(self, get_response: Callable):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        tenant = get_tenant_from_request(request)
+        if tenant:
+            request.tenant = tenant
+            request.tenant_id = str(tenant.id)
+            # garde en session pour cohérence (utile au front en mode Session)
+            request.session["tenant_id"] = request.tenant_id
+        else:
+            request.tenant = None
+            request.tenant_id = None
+
+        # Bloque proprement les endpoints API si tenant absent
+        if (request.path.startswith("/api/") or request.headers.get("Accept","").find("json")!=-1) and not request.tenant:
+            return JsonResponse({"detail": "Tenant introuvable", "code": "tenant_not_found"}, status=403)
+
+        return self.get_response(request)
+
+
+class CurrentTenant:
+    slug: str | None = None
+    obj: Tenant | None = None
+
+
 class TenantSessionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

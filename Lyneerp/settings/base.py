@@ -59,6 +59,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    "tenants.middleware.TenantResolutionMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
     "tenants.middleware.TenantSessionMiddleware",
     "tenants.middleware.RequestTenantMiddleware",

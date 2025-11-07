@@ -90,7 +90,7 @@ def _jit_assign_local(tenant: Tenant, module: str, sub: str, email: str):
 
 
 class HasRHAccess(BasePermission):
-    message = "Accès RH non autorisé."
+    message = "Accès RH non autorisé (licence/siège/rôle)."
 
     def has_permission(self, request, view):
         # Vérification basique d'authentification
