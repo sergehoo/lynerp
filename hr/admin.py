@@ -129,14 +129,14 @@ class JobApplicationInline(admin.TabularInline):
 # === ADMIN CLASSES ===
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'parent', 'manager', 'employees_count', 'is_active', 'tenant_id', 'created_at']
+    list_display = ['name', 'code', 'parent', 'manager', 'employees_count', 'is_active', 'tenant', 'created_at']
     list_filter = [TenantFilter, ActiveFilter, 'created_at']
     search_fields = ['name', 'code', 'description']
     list_select_related = ['parent', 'manager']
     readonly_fields = ['employees_count', 'full_path', 'created_at', 'updated_at']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['name', 'code', 'description', 'parent', 'tenant_id']
+            'fields': ['name', 'code', 'description', 'parent', 'tenant']
         }),
         ('Gestion', {
             'fields': ['manager', 'budget', 'is_active']
