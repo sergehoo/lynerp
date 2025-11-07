@@ -177,7 +177,8 @@ services:
       - traefik.enable=true
       - traefik.docker.network=proxy
 
-      - traefik.http.routers.rh.rule=Host(`${RH_HOST}`)
+#      - traefik.http.routers.rh.rule=Host(`${RH_HOST}`)
+      - traefik.http.routers.rh.rule=HostRegexp(`{tenant:[a-z0-9-]+}.rh.lyneerp.com`) || Host(`rh.lyneerp.com`)
       - traefik.http.routers.rh.entrypoints=websecure
       - traefik.http.routers.rh.tls.certresolver=${TRAEFIK_CERTRESOLVER}
       - traefik.http.middlewares.rh-sec-headers.headers.stsSeconds=31536000

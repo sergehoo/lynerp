@@ -263,6 +263,7 @@ OIDC_TIMEOUT = 10
 OIDC_STORE_ID_TOKEN = True
 OIDC_STORE_ACCESS_TOKEN = True
 
+
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 CACHES = {
   "default": {
