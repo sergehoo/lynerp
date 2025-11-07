@@ -17,6 +17,7 @@ from jose import jwt  # python-jose
 
 from hr.auth_utils import ensure_seat_for_user
 from tenants.models import Tenant
+from tenants.utils import resolve_tenant
 
 User = get_user_model()
 
@@ -194,12 +195,12 @@ def keycloak_direct_login(request: HttpRequest):
     request.session.modified = True
 
     dj_login(request, user)
-    tenant = Tenant.objects.get(id=tenant_id)
-    sub = jwt.get_unverified_claims(access_token).get("sub") if access_token else None
-    email = user.email
-
-    # Auto-assign si tu veux un onboarding fluide
-    ensure_seat_for_user(tenant, "rh", sub, email)
+    tenant_obj = resolve_tenant(tenant_id)
+    if tenant_obj:
+        # sub/email pour siège
+        access_claims = jwt.get_unverified_claims(access_token) if access_token else {}
+        sub = access_claims.get("sub")
+        ensure_seat_for_user(tenant_obj, "rh", sub, user.email)
     return JsonResponse({"ok": True, "redirect": next_url})
 
 

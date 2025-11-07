@@ -5,6 +5,7 @@ from rest_framework.permissions import BasePermission
 import os, requests
 
 from tenants.models import SeatAssignment, TenantUser, License, Tenant
+from tenants.utils import resolve_tenant
 
 LIC_URL = os.getenv("LICENSING_URL")
 MODULE = os.getenv("MODULE_CODE", "rh")
@@ -51,14 +52,10 @@ def _local_status(tenant, module, sub):
 
 class HasRHAccess(BasePermission):
     message = "Accès RH non autorisé (licence/siège/rôle)."
-    required_roles = {"rh:use"}  # Override possible sur la View via `required_roles = {...}`
+    required_roles = {"rh:use"}  # Adaptable via view.required_roles
 
     def has_permission(self, request, view):
-        tenant = request.headers.get("X-Tenant-Id")
-        if not tenant:
-            self.message = "X-Tenant-Id manquant"
-            return False
-
+        # 0) JWT présent
         sub = _jwt_sub(request)
         if not sub:
             self.message = "Token invalide (sub manquant)"
@@ -70,49 +67,37 @@ class HasRHAccess(BasePermission):
             self.message = "Rôle insuffisant"
             return False
 
-        # 2) Licence &siège
-        try:
-            if USE_REMOTE:
-                r = requests.get(f"{LIC_URL}/status", params={"tenant": tenant, "module": MODULE, "user_sub": sub},
-                                 timeout=3)
-                if r.status_code != 200:
-                    self.message = "Service licence indisponible"
-                    return False
-                data = r.json()
-            else:
-                data = _local_status(tenant, MODULE, sub)
-
-            if not data.get("active"):
-                self.message = "Licence RH invalide ou expirée"
-                return False
-
-            if data.get("user_entitled"):
-                return True
-
-            if data.get("jit_allowed"):
-                # Claim auto
-                if USE_REMOTE:
-                    cr = requests.post(f"{LIC_URL}/claim-seat",
-                                       json={"tenant": tenant, "module": MODULE, "user_sub": sub}, timeout=3)
-                    if cr.status_code == 200 and cr.json().get("user_entitled"):
-                        return True
-                    self.message = cr.json().get("detail", "Aucun siège disponible")
-                    return False
-                else:
-                    # Local claim
-                    from tenants.models import SeatAssignment
-                    from django.utils import timezone
-                    SeatAssignment.objects.get_or_create(
-                        tenant=tenant, module=MODULE, user_sub=sub,
-                        defaults={"active": True, "activated_at": timezone.now()}
-                    )
-                    return True
-
-            self.message = "Aucun siège assigné à cet utilisateur"
+        # 2) Tenant
+        tenant_hint = (request.headers.get("X-Tenant-Id")
+                       or getattr(getattr(request, "tenant", None), "id", None)
+                       or request.session.get("tenant_id"))
+        tenant_obj = resolve_tenant(tenant_hint)
+        if not tenant_obj:
+            self.message = "Tenant introuvable"
             return False
-        except Exception:
-            self.message = "Erreur vérification licence"
+
+        # 3) Licence & siège (local)
+        data = _local_status(tenant_obj, MODULE, sub)
+
+        if not data.get("active"):
+            self.message = "Licence RH invalide ou expirée"
             return False
+
+        if data.get("user_entitled"):
+            return True
+
+        # 3b) Just-in-time seat (local)
+        if data.get("jit_allowed"):
+            sa = _jit_assign_local(tenant_obj, MODULE, sub, getattr(getattr(request, "user", None), "email", None))
+            return sa is not None
+
+        self.message = "Aucun siège disponible ou assigné"
+        return False
+
+
+def _jit_assign_local(tenant_obj, module, sub, email):
+    from hr.auth_utils import ensure_seat_for_user
+    return ensure_seat_for_user(tenant_obj, module, sub, email or "")
 
 
 MODULE_CODE = "rh"  # ou settings.MODULE_CODE

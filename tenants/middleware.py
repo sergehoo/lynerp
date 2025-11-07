@@ -9,6 +9,8 @@ from django.utils.deprecation import MiddlewareMixin
 from tenants.models import Tenant
 from urllib.parse import urlparse
 
+from tenants.utils import resolve_tenant
+
 
 class CurrentTenant:
     slug: str | None = None
@@ -82,3 +84,43 @@ class TenantMiddleware(MiddlewareMixin):
         # Si tu veux encore garder une session, ok, mais pas obligatoire :
         if hasattr(request, "session"):
             request.session[TENANT_SESSION_KEY] = tenant
+
+
+SUBDOMAIN_RE = re.compile(getattr(
+    settings,
+    "TENANT_SUBDOMAIN_REGEX",
+    r"^(?P<tenant>[a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$"
+), re.I)
+
+class RequestTenantMiddleware:
+    """
+    - Déduit request.tenant (obj Tenant) à partir de la session ou du sous-domaine
+    - S'assure que 'HTTP_X_TENANT_ID' est présent pour les vues DRF/permissions
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def _from_host(self, host):
+        m = SUBDOMAIN_RE.match((host or "").split(":")[0])
+        if m:
+            return m.group("tenant")
+        return None
+
+    def __call__(self, request):
+        # 1) session / cookie
+        tid = request.session.get("tenant_id") or request.session.get(
+            getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
+        )
+
+        # 2) host
+        if not tid:
+            tid = self._from_host(request.get_host())
+
+        tenant_obj = resolve_tenant(tid)
+        request.tenant = tenant_obj  # peut être None, c'est OK
+
+        # 3) Injecte X-Tenant-Id si manquant
+        if tenant_obj and "HTTP_X_TENANT_ID" not in request.META:
+            request.META["HTTP_X_TENANT_ID"] = str(tenant_obj.id)
+
+        return self.get_response(request)
