@@ -50,49 +50,79 @@ class WhoAmIView(APIView):
 
         return Response({
             "user": user_data,
-            "tenant": tenant_payload,     # ← le front peut utiliser slug/id
+            "tenant": tenant_payload,  # ← le front peut utiliser slug/id
             "auth_via": "jwt" if jwt_data else "session"
         })
+
 
 class LicenseStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        tenant_id = request.headers.get("X-Tenant-Id")
-        if not tenant_id:
-            return Response({"detail": "Tenant manquant"}, status=400)
-
-        from tenants.models import License
-        from django.utils import timezone
-
-        try:
-            lic = License.objects.filter(
-                tenant_id=tenant_id,
-                module="rh",
-                active=True,
-                valid_until__gte=timezone.now().date()
-            ).first()
-
-            if lic:
-                return Response({
-                    "status": "active",
-                    "plan": lic.plan,
-                    "valid_until": lic.valid_until,
-                    "seats": lic.seats
-                })
-            else:
-                return Response({
-                    "status": "invalid",
-                    "detail": "Licence non trouvée ou expirée"
-                })
-
-        except Exception as e:
-            return Response({
-                "status": "error",
-                "detail": str(e)
-            }, status=500)
+        # Toujours actif
+        return Response({
+            "status": "active",
+            "plan": "FREE",
+            "valid_until": None,
+            "detail": "License checks disabled"
+        })
 
 
+class LicenseRefreshView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # No-op
+        return Response({"ok": True, "status": "active"})
+
+
+class LicensePortalView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Pas de portail : renvoyer une URL neutre ou None
+        return Response({"url": None})
+
+
+# class LicenseStatusView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+#
+#     def get(self, request):
+#         tenant_id = request.headers.get("X-Tenant-Id")
+#         if not tenant_id:
+#             return Response({"detail": "Tenant manquant"}, status=400)
+#
+#         from tenants.models import License
+#         from django.utils import timezone
+#
+#         try:
+#             lic = License.objects.filter(
+#                 tenant_id=tenant_id,
+#                 module="rh",
+#                 active=True,
+#                 valid_until__gte=timezone.now().date()
+#             ).first()
+#
+#             if lic:
+#                 return Response({
+#                     "status": "active",
+#                     "plan": lic.plan,
+#                     "valid_until": lic.valid_until,
+#                     "seats": lic.seats
+#                 })
+#             else:
+#                 return Response({
+#                     "status": "invalid",
+#                     "detail": "Licence non trouvée ou expirée"
+#                 })
+#
+#         except Exception as e:
+#             return Response({
+#                 "status": "error",
+#                 "detail": str(e)
+#             }, status=500)
+#
+#
 class RefreshLicenseView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -102,13 +132,13 @@ class RefreshLicenseView(APIView):
             "status": "refreshed",
             "message": "Licence rafraîchie avec succès"
         })
-
-
-class LicensePortalView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        # URL vers le portail de facturation
-        return Response({
-            "url": "/billing/portal/"
-        })
+#
+#
+# class LicensePortalView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+#
+#     def get(self, request):
+#         # URL vers le portail de facturation
+#         return Response({
+#             "url": "/billing/portal/"
+#         })

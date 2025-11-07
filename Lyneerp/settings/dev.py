@@ -3,6 +3,7 @@
 from .base import *
 
 import os
+
 ALLOWED_HOSTS = ['*']
 
 GDAL_LIBRARY_PATH = os.getenv('GDAL_LIBRARY_PATH', '/opt/homebrew/opt/gdal/lib/libgdal.dylib')
@@ -21,14 +22,6 @@ DATABASES = {
     }
 }
 
-SECURE_SSL_REDIRECT = False
-SECURE_HSTS_SECONDS = 0
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-USE_X_FORWARDED_HOST = False
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:3000",     # si front dev
-    "http://127.0.0.1:3000",
-]
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"

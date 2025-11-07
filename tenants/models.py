@@ -9,7 +9,7 @@ User = get_user_model()
 
 
 class Tenant(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     slug = models.SlugField(max_length=64, unique=True)  # ex: acme
     name = models.CharField(max_length=128)
     domain = models.CharField(max_length=255, blank=True)  # ex: acme.lyneerp.com
@@ -64,7 +64,7 @@ class Tenant(models.Model):
 
 
 class TenantUser(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -138,7 +138,7 @@ class TenantDomain(models.Model):
     """
     Support de multiples domaines par tenant (login SSO, white-label, etc.)
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="domains")
     domain = models.CharField(max_length=255, unique=True)
     is_primary = models.BooleanField(default=False)
@@ -179,7 +179,7 @@ class TenantDomain(models.Model):
 
 
 class TenantService(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -254,7 +254,7 @@ class TenantService(models.Model):
 
 
 class TenantInvitation(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -336,7 +336,7 @@ class TenantInvitation(models.Model):
 
 
 class TenantBilling(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -402,7 +402,7 @@ class TenantBilling(models.Model):
 
 
 class TenantActivityLog(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -458,7 +458,7 @@ class TenantSettings(models.Model):
     """
     Configuration spécifique pour chaque tenant
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.OneToOneField(
         Tenant,
         on_delete=models.CASCADE,
@@ -497,7 +497,7 @@ class TenantSettings(models.Model):
 
 
 class TenantSubscription(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="subscriptions")
     service = models.CharField(max_length=20, choices=TenantService.SERVICE_CHOICES)
     license_type = models.CharField(max_length=20, choices=TenantService.LICENSE_TYPES)
@@ -513,7 +513,7 @@ class TenantSubscription(models.Model):
 
 
 class License(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Ajout d'un ID
+  # Ajout d'un ID
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -561,7 +561,7 @@ class License(models.Model):
 
 
 class SeatAssignment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Ajout d'un ID
+  # Ajout d'un ID
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,

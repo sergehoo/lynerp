@@ -347,7 +347,8 @@ class BulkActionsViewSet(viewsets.ViewSet):
 class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated, HasRHAccess]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'code']
     ordering_fields = ['name', 'created_at']
@@ -364,7 +365,8 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess, HasRole]
+    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated, HasRHAccess, HasRole]
     required_roles = ["hr:view"]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
@@ -514,7 +516,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     ordering_fields = ['requested_at', 'start_date']
 
@@ -563,7 +565,7 @@ class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class PositionViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Position.objects.all()
     serializer_class = PositionSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'code']
     ordering_fields = ['title', 'created_at']
@@ -572,7 +574,7 @@ class PositionViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class LeaveTypeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveType.objects.all()
     serializer_class = LeaveTypeSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'code']
     ordering_fields = ['name', 'created_at']
@@ -581,7 +583,7 @@ class LeaveTypeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=['post'])
     def bulk_check_in(self, request):
@@ -624,7 +626,7 @@ class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Recruitment.objects.all()
     serializer_class = RecruitmentSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'reference']
     ordering_fields = ['created_at', 'publication_date']
@@ -677,7 +679,7 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 # -----------------------------
 class JobApplicationViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = JobApplication.objects.all()
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, JSONParser]
 
     def get_serializer_class(self):
@@ -745,7 +747,7 @@ class JobApplicationViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 class InterviewViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Interview.objects.all()
     serializer_class = InterviewSerializer
-    permission_classes = [IsAuthenticated, HasRHAccess]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):

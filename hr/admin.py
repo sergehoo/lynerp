@@ -26,7 +26,7 @@ class TenantFilter(admin.SimpleListFilter):
     parameter_name = 'tenant'
 
     def lookups(self, request, model_admin):
-        tenants = set([c['tenant_id'] for c in model_admin.model.objects.values('tenant_id').distinct()])
+        tenants = set([c['tenant'] for c in model_admin.model.objects.values('tenant').distinct()])
         return [(t, t) for t in tenants]
 
     def queryset(self, request, queryset):
@@ -56,9 +56,12 @@ class ActiveFilter(admin.SimpleListFilter):
 # === INLINES ===
 class PositionInline(admin.TabularInline):
     model = Position
-    extra = 1
-    fields = ['title', 'code', 'level', 'is_active']
-    readonly_fields = ['created_at']
+    extra = 0
+    fields = ("title", "code", "level", "is_active")  # pas de champ tenant ici
+    show_change_link = True
+
+    def save_new_objects(self, form, commit=True):
+        return super().save_new_objects(form, commit)
 
 
 class EmployeeInline(admin.TabularInline):
@@ -70,11 +73,11 @@ class EmployeeInline(admin.TabularInline):
     can_delete = False
 
 
-# class EmploymentContractInline(admin.TabularInline):
-#     model = EmploymentContract
-#     extra = 0
-#     fields = ['contract_type', 'start_date', 'end_date', 'base_salary']
-#     readonly_fields = ['created_at']
+class EmploymentContractInline(admin.TabularInline):
+    model = EmploymentContract
+    extra = 0
+    fields = ['contract_type', 'start_date', 'end_date', 'base_salary']
+    readonly_fields = ['created_at']
 
 
 class SalaryHistoryInline(admin.TabularInline):
@@ -161,14 +164,14 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(Position)
 class PositionAdmin(admin.ModelAdmin):
-    list_display = ['title', 'code', 'department', 'level', 'salary_range', 'is_active', 'tenant_id']
+    list_display = ['title', 'code', 'department', 'level', 'salary_range', 'is_active', 'tenant']
     list_filter = [TenantFilter, ActiveFilter, 'level', 'department']
     search_fields = ['title', 'code', 'description']
     list_select_related = ['department']
     readonly_fields = ['created_at']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['title', 'code', 'department', 'description', 'tenant_id']
+            'fields': ['title', 'code', 'department', 'description', 'tenant']
         }),
         ('Grille salariale', {
             'fields': ['salary_min', 'salary_max', 'level']
@@ -201,7 +204,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         ('Informations personnelles', {
             'fields': [
                 'matricule', 'first_name', 'last_name', 'email', 'phone',
-                'date_of_birth', 'gender', 'address', 'emergency_contact'
+                'date_of_birth', 'gender', 'address', 'emergency_contact',
             ]
         }),
         ('Informations professionnelles', {

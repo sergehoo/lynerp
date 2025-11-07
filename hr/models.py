@@ -10,7 +10,6 @@ from tenants.models import Tenant
 
 
 class Department(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=120)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
     tenant = models.ForeignKey(
@@ -85,7 +84,6 @@ class Department(models.Model):
 
 class Position(models.Model):
     """Poste/emploi dans l'organisation"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=120)
     code = models.CharField(max_length=50, null=True, blank=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='positions')
@@ -113,7 +111,7 @@ class Position(models.Model):
         on_delete=models.PROTECT,
         db_column='tenant_id',
         related_name='positions',
-        db_index=True,
+        db_index=True,null=True,blank=True
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -134,7 +132,6 @@ class Position(models.Model):
 
 
 class Employee(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     matricule = models.CharField(max_length=64)
     first_name = models.CharField(max_length=120)
     last_name = models.CharField(max_length=120)
@@ -282,7 +279,6 @@ class Employee(models.Model):
 
 class ContractType(models.Model):
     """Types de contrats standardisés"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, help_text="Nom du type de contrat")
     code = models.CharField(max_length=50, unique=True, help_text="Code unique du contrat")
     description = models.TextField(blank=True, help_text="Description du type de contrat")
@@ -330,7 +326,6 @@ class ContractType(models.Model):
 
 class EmploymentContract(models.Model):
     """Contrat de travail"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='contracts')
     contract_type = models.ForeignKey(ContractType, on_delete=models.PROTECT, related_name='contracts')
 
@@ -557,7 +552,6 @@ class EmploymentContract(models.Model):
 
 class ContractAmendment(models.Model):
     """Avenant à un contrat existant"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(EmploymentContract, on_delete=models.CASCADE, related_name='amendments')
     amendment_number = models.CharField(max_length=50, help_text="Numéro de l'avenant")
 
@@ -637,7 +631,6 @@ class ContractAmendment(models.Model):
 
 class ContractTemplate(models.Model):
     """Modèles de contrats pré-définis"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200, help_text="Nom du modèle")
     contract_type = models.ForeignKey(ContractType, on_delete=models.CASCADE, related_name='templates')
 
@@ -688,7 +681,6 @@ class ContractTemplate(models.Model):
 
 class ContractAlert(models.Model):
     """Alertes et rappels pour les contrats"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(EmploymentContract, on_delete=models.CASCADE, related_name='alerts')
 
     # Type d'alerte
@@ -772,7 +764,7 @@ class ContractAlert(models.Model):
 
 class ContractHistory(models.Model):
     """Historique des modifications des contrats"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     contract = models.ForeignKey(EmploymentContract, on_delete=models.CASCADE, related_name='history')
 
     # Action effectuée
@@ -818,7 +810,7 @@ class ContractHistory(models.Model):
 
 
 class SalaryHistory(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='salary_history')
     effective_date = models.DateField()
     gross_salary = models.DecimalField(max_digits=10, decimal_places=2)
@@ -833,7 +825,7 @@ class SalaryHistory(models.Model):
 
 
 class HRDocument(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
     category = models.CharField(max_length=50)  # 'contract','id','medical','other'...
     file = models.FileField(upload_to=TenantPath('hr_documents'))
@@ -848,7 +840,7 @@ class HRDocument(models.Model):
 
 class LeaveType(models.Model):
     """Types de congés (annuel, maladie, maternité, etc.)"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=50)
     description = models.TextField(blank=True)
@@ -884,7 +876,7 @@ class LeaveType(models.Model):
 
 
 class HolidayCalendar(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     name = models.CharField(max_length=80)
     country = models.CharField(max_length=2, blank=True)  # 'CI','FR', ...
     tenant_id = models.CharField(max_length=64, db_index=True)
@@ -895,7 +887,7 @@ class HolidayCalendar(models.Model):
 
 
 class Holiday(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     calendar = models.ForeignKey(HolidayCalendar, on_delete=models.CASCADE, related_name='days')
     date = models.DateField()
     label = models.CharField(max_length=120)
@@ -907,7 +899,7 @@ class Holiday(models.Model):
 
 
 class WorkScheduleTemplate(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     name = models.CharField(max_length=80)  # ex: 'Standard 8-17'
     tenant_id = models.CharField(max_length=64, db_index=True)
     rules = models.JSONField(default=dict, blank=True)  # {mon:{start:'08:00', end:'17:00', break:60}, ...}
@@ -925,7 +917,7 @@ class LeaveRequest(models.Model):
         ('cancelled', 'Annulé')
     )
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -997,7 +989,7 @@ class LeaveRequest(models.Model):
 
 class LeaveBalance(models.Model):
     """Solde de congés pour chaque employé"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='leave_balances')
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE)
     year = models.PositiveIntegerField()
@@ -1035,7 +1027,7 @@ class LeaveBalance(models.Model):
 
 
 class LeaveApprovalStep(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     leave_request = models.ForeignKey('LeaveRequest', on_delete=models.CASCADE, related_name='approval_steps')
     step = models.PositiveIntegerField()  # 1,2,...
     approver = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True,
@@ -1055,7 +1047,7 @@ class LeaveApprovalStep(models.Model):
 
 class Attendance(models.Model):
     """Pointage des employés"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='attendances')
     date = models.DateField()
 
@@ -1144,7 +1136,7 @@ class Attendance(models.Model):
 
 class Payroll(models.Model):
     """Fiche de paie"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='payrolls')
 
     # Période
@@ -1213,7 +1205,7 @@ class Payroll(models.Model):
 
 class PerformanceReview(models.Model):
     """Évaluation de performance"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='performance_reviews')
 
     # Période d'évaluation
@@ -1288,7 +1280,7 @@ class PerformanceReview(models.Model):
 
 class Recruitment(models.Model):
     """Campagne de recrutement"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     title = models.CharField(max_length=200, help_text="Intitulé du poste")
     reference = models.CharField(max_length=50, unique=True, help_text="Référence du recrutement")
 
@@ -1438,7 +1430,7 @@ def upload_to_per_tenant(prefix):
 
 class JobApplication(models.Model):
     """Candidature à un poste"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     recruitment = models.ForeignKey(
         Recruitment,
         on_delete=models.CASCADE,
@@ -1551,7 +1543,6 @@ class JobApplication(models.Model):
 
 class AIProcessingResult(models.Model):
     """Résultats du traitement IA des candidatures"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job_application = models.OneToOneField(
         JobApplication,
         on_delete=models.CASCADE,
@@ -1621,7 +1612,6 @@ class AIProcessingResult(models.Model):
 
 class Interview(models.Model):
     """Entretien de recrutement"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job_application = models.ForeignKey(
         JobApplication,
         on_delete=models.CASCADE,
@@ -1732,7 +1722,6 @@ class Interview(models.Model):
 
 
 class InterviewFeedback(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     interview = models.ForeignKey('Interview', on_delete=models.CASCADE, related_name='feedbacks')
     interviewer = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='given_feedbacks')
     criteria = models.JSONField(default=dict, blank=True)  # {'communication':4.0, 'tech':4.5, ...}
@@ -1750,7 +1739,6 @@ class InterviewFeedback(models.Model):
 
 class RecruitmentAnalytics(models.Model):
     """Analytiques pour le recrutement"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     recruitment = models.OneToOneField(
         Recruitment,
         on_delete=models.CASCADE,
@@ -1823,7 +1811,6 @@ class RecruitmentAnalytics(models.Model):
 
 
 class JobOffer(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job_application = models.OneToOneField('JobApplication', on_delete=models.CASCADE, related_name='offer')
     title = models.CharField(max_length=200, help_text="Intitulé du poste proposé")
     proposed_salary = models.DecimalField(max_digits=10, decimal_places=2)
@@ -1845,7 +1832,6 @@ class JobOffer(models.Model):
 
 class RecruitmentWorkflow(models.Model):
     """Workflow personnalisable de recrutement"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
 
