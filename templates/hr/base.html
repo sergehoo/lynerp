@@ -431,9 +431,9 @@
           this.showToast('Authentifié','success');
         }catch(e){
           console.error(e);
-          this.authHint = true;
-          setTimeout(()=> window.location.assign('/auth/keycloak/login/'), 800);
-          throw e;
+          {#this.authHint = true;#}
+          {#setTimeout(()=> window.location.assign('/auth/keycloak/login/'), 800);#}
+          {#throw e;#}
         }
       },
 
