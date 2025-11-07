@@ -10,7 +10,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from tenants.models import Tenant
-from tenants.utils import resolve_tenant
+from tenants.utils import resolve_tenant, get_tenant_from_request
 
 SUBDOMAIN_RE = re.compile(getattr(
     settings,
@@ -81,7 +81,7 @@ class RequestTenantMiddleware:
             # 2) claim tenant_id
             if "tenant_id" in payload:
                 return payload["tenant_id"]
-            # 3) groupe/role style "tenant:acme"
+            # 3) groupe/role style "tenant : acme"
             roles = (payload.get("realm_access", {}) or {}).get("roles", [])
             for r in roles:
                 if r.startswith("tenant:"):
@@ -93,8 +93,9 @@ class RequestTenantMiddleware:
 
 class TenantResolutionMiddleware:
     """
-    Met request.tenant (instance) et request.tenant_id (str).
-    Si aucun tenant résolu pour une route API, renvoie 403 JSON 'Tenant introuvable'.
+    - Résout request. Tenant (instance) et request.tenant_id (UUID str)
+    - Range tenant_id en session pour cohérence
+    - Bloque les endpoints /api/* si aucun tenant n’est trouvé
     """
     def __init__(self, get_response: Callable):
         self.get_response = get_response
@@ -104,14 +105,13 @@ class TenantResolutionMiddleware:
         if tenant:
             request.tenant = tenant
             request.tenant_id = str(tenant.id)
-            # garde en session pour cohérence (utile au front en mode Session)
-            request.session["tenant_id"] = request.tenant_id
+            if hasattr(request, "session"):
+                request.session["tenant_id"] = request.tenant_id
         else:
             request.tenant = None
             request.tenant_id = None
 
-        # Bloque proprement les endpoints API si tenant absent
-        if (request.path.startswith("/api/") or request.headers.get("Accept","").find("json")!=-1) and not request.tenant:
+        if (request.path.startswith("/api/") or "application/json" in (request.headers.get("Accept") or "")) and not request.tenant:
             return JsonResponse({"detail": "Tenant introuvable", "code": "tenant_not_found"}, status=403)
 
         return self.get_response(request)
@@ -161,7 +161,7 @@ def _tenant_from_bearer(request) -> str | None:
         # 1) claim direct
         if "tenant" in payload:
             return payload["tenant"]
-        # 2) groupe/role style "tenant:acme"
+        # 2) groupe/role style "tenant : acme"
         roles = (payload.get("realm_access", {}) or {}).get("roles", [])
         for r in roles:
             if r.startswith("tenant:"):
@@ -185,7 +185,7 @@ class TenantMiddleware(MiddlewareMixin):
         if not tenant:
             tenant = _tenant_from_bearer(request)
 
-        # 4) Fallback : éventuellement une valeur par défaut (ex: "default")
+        # 4) Fallback : éventuellement une valeur par défaut (ex : "default")
         if not tenant:
             tenant = getattr(settings, "DEFAULT_TENANT", None)
 
@@ -204,7 +204,7 @@ SUBDOMAIN_RE = re.compile(getattr(
 
 class RequestTenantMiddleware:
     """
-    - Déduit request.tenant (obj Tenant) à partir de la session ou du sous-domaine
+    - Déduit request. tenant (obj Tenant) à partir de la session ou du sous-domaine
     - S'assure que 'HTTP_X_TENANT_ID' est présent pour les vues DRF/permissions
     """
 
@@ -228,7 +228,7 @@ class RequestTenantMiddleware:
             tid = self._from_host(request.get_host())
 
         tenant_obj = resolve_tenant(tid)
-        request.tenant = tenant_obj  # peut être None, c'est OK
+        request.tenant = tenant_obj  # peut-être None, c'est OK
 
         # 3) Injecte X-Tenant-Id si manquant
         if tenant_obj and "HTTP_X_TENANT_ID" not in request.META:
