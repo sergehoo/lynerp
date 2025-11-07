@@ -14,7 +14,7 @@ LIC_URL = os.getenv("LICENSING_URL")
 MODULE = os.getenv("MODULE_CODE", "rh")
 
 LIC_TIMEOUT = float(os.getenv("LICENSING_TIMEOUT", "2.0"))
-AUTO_ASSIGN = os.getenv("LICENSING_AUTO_ASSIGN", "1") == "1"  # auto-attribue un siège si dispo
+AUTO_ASSIGN = os.getenv("LICENSING_AUTO_ASSIGN", "1") == "1"
 
 USE_REMOTE = bool(os.getenv("LICENSING_URL"))
 
@@ -49,7 +49,7 @@ def _sub_from_session(request):
         claims = _parse_jwt_unverified(data["access_token"])
         if claims.get("sub"):
             return claims["sub"]
-    # dernier recours : username/email (pas idéal mais évite un blocage dur)
+    # dernier recours : username/email (pas idéal, mais évite un blocage dur)
     return (data.get("preferred_username") or data.get("email") or "").strip() or None
 
 

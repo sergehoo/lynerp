@@ -102,9 +102,9 @@ def _parse_body(request: HttpRequest) -> dict:
 def keycloak_direct_login(request: HttpRequest):
     """
     Échange username/password contre un token Keycloak via 'password grant' (Direct Access Grants).
-    ⚠️ Production : privilégie le flow Authorization Code ; ici on garde pour cas d’usage spécifique.
+    ⚠️ Production : privilégie le flow Authorization Code ; ici, on garde pour cas d’usage spécifique.
     - tenant_id est optionnel : déduit automatiquement si absent.
-    - respecte ?next=... pour la redirection finale.
+    - respecte ? next=... pour la redirection finale.
     - crée/synchronise un user local (utile pour Django admin/permissions).
     """
     data = _parse_body(request)
