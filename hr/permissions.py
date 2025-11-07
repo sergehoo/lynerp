@@ -90,50 +90,47 @@ def _jit_assign_local(tenant: Tenant, module: str, sub: str, email: str):
 
 
 class HasRHAccess(BasePermission):
-    message = "Accès RH non autorisé (licence/siège/rôle)."
-    required_roles = {"rh:use"}
+    message = "Accès RH non autorisé."
 
     def has_permission(self, request, view):
-        # Rôles (s’ils existent côté token). Si session-only, on les zappe sans bloquer.
-        need = set(getattr(view, "required_roles", self.required_roles))
-        roles = _jwt_roles(request)
-        if need and roles and not need.issubset(roles):
-            self.message = "Rôle insuffisant"
+        # Vérification basique d'authentification
+        if not request.user.is_authenticated:
+            self.message = "Utilisateur non authentifié"
             return False
 
-        # Tenant
-        tenant_hint = (request.headers.get("X-Tenant-Id")
-                       or getattr(getattr(request, "tenant", None), "id", None)
-                       or request.session.get("tenant_id"))
-        tenant_obj = resolve_tenant(tenant_hint)
+        # Résolution du tenant
+        tenant_id = (request.headers.get("X-Tenant-Id") or
+                     getattr(request, "tenant_id", None) or
+                     request.session.get("tenant_id"))
+
+        if not tenant_id:
+            self.message = "Tenant introuvable"
+            return False
+
+        tenant_obj = resolve_tenant(tenant_id)
         if not tenant_obj:
             self.message = "Tenant introuvable"
             return False
 
-        # sub (Bearer ou session)
-        sub = _jwt_sub(request)
-        if not sub:
-            self.message = "Token invalide (sub manquant)"
+        # Vérification licence (version simplifiée pour debug)
+        try:
+            today = timezone.now().date()
+            lic = License.objects.filter(
+                tenant=tenant_obj,
+                module=MODULE_CODE,
+                active=True,
+                valid_until__gte=today
+            ).first()
+
+            if not lic:
+                self.message = "Licence RH non trouvée ou expirée"
+                return False
+
+        except Exception as e:
+            self.message = f"Erreur vérification licence: {str(e)}"
             return False
 
-        # Licence + siège
-        data = _local_status(tenant_obj, MODULE, sub)
-        if not data.get("active"):
-            self.message = "Licence RH invalide ou expirée"
-            return False
-        if data.get("user_entitled"):
-            return True
-        if data.get("jit_allowed"):
-            sa = _jit_assign_local(tenant_obj, MODULE, sub, getattr(getattr(request, "user", None), "email", ""))
-            return sa is not None
-
-        self.message = "Aucun siège disponible ou assigné"
-        return False
-
-
-def _jit_assign_local(tenant_obj, module, sub, email):
-    from hr.auth_utils import ensure_seat_for_user
-    return ensure_seat_for_user(tenant_obj, module, sub, email or "")
+        return True
 
 
 MODULE_CODE = "rh"  # ou settings.MODULE_CODE
@@ -198,13 +195,26 @@ class HasRHSeatAndLicense(BasePermission):
 
 
 class HasRole(BasePermission):
-    required = []  # ex: ["hr:view"] ou ["hr:manage"]
     message = "Rôle insuffisant"
 
     def has_permission(self, request, view):
-        payload = request.auth or {}
-        roles = payload.get("realm_access", {}).get("roles", []) + payload.get("resource_access", {}).get("rh-core",
-                                                                                                          {}).get(
-            "roles", [])
-        need = getattr(view, "required_roles", getattr(self, "required", []))
-        return all(r in roles for r in need)
+        # Si pas de rôles requis, autoriser
+        required_roles = getattr(view, 'required_roles', [])
+        if not required_roles:
+            return True
+
+        # Récupération des rôles depuis JWT ou session
+        roles = set()
+
+        # Depuis JWT
+        if hasattr(request, 'auth') and request.auth:
+            payload = request.auth
+            roles.update(payload.get("realm_access", {}).get("roles", []))
+            roles.update(payload.get("resource_access", {}).get("rh-core", {}).get("roles", []))
+
+        # Depuis session OIDC
+        oidc_data = request.session.get(getattr(settings, "OIDC_SESSION_KEY", "oidc_user"), {})
+        if oidc_data.get("roles"):
+            roles.update(oidc_data["roles"])
+
+        return all(role in roles for role in required_roles)

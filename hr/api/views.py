@@ -74,28 +74,6 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
-
-class WhoAmIView(APIView):
-    # On accepte la session OU le JWT (SessionAuthentication + KeycloakJWTAuthentication sont déjà dans settings)
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        kc = request.session.get(settings.OIDC_SESSION_KEY) or {}
-        claims = request.auth or {}
-        sub = claims.get("sub") or kc.get("sub")
-        return Response({
-            "user": {
-                "username": getattr(request.user, "username", None) or kc.get("preferred_username"),
-                "email": getattr(request.user, "email", None) or kc.get("email"),
-                "sub": sub,
-            },
-            "tenant": (getattr(getattr(request, "tenant", None), "id", None)
-                       or request.headers.get("X-Tenant-Id")
-                       or request.session.get("tenant_id")),
-            "auth_via": "jwt" if request.auth else "session",
-        })
-
-
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------

@@ -460,42 +460,67 @@
             switchView(key){ this.currentView=key; this.activeNav=key; this.prefetch(key); },
 
             /* ===== Auth end-to-end ===== */
-            async ensureAuthenticated(){
-                try{
-                    if(!this.token){ this.token = getStoredAccessToken(); }
-                    const hasBearer = !!this.token && !!parseJwt(this.token);
+            // Dans la fonction hrApp(), corriger ensureAuthenticated
+async ensureAuthenticated(){
+    try{
+        // Récupération du token
+        if(!this.token){ 
+            this.token = getStoredAccessToken(); 
+        }
+        
+        // Mode session-first (plus permissif)
+        try {
+            const who = await this.apiCall('/auth/whoami/', { 
+                // Pas d'Authorization header pour utiliser la session
+            });
+            this.user = who?.user || {};
+            this.tenantId = this.tenantId || who?.tenant || deriveTenantFromHost(location.hostname) || '';
+            await this.fetchLicense();
+            Conf.tenantId = this.tenantId; 
+            Conf.save();
+            this.showToast('Authentifié (session)','success');
+            return;
+            
+        } catch(sessionError) {
+            console.log('Session auth failed, trying JWT...');
+            
+            // Fallback JWT
+            if(this.token) {
+                const claims = parseJwt(this.token);
+                await refreshTokenIfNeeded(claims?.exp);
+                this.token = getStoredAccessToken();
 
-                    // Mode session (pas de Bearer) → whoami sans Authorization
-                    if(!hasBearer){
-                        const who = await this.apiCall('/auth/whoami/', { /* no auth header */ });
-                        this.user = who?.user || {};
-                        this.tenantId = this.tenantId || who?.tenant || deriveTenantFromHost(location.hostname) || '';
-                        await this.fetchLicense();
-                        Conf.tenantId = this.tenantId; Conf.save();
-                        this.showToast('Authentifié (session)','success');
-                        return;
-                    }
+                const who = await this.apiCall('/auth/whoami/');
+                this.user = who?.user || {
+                    preferred_username: claims?.preferred_username, 
+                    username: claims?.preferred_username
+                };
+                this.tenantId = this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id || deriveTenantFromHost(location.hostname) || '';
+                await this.fetchLicense();
+                Conf.token = this.token; 
+                Conf.tenantId = this.tenantId; 
+                Conf.save();
+                this.showToast('Authentifié (JWT)','success');
+                return;
+            }
+            
+            // Si les deux échouent
+            throw new Error('Aucune méthode d\'authentification valide');
+        }
 
-                    // Mode JWT
-                    const claims = parseJwt(this.token);
-                    await refreshTokenIfNeeded(claims?.exp);
-                    this.token = getStoredAccessToken();
-
-                    const who = await this.apiCall('/auth/whoami/');
-                    this.user = who?.user || {preferred_username: claims?.preferred_username, username: claims?.preferred_username};
-                    this.tenantId = this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id || deriveTenantFromHost(location.hostname) || '';
-                    await this.fetchLicense();
-                    Conf.token = this.token; Conf.tenantId = this.tenantId; Conf.save();
-                    this.showToast('Authentifié (JWT)','success');
-
-                }catch(e){
-                    console.error(e);
-                    {#this.authHint = true;#}
-                    {#setTimeout(()=> window.location.assign('/auth/keycloak/login/'), 800);#}
-                    {#throw e;#}
-                }
-            },  /* <-- important: virgule de séparation après la méthode */
-
+    }catch(e){
+        console.error('Authentication error:', e);
+        this.authHint = true;
+        // Redirection plus intelligente
+        setTimeout(() => {
+            const loginUrl = '/auth/keycloak/login/';
+            if(window.location.pathname !== loginUrl) {
+                window.location.assign(loginUrl);
+            }
+        }, 1500);
+        throw e;
+    }
+},
             /* ===== License helpers ===== */
             async fetchLicense(){
                 try{
