@@ -207,3 +207,27 @@ services:
       - traefik.http.routers.mailpit.entrypoints=websecure
       - traefik.http.routers.mailpit.tls.certresolver=${TRAEFIK_CERTRESOLVER}
       - traefik.http.services.mailpit-svc.loadbalancer.server.port=8025
+  lyneadminer:
+    #    profiles: ["admin"]
+    image: adminer
+    restart: unless-stopped
+    environment:
+      TZ: Africa/Abidjan
+      ADMINER_DEFAULT_SERVER: lyneDB
+    depends_on:
+      lyneDB:
+        condition: service_healthy
+    networks: [ web, proxy ]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.lyneadminer.rule=Host(`adminer.lyneerp.com`)
+      - traefik.http.routers.lyneadminer.entrypoints=websecure
+      - traefik.http.routers.lyneadminer.tls=true
+      - traefik.http.routers.lyneadminer.tls.certresolver=lets
+      - traefik.http.services.lyneadminer.loadbalancer.server.port=8080
+      - traefik.http.services.lyneadminer.loadbalancer.server.scheme=http
+    logging: *logging_rotated
+    cpus: "0.3"
+    mem_limit: 256m
+    mem_reservation: 128m
