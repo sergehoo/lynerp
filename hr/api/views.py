@@ -2,7 +2,6 @@
 
 import logging
 from typing import Dict, Any, List
-
 import pandas as pd
 from django.conf import settings
 from django.http import HttpResponse
@@ -10,14 +9,12 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Count, Avg
 from django.db import transaction
-
 from rest_framework import viewsets, status, filters, permissions
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.views import APIView
-
 from hr.ai_recruitment_service import AIRecruitmentService
 from hr.permissions import HasRHAccess, HasRole
 
@@ -73,6 +70,7 @@ except Exception:
             return {"success": False, "error": "EmployeeExportService non implémenté"}
 
 logger = logging.getLogger(__name__)
+
 
 # -----------------------------
 # Mixins multi-tenant

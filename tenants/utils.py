@@ -10,6 +10,7 @@ SUBDOMAIN_RE = re.compile(
     re.I,
 )
 
+
 def _by_id_or_slug(value: str) -> Optional[Tenant]:
     if not value:
         return None
@@ -28,6 +29,7 @@ def _by_id_or_slug(value: str) -> Optional[Tenant]:
     except Exception:
         return None
 
+
 def infer_tenant_from_host(host: str) -> Optional[str]:
     host = (host or "").split(":")[0]
     m = SUBDOMAIN_RE.match(host)
@@ -35,13 +37,14 @@ def infer_tenant_from_host(host: str) -> Optional[str]:
         return m.group("tenant")
     return None
 
+
 def resolve_tenant_identifier(request) -> Optional[str]:
     # Ordre: champ fourni (header/corps) -> session -> host -> default
     h = (
-        request.headers.get("X-Tenant-Id")
-        or request.headers.get("X-Tenant-Slug")
-        or request.session.get("tenant_id")
-        or request.session.get(getattr(settings, "TENANT_SESSION_KEY", "current_tenant"))
+            request.headers.get("X-Tenant-Id")
+            or request.headers.get("X-Tenant-Slug")
+            or request.session.get("tenant_id")
+            or request.session.get(getattr(settings, "TENANT_SESSION_KEY", "current_tenant"))
     )
     if h:
         return str(h).strip()
@@ -49,6 +52,7 @@ def resolve_tenant_identifier(request) -> Optional[str]:
     if sub:
         return sub
     return getattr(settings, "DEFAULT_TENANT", None)
+
 
 def get_tenant_from_request(request) -> Optional[Tenant]:
     ident = resolve_tenant_identifier(request)

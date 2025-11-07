@@ -8,7 +8,7 @@ from rest_framework.permissions import BasePermission
 import os, requests
 
 from tenants.models import SeatAssignment, TenantUser, License, Tenant
-from tenants.utils import resolve_tenant
+
 
 LIC_URL = os.getenv("LICENSING_URL")
 MODULE = os.getenv("MODULE_CODE", "rh")
@@ -91,103 +91,110 @@ def _jit_assign_local(tenant: Tenant, module: str, sub: str, email: str):
 
 class HasRHAccess(BasePermission):
     message = "Accès RH non autorisé (licence/siège/rôle)."
+    required_roles = {"rh:use"}
 
     def has_permission(self, request, view):
-        # Vérification basique d'authentification
-        if not request.user.is_authenticated:
-            self.message = "Utilisateur non authentifié"
-            return False
-
-        # Résolution du tenant
-        tenant_id = (request.headers.get("X-Tenant-Id") or
-                     getattr(request, "tenant_id", None) or
-                     request.session.get("tenant_id"))
-
-        if not tenant_id:
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
             self.message = "Tenant introuvable"
             return False
 
-        tenant_obj = resolve_tenant(tenant_id)
-        if not tenant_obj:
-            self.message = "Tenant introuvable"
+        sub = _jwt_sub(request)
+        if not sub:
+            self.message = "Token invalide (sub manquant)"
             return False
 
-        # Vérification licence (version simplifiée pour debug)
+        need = set(getattr(view, "required_roles", self.required_roles))
+        if not need.issubset(_jwt_roles(request)):
+            self.message = "Rôle insuffisant"
+            return False
+
         try:
-            today = timezone.now().date()
-            lic = License.objects.filter(
-                tenant=tenant_obj,
-                module=MODULE_CODE,
-                active=True,
-                valid_until__gte=today
-            ).first()
+            if USE_REMOTE:
+                r = requests.get(
+                    f"{LIC_URL}/status",
+                    params={"tenant": str(tenant.id), "module": MODULE, "user_sub": sub},
+                    timeout=LIC_TIMEOUT,
+                )
+                if r.status_code != 200:
+                    self.message = "Service licence indisponible"
+                    return False
+                data = r.json()
+            else:
+                data = _local_status(tenant, MODULE, sub)
 
-            if not lic:
-                self.message = "Licence RH non trouvée ou expirée"
+            if not data.get("active"):
+                self.message = "Licence RH invalide ou expirée"
                 return False
 
-        except Exception as e:
-            self.message = f"Erreur vérification licence: {str(e)}"
+            if data.get("user_entitled"):
+                return True
+
+            if data.get("jit_allowed"):
+                if USE_REMOTE:
+                    cr = requests.post(
+                        f"{LIC_URL}/claim-seat",
+                        json={"tenant": str(tenant.id), "module": MODULE, "user_sub": sub},
+                        timeout=LIC_TIMEOUT,
+                    )
+                    if cr.status_code == 200 and cr.json().get("user_entitled"):
+                        return True
+                    self.message = (cr.json().get("detail") if cr.headers.get("content-type", "").startswith(
+                        "application/json") else None) or "Aucun siège disponible"
+                    return False
+                else:
+                    SeatAssignment.objects.get_or_create(
+                        tenant=tenant, module=MODULE, user_sub=sub,
+                        defaults={"active": True, "activated_at": timezone.now()},
+                    )
+                    return True
+
+            self.message = "Aucun siège assigné à cet utilisateur"
+            return False
+        except Exception:
+            self.message = "Erreur vérification licence"
             return False
 
-        return True
 
-
-MODULE_CODE = "rh"  # ou settings.MODULE_CODE
+MODULE_CODE = "rh"
 
 
 class HasRHSeatAndLicense(BasePermission):
     message = "Accès RH refusé (licence invalide, siège non attribué ou rôle insuffisant)."
-    required_roles = []  # ex: ["hr:view"] ou ["hr:manage"]
+    required_roles = []
 
     def has_permission(self, request, view):
-        tenant_id = request.session.get("tenant_id") or request.headers.get("X-Tenant-Id")
-        if not tenant_id or not request.user.is_authenticated:
+        tenant = getattr(request, "tenant", None)
+        if not tenant or not request.user.is_authenticated:
             return False
 
-        # 1) Charger tenant
-        try:
-            tenant = Tenant.objects.get(id=tenant_id)
-        except Tenant.DoesNotExist:
+        if not TenantUser.objects.filter(tenant=tenant, user=request.user, is_active=True).exists():
             return False
 
-        # 2) Vérifier appartenance au tenant
-        if not TenantUser.objects.filter(
-                tenant=tenant, user=request.user, is_active=True
-        ).exists():
-            return False
-
-        # 3) Licence valide
         today = timezone.now().date()
         try:
-            lic = License.objects.get(
-                tenant=tenant, module=MODULE_CODE, active=True, valid_until__gte=today
-            )
+            lic = License.objects.get(tenant=tenant, module=MODULE_CODE, active=True, valid_until__gte=today)
         except License.DoesNotExist:
             return False
 
-        # 4) Siège attribué à l’utilisateur (via sub)
-        payload = request.auth or {}
-        sub = payload.get("sub") or payload.get("user_id")  # selon ton token
+        payload = getattr(request, "auth", {}) or {}
+        sub = payload.get("sub") or payload.get("user_id")
         if not sub:
             return False
 
         seat = SeatAssignment.objects.filter(
             tenant=tenant, module=MODULE_CODE, user_sub=sub, active=True
         ).select_related("license").first()
-
         if not seat:
             return False
 
-        # Optionnel : sécurité forte → le siège doit pointer la même licence
         if seat.license_id and seat.license_id != lic.id:
             return False
 
-        # 5) Rôles
         need = getattr(view, "required_roles", getattr(self, "required_roles", []))
         if need:
             roles = (payload.get("realm_access", {}).get("roles", [])
-                     + payload.get("resource_access", {}).get("rh-core", {}).get("roles", []))
+                     + payload.get("resource_access", {}).get(settings.KEYCLOAK_CLIENT_ID, {}).get("roles", []))
             if not all(r in roles for r in need):
                 return False
 
