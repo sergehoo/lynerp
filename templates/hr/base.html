@@ -303,7 +303,7 @@
                         <div class="text-4xl mb-2">⛔</div>
                         <h3 class="text-lg font-semibold mb-2">403 — Licence RH invalide ou expirée</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400"
-                           x-text="licenseBlocker.detail || 'Votre abonnement RH ne permet pas d’accéder à cette ressource.'"></p>
+                           x-text="licenseBlocker.detail || 'Votre abonnement RH ne permet pas d'accéder à cette ressource.'"></p>
                         <div class="mt-5 flex items-center justify-center gap-3">
                             <button @click="refreshLicense"
                                     class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-700 text-white">Rafraîchir la
@@ -531,9 +531,9 @@
             },
             get viewDesc() {
                 return ({
-                    dashboard: 'Vue d’ensemble de votre activité RH',
+                    dashboard: 'Vue d'ensemble de votre activité RH',
                     employees: 'Gérez votre effectif et les informations employés',
-                    recruitment: 'Recrutez avec l’aide de l’IA',
+                    recruitment: 'Recrutez avec l'aide de l'IA',
                     leaves: 'Suivez et approuvez les demandes de congés',
                     attendance: 'Surveillez la présence et les heures'
                 })[this.currentView] || 'Plateforme RH intelligente';
@@ -559,7 +559,7 @@
                     const hasBearer = !!this.token && !!parseJwt(this.token);
 
                     // S'il n'y a PAS de Bearer, on s'appuie sur la SESSION Django :
-                    // On tente whoami() sans Authorization -> SessionAuthentication fera l’affaire.
+                    // On tente whoami() sans Authorization -> SessionAuthentication fera l'affaire.
                     if (!hasBearer) {
                         const who = await this.apiCall('/auth/whoami/', { /* pas d'Authorization */});
                         this.user = who?.user || {};
@@ -571,7 +571,7 @@
                         return;
                     }
 
-                    // Sinon (Bearer dispo), on vérifie l’expiration et on poursuit comme avant
+                    // Sinon (Bearer dispo), on vérifie l'expiration et on poursuit comme avant
                     const claims = parseJwt(this.token);
                     await refreshTokenIfNeeded(claims.exp);
                     this.token = getStoredAccessToken();
@@ -595,7 +595,7 @@
                     setTimeout(() => window.location.assign('/auth/keycloak/login/'), 800);
                     throw e;
                 }
-            }
+            },
 
             /* ===== License helpers ===== */
             async fetchLicense() {
