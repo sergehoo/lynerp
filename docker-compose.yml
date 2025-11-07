@@ -227,7 +227,7 @@ services:
       - traefik.http.routers.lyneadminer.tls.certresolver=lets
       - traefik.http.services.lyneadminer.loadbalancer.server.port=8080
       - traefik.http.services.lyneadminer.loadbalancer.server.scheme=http
-    logging: *logging_rotated
+#    logging: *logging_rotated
     cpus: "0.3"
     mem_limit: 256m
     mem_reservation: 128m
