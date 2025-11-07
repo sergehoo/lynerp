@@ -33,7 +33,8 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "lyneerp.com,rh.lyneerp.com").split(",")
+# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "lyneerp.com,rh.lyneerp.com").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".lyneerp.com,rh.lyneerp.com,localhost,127.0.0.1").split(",")
 # Application definition
 
 INSTALLED_APPS = [
@@ -54,15 +55,16 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
 
-    "tenants.middleware.TenantMiddleware",
+    # "tenants.middleware.TenantMiddleware",
     'django.middleware.security.SecurityMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    "tenants.middleware.TenantResolutionMiddleware",
+    "tenants.middleware.TenantResolverMiddleware",
+    # "tenants.middleware.TenantResolutionMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
-    "tenants.middleware.TenantSessionMiddleware",
-    "tenants.middleware.RequestTenantMiddleware",
+    # "tenants.middleware.TenantSessionMiddleware",
+    # "tenants.middleware.RequestTenantMiddleware",
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -210,7 +212,7 @@ TENANT_REALMS = {
 OIDC_SESSION_KEY = "oidc_user"
 # Optionnel
 TENANT_SUBDOMAIN_REGEX = r"^(?P<tenant>[a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$"
-DEFAULT_TENANT = None  # ou "default"
+DEFAULT_TENANT = os.getenv("DEFAULT_TENANT", None)
 # Où stocker les infos utilisateur dans la session
 
 # Default primary key field type
@@ -245,12 +247,7 @@ OIDC_OP_USER_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-con
 OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
 OIDC_RP_CLIENT_SECRET = None                     # None pour client public
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
-# OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth"
-# OIDC_OP_TOKEN_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/token"
-# OIDC_OP_USER_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/userinfo"
-# OIDC_OP_JWKS_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/certs"
 
-# OIDC_OP_TOKEN_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
 # Algorithme de signature attendu pour les ID tokens (Keycloak = RS256 par défaut)
 OIDC_RP_SIGN_ALGO = "RS256"
 # 1) Scopes demandés (sinon certains IdP ne renvoient pas email/username)
