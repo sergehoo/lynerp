@@ -1,4 +1,3 @@
-# # tenants/middleware.py
 
 # tenants/middleware.py
 from __future__ import annotations
@@ -11,7 +10,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from tenants.models import Tenant
-from tenants.utils import resolve_tenant, get_tenant_from_request
+from tenants.utils import resolve_tenant
 
 SUBDOMAIN_RE = re.compile(getattr(
     settings,
