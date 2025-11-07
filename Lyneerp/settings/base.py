@@ -54,13 +54,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
 
-    "tenants.middleware.TenantMiddleware",
+    # "tenants.middleware.TenantMiddleware",
     'django.middleware.security.SecurityMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    "tenants.middleware.TenantSessionMiddleware",
+    # "tenants.middleware.TenantSessionMiddleware",
     "tenants.middleware.RequestTenantMiddleware",
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
