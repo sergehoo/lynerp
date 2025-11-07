@@ -43,17 +43,20 @@ class Department(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (("tenant_id", "name"),)
+        unique_together = (("tenant", "name"),)
         db_table = 'hr_department'
         verbose_name = 'Département'
         verbose_name_plural = 'Départements'
         indexes = [
-            models.Index(fields=['tenant_id', 'is_active']),
+            models.Index(fields=['tenant', 'is_active']),
             models.Index(fields=['parent']),
         ]
 
     def __str__(self):
-        return f"{self.name} ({self.tenant_id})"
+        # Option lisible: slug si dispo, sinon UUID
+        t = self.tenant.slug if (self.tenant and getattr(self.tenant, "slug", None)) else self.tenant_id
+        return f"{self.name} ({t})"
+
 
     @property
     def active_contracts_count(self):
@@ -84,7 +87,7 @@ class Position(models.Model):
     """Poste/emploi dans l'organisation"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=120)
-    code = models.CharField(max_length=50, unique=True)
+    code = models.CharField(max_length=50, null=True, blank=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='positions')
     description = models.TextField(blank=True)
 
@@ -105,18 +108,24 @@ class Position(models.Model):
     ]
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='JUNIOR')
 
-    tenant_id = models.CharField(max_length=64, db_index=True)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        db_column='tenant_id',
+        related_name='positions',
+        db_index=True,
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = (("tenant_id", "title"), ("tenant_id", "code"))
+        unique_together = (("tenant", "title"), ("tenant", "code"))
 
         db_table = 'hr_positions'
         verbose_name = 'Poste'
         verbose_name_plural = 'Postes'
         indexes = [
-            models.Index(fields=['tenant_id', 'is_active']),
+            models.Index(fields=['tenant', 'is_active']),
             models.Index(fields=['department']),
         ]
 
@@ -126,10 +135,10 @@ class Position(models.Model):
 
 class Employee(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    matricule = models.CharField(max_length=64, unique=True)
+    matricule = models.CharField(max_length=64)
     first_name = models.CharField(max_length=120)
     last_name = models.CharField(max_length=120)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     department = models.ForeignKey(Department, null=True, on_delete=models.SET_NULL)
     hire_date = models.DateField()
     contract_type = models.CharField(max_length=64)
