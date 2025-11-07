@@ -464,26 +464,26 @@
 async ensureAuthenticated(){
     try{
         // Récupération du token
-        if(!this.token){ 
-            this.token = getStoredAccessToken(); 
+        if(!this.token){
+            this.token = getStoredAccessToken();
         }
-        
+
         // Mode session-first (plus permissif)
         try {
-            const who = await this.apiCall('/auth/whoami/', { 
+            const who = await this.apiCall('/auth/whoami/', {
                 // Pas d'Authorization header pour utiliser la session
             });
             this.user = who?.user || {};
             this.tenantId = this.tenantId || who?.tenant || deriveTenantFromHost(location.hostname) || '';
             await this.fetchLicense();
-            Conf.tenantId = this.tenantId; 
+            Conf.tenantId = this.tenantId;
             Conf.save();
             this.showToast('Authentifié (session)','success');
             return;
-            
+
         } catch(sessionError) {
             console.log('Session auth failed, trying JWT...');
-            
+
             // Fallback JWT
             if(this.token) {
                 const claims = parseJwt(this.token);
@@ -492,18 +492,18 @@ async ensureAuthenticated(){
 
                 const who = await this.apiCall('/auth/whoami/');
                 this.user = who?.user || {
-                    preferred_username: claims?.preferred_username, 
+                    preferred_username: claims?.preferred_username,
                     username: claims?.preferred_username
                 };
                 this.tenantId = this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id || deriveTenantFromHost(location.hostname) || '';
                 await this.fetchLicense();
-                Conf.token = this.token; 
-                Conf.tenantId = this.tenantId; 
+                Conf.token = this.token;
+                Conf.tenantId = this.tenantId;
                 Conf.save();
                 this.showToast('Authentifié (JWT)','success');
                 return;
             }
-            
+
             // Si les deux échouent
             throw new Error('Aucune méthode d\'authentification valide');
         }
