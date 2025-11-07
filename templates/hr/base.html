@@ -2,51 +2,123 @@
 <!DOCTYPE html>
 <html lang="fr" class="h-full" x-data="hrApp()" :class="{'dark': dark}">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>LyneERP - Plateforme RH Intelligente</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>LyneERP - Plateforme RH Intelligente</title>
 
-  <!-- Alpine.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Fonts & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui'] },
-          colors: {
-            brand: { 50:'#eef6ff',100:'#d9ebff',200:'#b8d9ff',300:'#8bc1ff',400:'#5ea7ff',500:'#388fff',600:'#1e70f0',700:'#1657c2',800:'#143f8d',900:'#122f68' }
-          },
-          boxShadow: { card:'0 8px 24px rgba(0,0,0,.06)' }
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui']},
+                    colors: {
+                        brand: {
+                            50: '#eef6ff',
+                            100: '#d9ebff',
+                            200: '#b8d9ff',
+                            300: '#8bc1ff',
+                            400: '#5ea7ff',
+                            500: '#388fff',
+                            600: '#1e70f0',
+                            700: '#1657c2',
+                            800: '#143f8d',
+                            900: '#122f68'
+                        }
+                    },
+                    boxShadow: {card: '0 8px 24px rgba(0,0,0,.06)'}
+                }
+            }
         }
-      }
-    }
-  </script>
+    </script>
 
-  <style>
-    [x-cloak]{display:none}
-    .glass{backdrop-filter: blur(10px); background: rgba(255,255,255,.7)}
-    .dark .glass{background: rgba(17,24,39,.6)}
-    .scroll-slim::-webkit-scrollbar{height:8px;width:8px}
-    .scroll-slim::-webkit-scrollbar-thumb{background-color:#cbd5e1;border-radius:9999px}
-    .dark .scroll-slim::-webkit-scrollbar-thumb{background-color:#475569}
-    .skeleton{background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 37%,#e5e7eb 63%);background-size:400% 100%;animation:shimmer 1.2s ease-in-out infinite}
-    .dark .skeleton{background:linear-gradient(90deg,#334155 25%,#1f2937 37%,#334155 63%)}
-    @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
-    .tooltip{position:relative}
-    .tooltip .bubble{opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}
-    .tooltip:hover .bubble{opacity:1;transform:translateY(0)}
-    .kbd{font-variant: all-small-caps; font-size:10px;border:1px solid #e2e8f0;border-bottom-width:2px;padding:.15rem .35rem;border-radius:.4rem}
-    .dark .kbd{border-color:#334155}
-  </style>
+    <style>
+        [x-cloak] {
+            display: none
+        }
+
+        .glass {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, .7)
+        }
+
+        .dark .glass {
+            background: rgba(17, 24, 39, .6)
+        }
+
+        .scroll-slim::-webkit-scrollbar {
+            height: 8px;
+            width: 8px
+        }
+
+        .scroll-slim::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px
+        }
+
+        .dark .scroll-slim::-webkit-scrollbar-thumb {
+            background-color: #475569
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+            background-size: 400% 100%;
+            animation: shimmer 1.2s ease-in-out infinite
+        }
+
+        .dark .skeleton {
+            background: linear-gradient(90deg, #334155 25%, #1f2937 37%, #334155 63%)
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 100% 0
+            }
+            100% {
+                background-position: -100% 0
+            }
+        }
+
+        .tooltip {
+            position: relative
+        }
+
+        .tooltip .bubble {
+            opacity: 0;
+            transform: translateY(6px);
+            transition: .2s;
+            pointer-events: none
+        }
+
+        .tooltip:hover .bubble {
+            opacity: 1;
+            transform: translateY(0)
+        }
+
+        .kbd {
+            font-variant: all-small-caps;
+            font-size: 10px;
+            border: 1px solid #e2e8f0;
+            border-bottom-width: 2px;
+            padding: .15rem .35rem;
+            border-radius: .4rem
+        }
+
+        .dark .kbd {
+            border-color: #334155
+        }
+    </style>
 </head>
 
 <body class="h-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100"
@@ -56,535 +128,728 @@
       @keydown.window.prevent.ctrl.j="toggleDark()">
 
 <div class="h-screen w-screen flex overflow-hidden">
-  <!-- Sidebar -->
-  <aside class="flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 glass transition-all duration-300"
-         :class="sidebarCollapsed ? 'w-18' : 'w-72'">
-    <div class="h-16 flex items-center justify-between px-3">
-      <div class="flex items-center gap-3">
-        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white grid place-content-center shadow-card">
-          <i class="fa-solid fa-users-gear"></i>
+    <!-- Sidebar -->
+    <aside class="flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 glass transition-all duration-300"
+           :class="sidebarCollapsed ? 'w-18' : 'w-72'">
+        <div class="h-16 flex items-center justify-between px-3">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white grid place-content-center shadow-card">
+                    <i class="fa-solid fa-users-gear"></i>
+                </div>
+                <div x-show="!sidebarCollapsed" x-cloak>
+                    <div class="font-semibold text-lg">LyneERP</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 -mt-1">Ressources Humaines</div>
+                </div>
+            </div>
+            <button @click="sidebarCollapsed = !sidebarCollapsed"
+                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-label="Réduire/étendre la barre latérale">
+                <i class="fa-solid fa-angles-left" :class="sidebarCollapsed?'rotate-180':''"></i>
+            </button>
         </div>
-        <div x-show="!sidebarCollapsed" x-cloak>
-          <div class="font-semibold text-lg">LyneERP</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400 -mt-1">Ressources Humaines</div>
-        </div>
-      </div>
-      <button @click="sidebarCollapsed = !sidebarCollapsed" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Réduire/étendre la barre latérale">
-        <i class="fa-solid fa-angles-left" :class="sidebarCollapsed?'rotate-180':''"></i>
-      </button>
-    </div>
 
-    <nav class="flex-1 overflow-auto scroll-slim px-2 py-2">
-      <template x-for="item in navigation" :key="item.id">
-        <div class="tooltip">
-          <a href="#"
-             @click.prevent="switchView(item.id)"
-             class="flex items-center gap-3 rounded-xl px-3 py-2 mb-1 transition select-none focus:outline-none focus:ring-2 focus:ring-brand-500"
-             :class="activeNav===item.id ? 'bg-brand-50 text-brand-700 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'">
-            <i :class="item.icon + ' text-lg w-6'"></i>
-            <span x-show="!sidebarCollapsed" x-cloak class="font-medium" x-text="item.name"></span>
-            <span x-show="!sidebarCollapsed && item.badge" x-cloak class="ml-auto text-[10px] rounded-full px-2 py-0.5 bg-brand-100 text-brand-700" x-text="item.badge"></span>
-          </a>
-          <div x-show="sidebarCollapsed" x-cloak class="bubble absolute left-12 top-1/2 -translate-y-1/2 text-xs bg-gray-900 text-white rounded px-2 py-1">
-            <span x-text="item.name"></span>
-          </div>
-        </div>
-      </template>
-    </nav>
+        <nav class="flex-1 overflow-auto scroll-slim px-2 py-2">
+            <template x-for="item in navigation" :key="item.id">
+                <div class="tooltip">
+                    <a href="#"
+                       @click.prevent="switchView(item.id)"
+                       class="flex items-center gap-3 rounded-xl px-3 py-2 mb-1 transition select-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+                       :class="activeNav===item.id ? 'bg-brand-50 text-brand-700 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'">
+                        <i :class="item.icon + ' text-lg w-6'"></i>
+                        <span x-show="!sidebarCollapsed" x-cloak class="font-medium" x-text="item.name"></span>
+                        <span x-show="!sidebarCollapsed && item.badge" x-cloak
+                              class="ml-auto text-[10px] rounded-full px-2 py-0.5 bg-brand-100 text-brand-700"
+                              x-text="item.badge"></span>
+                    </a>
+                    <div x-show="sidebarCollapsed" x-cloak
+                         class="bubble absolute left-12 top-1/2 -translate-y-1/2 text-xs bg-gray-900 text-white rounded px-2 py-1">
+                        <span x-text="item.name"></span>
+                    </div>
+                </div>
+            </template>
+        </nav>
 
-    <div class="p-2 border-t border-gray-200 dark:border-gray-800">
-      <div class="flex items-center justify-between text-xs">
-        <div class="flex items-center gap-2">
+        <div class="p-2 border-t border-gray-200 dark:border-gray-800">
+            <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2">
           <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg"
                 :class="online ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200'">
             <span class="w-2 h-2 rounded-full" :class="online ? 'bg-emerald-500' : 'bg-rose-500'"></span>
             <span x-text="online ? 'En ligne' : 'Hors ligne'"></span>
           </span>
-        </div>
-        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" @click="openSettings = true" aria-label="Ouvrir la configuration">
-          <i class="fa-solid fa-gear"></i>
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <section class="flex-1 flex flex-col min-w-0">
-    <!-- Topbar -->
-    <header class="sticky top-0 z-20 glass border-b border-gray-200 dark:border-gray-800">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6">
-        <div class="h-16 flex items-center justify-between">
-          <div class="min-w-0">
-            <h1 class="font-semibold text-lg truncate" x-text="viewTitle"></h1>
-            <p class="text-xs text-gray-500 dark:text-gray-400" x-text="viewDesc"></p>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
-              <i class="fa-solid fa-building"></i><span x-text="tenantId || '-'"></span>
+                </div>
+                <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" @click="openSettings = true"
+                        aria-label="Ouvrir la configuration">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
             </div>
-            <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
-              <i class="fa-solid fa-user"></i><span x-text="user?.username || user?.preferred_username || 'Utilisateur'"></span>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <section class="flex-1 flex flex-col min-w-0">
+        <!-- Topbar -->
+        <header class="sticky top-0 z-20 glass border-b border-gray-200 dark:border-gray-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="h-16 flex items-center justify-between">
+                    <div class="min-w-0">
+                        <h1 class="font-semibold text-lg truncate" x-text="viewTitle"></h1>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="viewDesc"></p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+                            <i class="fa-solid fa-building"></i><span x-text="tenantId || '-'"></span>
+                        </div>
+                        <div class="hidden md:flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg">
+                            <i class="fa-solid fa-user"></i><span
+                                x-text="user?.username || user?.preferred_username || 'Utilisateur'"></span>
+                        </div>
+                        <button @click="toggleDark()"
+                                class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                            <i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i>
+                        </button>
+                        <button @click="logout()"
+                                class="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
+                        </button>
+                    </div>
+                </div>
             </div>
-            <button @click="toggleDark()" class="px-2 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-              <i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i>
-            </button>
-            <button @click="logout()" class="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm">
-              <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <!-- Hint 401/403 générique -->
-      <div x-show="authHint && !licenseBlocker.visible" x-cloak class="border-t border-amber-200/40 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-sm flex items-center gap-2">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <div>Accès non authentifié/autorisé. Redirection vers la page de connexion…</div>
-        </div>
-      </div>
-
-      <!-- Bandeau licence (pré-expiration) -->
-      <div x-show="license.status==='expiring' && !licenseBlocker.visible" x-cloak
-           class="border-t border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-sm flex items-center justify-between">
-          <div class="flex items-center gap-2"><i class="fa-solid fa-receipt"></i>
-            Licence <b class="mx-1">RH</b> expire bientôt (<span x-text="license.valid_until"></span>).
-          </div>
-          <div class="flex items-center gap-2">
-            <button @click="openBillingPortal" class="px-3 py-1.5 rounded bg-amber-600 text-white text-xs hover:bg-amber-700">Gérer la facturation</button>
-            <button @click="refreshLicense" class="px-3 py-1.5 rounded border border-amber-300 text-amber-800 text-xs hover:bg-amber-100">Rafraîchir</button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- Content -->
-    <main class="flex-1 overflow-auto scroll-slim">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-
-        <!-- Global overlay loader -->
-        <div x-show="loading" x-cloak class="fixed inset-0 z-30 bg-black/20 grid place-content-center">
-          <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4 shadow-2xl flex items-center gap-3">
-            <span class="animate-spin h-5 w-5 rounded-full border-2 border-gray-300 border-t-brand-600"></span>
-            <span class="text-sm">Chargement…</span>
-          </div>
-        </div>
-
-        <!-- Skeleton header KPIs -->
-        <div x-show="currentView==='dashboard' && !Object.keys(dashboardStats).length && !authHint && !licenseBlocker.visible" x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <template x-for="i in 4" :key="i">
-            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-800">
-              <div class="skeleton h-3 w-28 mb-2 rounded"></div>
-              <div class="skeleton h-7 w-16 rounded"></div>
+            <!-- Hint 401/403 générique -->
+            <div x-show="authHint && !licenseBlocker.visible" x-cloak
+                 class="border-t border-amber-200/40 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>Accès non authentifié/autorisé. Redirection vers la page de connexion…</div>
+                </div>
             </div>
-          </template>
-        </div>
 
-        <!-- Views -->
-        <div x-show="currentView === 'dashboard' && !authHint && !licenseBlocker.visible" x-cloak>
-          {% include "hr/partials/dashboard.html" %}
-          <div x-show="!Object.keys(dashboardStats).length" class="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center">
-            <div class="text-3xl mb-2">🧭</div>
-            <p class="font-medium">Aucune donnée à afficher pour le moment.</p>
-            <p class="text-sm text-gray-500">Ajoutez des employés, créez des campagnes de recrutement, puis revenez ici.</p>
-          </div>
-        </div>
-
-        <div x-show="currentView === 'employees' && !authHint && !licenseBlocker.visible" x-cloak>
-          {% include "hr/partials/employees.html" %}
-        </div>
-
-        <div x-show="currentView === 'recruitment' && !authHint && !licenseBlocker.visible" x-cloak>
-          {% include "hr/partials/recruitment.html" %}
-        </div>
-
-        <div x-show="currentView === 'leaves' && !authHint && !licenseBlocker.visible" x-cloak>
-          {% include "hr/partials/leaves.html" %}
-        </div>
-
-        <div x-show="currentView === 'attendance' && !authHint && !licenseBlocker.visible" x-cloak>
-          {% include "hr/partials/attendance.html" %}
-        </div>
-
-        <!-- Blocage licence -->
-        <div x-show="licenseBlocker.visible" x-cloak class="max-w-xl mx-auto">
-          <div class="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-gray-900 p-6 text-center shadow-sm">
-            <div class="text-4xl mb-2">⛔</div>
-            <h3 class="text-lg font-semibold mb-2">403 — Licence RH invalide ou expirée</h3>
-            <p class="text-sm text-gray-600 dark:text-gray-400" x-text="licenseBlocker.detail || 'Votre abonnement RH ne permet pas d’accéder à cette ressource.'"></p>
-            <div class="mt-5 flex items-center justify-center gap-3">
-              <button @click="refreshLicense" class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-700 text-white">Rafraîchir la licence</button>
-              <button @click="openBillingPortal" class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700">Gérer la facturation</button>
-              <button @click="openSettings=true" class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700">Changer de tenant</button>
+            <!-- Bandeau licence (pré-expiration) -->
+            <div x-show="license.status==='expiring' && !licenseBlocker.visible" x-cloak
+                 class="border-t border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-sm flex items-center justify-between">
+                    <div class="flex items-center gap-2"><i class="fa-solid fa-receipt"></i>
+                        Licence <b class="mx-1">RH</b> expire bientôt (<span x-text="license.valid_until"></span>).
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="openBillingPortal"
+                                class="px-3 py-1.5 rounded bg-amber-600 text-white text-xs hover:bg-amber-700">Gérer la
+                            facturation
+                        </button>
+                        <button @click="refreshLicense"
+                                class="px-3 py-1.5 rounded border border-amber-300 text-amber-800 text-xs hover:bg-amber-100">
+                            Rafraîchir
+                        </button>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
+        </header>
 
-      </div>
-    </main>
-  </section>
+        <!-- Content -->
+        <main class="flex-1 overflow-auto scroll-slim">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+                <!-- Global overlay loader -->
+                <div x-show="loading" x-cloak class="fixed inset-0 z-30 bg-black/20 grid place-content-center">
+                    <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4 shadow-2xl flex items-center gap-3">
+                        <span class="animate-spin h-5 w-5 rounded-full border-2 border-gray-300 border-t-brand-600"></span>
+                        <span class="text-sm">Chargement…</span>
+                    </div>
+                </div>
+
+                <!-- Skeleton header KPIs -->
+                <div x-show="currentView==='dashboard' && !Object.keys(dashboardStats).length && !authHint && !licenseBlocker.visible"
+                     x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <template x-for="i in 4" :key="i">
+                        <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-800">
+                            <div class="skeleton h-3 w-28 mb-2 rounded"></div>
+                            <div class="skeleton h-7 w-16 rounded"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Views -->
+                <div x-show="currentView === 'dashboard' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/dashboard.html" %}
+                    <div x-show="!Object.keys(dashboardStats).length"
+                         class="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center">
+                        <div class="text-3xl mb-2">🧭</div>
+                        <p class="font-medium">Aucune donnée à afficher pour le moment.</p>
+                        <p class="text-sm text-gray-500">Ajoutez des employés, créez des campagnes de recrutement, puis
+                            revenez ici.</p>
+                    </div>
+                </div>
+
+                <div x-show="currentView === 'employees' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/employees.html" %}
+                </div>
+
+                <div x-show="currentView === 'recruitment' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/recruitment.html" %}
+                </div>
+
+                <div x-show="currentView === 'leaves' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/leaves.html" %}
+                </div>
+
+                <div x-show="currentView === 'attendance' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/attendance.html" %}
+                </div>
+
+                <!-- Blocage licence -->
+                <div x-show="licenseBlocker.visible" x-cloak class="max-w-xl mx-auto">
+                    <div class="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-gray-900 p-6 text-center shadow-sm">
+                        <div class="text-4xl mb-2">⛔</div>
+                        <h3 class="text-lg font-semibold mb-2">403 — Licence RH invalide ou expirée</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400"
+                           x-text="licenseBlocker.detail || 'Votre abonnement RH ne permet pas d’accéder à cette ressource.'"></p>
+                        <div class="mt-5 flex items-center justify-center gap-3">
+                            <button @click="refreshLicense"
+                                    class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-700 text-white">Rafraîchir la
+                                licence
+                            </button>
+                            <button @click="openBillingPortal"
+                                    class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700">Gérer la
+                                facturation
+                            </button>
+                            <button @click="openSettings=true"
+                                    class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700">Changer de
+                                tenant
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </section>
 </div>
 
 <!-- Command Palette -->
-<div x-show="openCmd" x-cloak class="fixed inset-0 z-40 flex items-start justify-center pt-24 px-4 bg-black/50" @keydown.escape.window="openCmd=false" @click.self="openCmd=false">
-  <div class="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-      <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
-      <input type="text" x-model="cmdQuery" placeholder="Rechercher une page ou une action…"
-             class="w-full bg-transparent outline-none placeholder-gray-400"/>
-      <kbd class="kbd">ESC</kbd>
+<div x-show="openCmd" x-cloak class="fixed inset-0 z-40 flex items-start justify-center pt-24 px-4 bg-black/50"
+     @keydown.escape.window="openCmd=false" @click.self="openCmd=false">
+    <div class="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+            <input type="text" x-model="cmdQuery" placeholder="Rechercher une page ou une action…"
+                   class="w-full bg-transparent outline-none placeholder-gray-400"/>
+            <kbd class="kbd">ESC</kbd>
+        </div>
+        <div class="max-h-80 overflow-auto scroll-slim divide-y divide-gray-100 dark:divide-gray-800">
+            <template x-for="it in cmdResults" :key="it.key">
+                <button @click="it.action(); openCmd=false"
+                        class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-3">
+                    <i :class="it.icon"></i>
+                    <div>
+                        <div class="font-medium" x-text="it.label"></div>
+                        <div class="text-xs text-gray-500" x-text="it.desc"></div>
+                    </div>
+                </button>
+            </template>
+            <div x-show="cmdResults.length===0" class="px-4 py-6 text-sm text-gray-500">Aucun résultat.</div>
+        </div>
     </div>
-    <div class="max-h-80 overflow-auto scroll-slim divide-y divide-gray-100 dark:divide-gray-800">
-      <template x-for="it in cmdResults" :key="it.key">
-        <button @click="it.action(); openCmd=false"
-                class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-3">
-          <i :class="it.icon"></i>
-          <div>
-            <div class="font-medium" x-text="it.label"></div>
-            <div class="text-xs text-gray-500" x-text="it.desc"></div>
-          </div>
-        </button>
-      </template>
-      <div x-show="cmdResults.length===0" class="px-4 py-6 text-sm text-gray-500">Aucun résultat.</div>
-    </div>
-  </div>
 </div>
 
 <!-- Settings Drawer -->
-<div x-show="openSettings" x-cloak class="fixed inset-0 z-40 bg-black/40" @click.self="openSettings=false" @keydown.escape.window="openSettings=false">
-  <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
-    <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-gray-800">
-      <div class="font-semibold">Configuration</div>
-      <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800" @click="openSettings=false"><i class="fa-solid fa-xmark"></i></button>
+<div x-show="openSettings" x-cloak class="fixed inset-0 z-40 bg-black/40" @click.self="openSettings=false"
+     @keydown.escape.window="openSettings=false">
+    <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
+        <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-gray-800">
+            <div class="font-semibold">Configuration</div>
+            <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800" @click="openSettings=false"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-5">
+            <div>
+                <label class="text-sm text-gray-500">API Base</label>
+                <input type="text" x-model="apiBase"
+                       class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
+                <p class="text-xs text-gray-500 mt-1">Ex: /api/rh ou https://rh.lyneerp.com/api/rh</p>
+            </div>
+            <div>
+                <label class="text-sm text-gray-500">Tenant ID</label>
+                <input type="text" x-model="tenantId"
+                       class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
+            </div>
+            <div>
+                <label class="text-sm text-gray-500">Bearer Token</label>
+                <textarea x-model="token" rows="4"
+                          class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"></textarea>
+                <p class="text-xs text-gray-500 mt-1">Collez le JWT Keycloak ici si nécessaire.</p>
+            </div>
+            <div class="flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="rounded"
+                                                                             x-model="dark"/><span>Mode sombre</span></label>
+                <button @click="saveConf()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg">
+                    Enregistrer
+                </button>
+            </div>
+        </div>
     </div>
-    <div class="p-5 space-y-5">
-      <div>
-        <label class="text-sm text-gray-500">API Base</label>
-        <input type="text" x-model="apiBase" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
-        <p class="text-xs text-gray-500 mt-1">Ex: /api/rh ou https://rh.lyneerp.com/api/rh</p>
-      </div>
-      <div>
-        <label class="text-sm text-gray-500">Tenant ID</label>
-        <input type="text" x-model="tenantId" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"/>
-      </div>
-      <div>
-        <label class="text-sm text-gray-500">Bearer Token</label>
-        <textarea x-model="token" rows="4" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"></textarea>
-        <p class="text-xs text-gray-500 mt-1">Collez le JWT Keycloak ici si nécessaire.</p>
-      </div>
-      <div class="flex items-center justify-between">
-        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="rounded" x-model="dark"/><span>Mode sombre</span></label>
-        <button @click="saveConf()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg">Enregistrer</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Toasts -->
 <div class="fixed bottom-4 right-4 z-50 space-y-2">
-  <template x-for="(toast, i) in toasts" :key="i">
-    <div x-show="toast.visible" x-transition class="rounded-xl shadow-2xl px-4 py-3 text-white"
-         :class="{'bg-emerald-600': toast.type==='success','bg-rose-600': toast.type==='error','bg-slate-700': toast.type==='info','bg-amber-600': toast.type==='warning'}">
-      <div class="flex items-center gap-3">
-        <i class="fa-solid" :class="{'fa-circle-check': toast.type==='success','fa-circle-exclamation': toast.type==='error','fa-circle-info': toast.type==='info','fa-triangle-exclamation': toast.type==='warning'}"></i>
-        <div x-text="toast.message"></div>
-        <button class="ml-2 opacity-80 hover:opacity-100" @click="removeToast(i)"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-    </div>
-  </template>
+    <template x-for="(toast, i) in toasts" :key="i">
+        <div x-show="toast.visible" x-transition class="rounded-xl shadow-2xl px-4 py-3 text-white"
+             :class="{'bg-emerald-600': toast.type==='success','bg-rose-600': toast.type==='error','bg-slate-700': toast.type==='info','bg-amber-600': toast.type==='warning'}">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid"
+                   :class="{'fa-circle-check': toast.type==='success','fa-circle-exclamation': toast.type==='error','fa-circle-info': toast.type==='info','fa-triangle-exclamation': toast.type==='warning'}"></i>
+                <div x-text="toast.message"></div>
+                <button class="ml-2 opacity-80 hover:opacity-100" @click="removeToast(i)"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+    </template>
 </div>
 
 <script>
-  /* ====== Keycloak config (front) ====== */
-  const KC = { issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core" };
+    /* ====== Keycloak config (front) ====== */
+    const KC = {issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core"};
 
-  /* ====== Helpers ====== */
-  function base64UrlDecode(str){
-    str = str.replace(/-/g,'+').replace(/_/g,'/'); const pad = str.length % 4; if(pad) str += '='.repeat(4 - pad);
-    try { return atob(str); } catch { return ''; }
-  }
-  function parseJwt(token){
-    if(!token) return null; const parts = token.split('.'); if(parts.length !== 3) return null;
-    try { return JSON.parse(base64UrlDecode(parts[1])); } catch { return null; }
-  }
-  function getStoredAccessToken(){
-    return localStorage.getItem('lyneerp_token')
-        || sessionStorage.getItem('lyneerp_token')
-        || localStorage.getItem('kc_access_token')
-        || sessionStorage.getItem('kc_access_token')
-        || '';
-  }
-  function getStoredRefreshToken(){
-    return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
-  }
-  async function refreshTokenIfNeeded(exp){
-    const now = Math.floor(Date.now()/1000);
-    if(!exp || exp - now > 30) return false;
-    const refresh = getStoredRefreshToken();
-    if(!refresh) return false;
-    const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
-      method: "POST",
-      headers: {"Content-Type":"application/x-www-form-urlencoded"},
-      body: new URLSearchParams({ grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh })
-    });
-    if(!res.ok) return false;
-    const p = await res.json();
-    const remember = !!localStorage.getItem('kc_access_token');
-    const storage = remember ? localStorage : sessionStorage;
-    if(p.access_token) storage.setItem("kc_access_token", p.access_token);
-    if(p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
-    return true;
-  }
-  function kcLogout(){
-    const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
-    ['lyneerp_token','kc_access_token','kc_refresh_token','kc_id_token'].forEach(k=>{
-      localStorage.removeItem(k); sessionStorage.removeItem(k);
-    });
-    const url = `${KC.issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent('/login/')}` +
-                (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
-    window.location.assign(url);
-  }
-  function deriveTenantFromHost(host){
-    // ex: acme.rh.lyneerp.com -> acme
-    const parts = (host || location.hostname).split('.');
-    // cherche le segment juste avant "rh.lyneerp.com"
-    const idx = parts.findIndex((p,i)=> parts.slice(i).join('.') === 'rh.lyneerp.com');
-    if(idx > 0) return parts[idx-1];
-    // fallback: premier segment si 3+ segments
-    if(parts.length >= 3) return parts[0];
-    return '';
-  }
-
-  /* ====== Conf persistée ====== */
-  const Conf = {
-    apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
-    tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
-    token: getStoredAccessToken(),
-    dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
-    save(){
-      localStorage.setItem('lyneerp_api', this.apiBase);
-      localStorage.setItem('lyneerp_tenant', this.tenantId || '');
-      if(this.token) localStorage.setItem('lyneerp_token', this.token);
-      localStorage.setItem('lyneerp_dark', this.dark ? '1':'0');
+    /* ====== Helpers ====== */
+    function base64UrlDecode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = str.length % 4;
+        if (pad) str += '='.repeat(4 - pad);
+        try {
+            return atob(str);
+        } catch {
+            return '';
+        }
     }
-  };
 
-  function hrApp(){
-    return {
-      /* UI */
-      sidebarCollapsed:false, openCmd:false, openSettings:false, cmdQuery:'',
-      loading:false, toasts:[], dark:Conf.dark, online:navigator.onLine,
-
-      /* Auth & licence */
-      authHint:false,
-      license:{ status:'unknown', plan:null, valid_until:null },
-      licenseBlocker:{ visible:false, detail:'' },
-
-      /* Conf */
-      apiBase:Conf.apiBase, tenantId:Conf.tenantId, token:Conf.token, user:null,
-
-      /* Data */
-      currentView:'dashboard', activeNav:'dashboard', dashboardStats:{}, employees:[], recruitments:[],
-
-      navigation: [
-        { id:'dashboard',  name:'Tableau de bord', icon:'fa-solid fa-chart-pie'},
-        { id:'employees',  name:'Employés',        icon:'fa-solid fa-users'},
-        { id:'recruitment',name:'Recrutement',     icon:'fa-solid fa-briefcase'},
-        { id:'leaves',     name:'Congés',          icon:'fa-solid fa-calendar-check'},
-        { id:'attendance', name:'Pointage',        icon:'fa-solid fa-clock'},
-      ],
-
-      get viewTitle(){ const i=this.navigation.find(n=>n.id===this.currentView); return i?i.name:'LyneERP RH'; },
-      get viewDesc(){ return ({
-        dashboard:'Vue d’ensemble de votre activité RH',
-        employees:'Gérez votre effectif et les informations employés',
-        recruitment:'Recrutez avec l’aide de l’IA',
-        leaves:'Suivez et approuvez les demandes de congés',
-        attendance:'Surveillez la présence et les heures'
-      })[this.currentView] || 'Plateforme RH intelligente'; },
-
-      toggleDark(){ this.dark=!this.dark; Conf.dark=this.dark; Conf.save(); },
-      switchView(key){ this.currentView=key; this.activeNav=key; this.prefetch(key); },
-
-      /* ===== Auth end-to-end ===== */
-      async ensureAuthenticated(){
-        try{
-          if(!this.token){ this.token = getStoredAccessToken(); }
-          const claims = parseJwt(this.token);
-          if(!claims){ throw new Error('JWT invalide'); }
-
-          await refreshTokenIfNeeded(claims.exp);
-          this.token = getStoredAccessToken();
-
-          // Déduire tenant via token ou host
-          this.tenantId = this.tenantId || claims.tenant || claims.tenant_id || deriveTenantFromHost(location.hostname) || '';
-
-          // Confirmer côté backend
-          const who = await this.apiCall('/auth/whoami/');
-          this.user = who?.user || {preferred_username: claims.preferred_username, username: claims.preferred_username};
-          if(!this.tenantId && who?.tenant){ this.tenantId = who.tenant; }
-
-          // Charger licence
-          await this.fetchLicense();
-
-          Conf.token = this.token; Conf.tenantId = this.tenantId; Conf.save();
-          this.showToast('Authentifié','success');
-        }catch(e){
-          console.error(e);
-          {#this.authHint = true;#}
-          {#setTimeout(()=> window.location.assign('/auth/keycloak/login/'), 800);#}
-          {#throw e;#}
+    function parseJwt(token) {
+        if (!token) return null;
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        try {
+            return JSON.parse(base64UrlDecode(parts[1]));
+        } catch {
+            return null;
         }
-      },
+    }
 
-      /* ===== License helpers ===== */
-      async fetchLicense(){
-        try{
-          const res = await this.apiCall('/license/status/');
-          this.license.status = res?.status || 'unknown';
-          this.license.plan = res?.plan || null;
-          this.license.valid_until = res?.valid_until || null;
-          if(this.license.status === 'expired' || this.license.status === 'invalid'){
-            this.licenseBlocker.visible = true;
-            this.licenseBlocker.detail = res?.detail || 'Licence RH invalide ou expirée.';
-          }else{
-            this.licenseBlocker.visible = false;
-            this.licenseBlocker.detail = '';
-          }
-        }catch(e){
-          console.warn('license/status error', e);
+    function getStoredAccessToken() {
+        return localStorage.getItem('lyneerp_token')
+            || sessionStorage.getItem('lyneerp_token')
+            || localStorage.getItem('kc_access_token')
+            || sessionStorage.getItem('kc_access_token')
+            || '';
+    }
+
+    function getStoredRefreshToken() {
+        return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
+    }
+
+    async function refreshTokenIfNeeded(exp) {
+        const now = Math.floor(Date.now() / 1000);
+        if (!exp || exp - now > 30) return false;
+        const refresh = getStoredRefreshToken();
+        if (!refresh) return false;
+        const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh})
+        });
+        if (!res.ok) return false;
+        const p = await res.json();
+        const remember = !!localStorage.getItem('kc_access_token');
+        const storage = remember ? localStorage : sessionStorage;
+        if (p.access_token) storage.setItem("kc_access_token", p.access_token);
+        if (p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
+        return true;
+    }
+
+    function kcLogout() {
+        const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
+        ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
+            localStorage.removeItem(k);
+            sessionStorage.removeItem(k);
+        });
+        const url = `${KC.issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent('/login/')}` +
+            (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
+        window.location.assign(url);
+    }
+
+    function deriveTenantFromHost(host) {
+        // ex: acme.rh.lyneerp.com -> acme
+        const parts = (host || location.hostname).split('.');
+        // cherche le segment juste avant "rh.lyneerp.com"
+        const idx = parts.findIndex((p, i) => parts.slice(i).join('.') === 'rh.lyneerp.com');
+        if (idx > 0) return parts[idx - 1];
+        // fallback: premier segment si 3+ segments
+        if (parts.length >= 3) return parts[0];
+        return '';
+    }
+
+    /* ====== Conf persistée ====== */
+    const Conf = {
+        apiBase: localStorage.getItem('lyneerp_api') || '/api/rh',
+        tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
+        token: getStoredAccessToken(),
+        dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
+        save() {
+            localStorage.setItem('lyneerp_api', this.apiBase);
+            localStorage.setItem('lyneerp_tenant', this.tenantId || '');
+            if (this.token) localStorage.setItem('lyneerp_token', this.token);
+            localStorage.setItem('lyneerp_dark', this.dark ? '1' : '0');
         }
-      },
+    };
 
-      async refreshLicense(){
-        try{
-          this.loading = true;
-          await this.apiCall('/license/refresh/', {method:'POST', body: JSON.stringify({})});
-          await this.fetchLicense();
-          if(!this.licenseBlocker.visible){ this.showToast('Licence rafraîchie','success'); }
-        }catch(e){
-          this.showToast('Impossible de rafraîchir la licence','error');
-        }finally{ this.loading=false; }
-      },
+    function hrApp() {
+        return {
+            /* UI */
+            sidebarCollapsed: false, openCmd: false, openSettings: false, cmdQuery: '',
+            loading: false, toasts: [], dark: Conf.dark, online: navigator.onLine,
 
-      async openBillingPortal(){
-        try{
-          const r = await this.apiCall('/license/portal/');
-          if(r && r.url){ window.location.assign(r.url); }
-          else { window.location.assign('/billing/portal'); }
-        }catch{
-          window.location.assign('/billing/portal');
-        }
-      },
+            /* Auth & licence */
+            authHint: false,
+            license: {status: 'unknown', plan: null, valid_until: null},
+            licenseBlocker: {visible: false, detail: ''},
 
-      /* ===== API helper ===== */
-      async apiCall(path, options={}){
-        this.authHint=false;
-        const headers={'Content-Type':'application/json'};
-        if(this.tenantId) headers['X-Tenant-Id'] = this.tenantId;
-        if(this.token) headers['Authorization']=`Bearer ${this.token}`;
-        const url=`${this.apiBase}${path.startsWith('/')?'':'/'}${path}`;
+            /* Conf */
+            apiBase: Conf.apiBase, tenantId: Conf.tenantId, token: Conf.token, user: null,
 
-        try{
-          this.loading=true;
-          const res=await fetch(url,{...options,headers});
-          const isJson = (res.headers.get('content-type')||'').includes('application/json');
-          const payload = res.status===204 ? null : (isJson ? await res.json().catch(()=>null) : null);
+            /* Data */
+            currentView: 'dashboard', activeNav: 'dashboard', dashboardStats: {}, employees: [], recruitments: [],
 
-          if(!res.ok){
-            const detail = payload?.detail || payload?.message || '';
-            const code   = payload?.code || '';
-            const matchLicense = /licence rh|license rh|license.*expired|licence.*expirée/i.test(detail) || /license_invalid|license_expired/i.test(code);
+            navigation: [
+                {id: 'dashboard', name: 'Tableau de bord', icon: 'fa-solid fa-chart-pie'},
+                {id: 'employees', name: 'Employés', icon: 'fa-solid fa-users'},
+                {id: 'recruitment', name: 'Recrutement', icon: 'fa-solid fa-briefcase'},
+                {id: 'leaves', name: 'Congés', icon: 'fa-solid fa-calendar-check'},
+                {id: 'attendance', name: 'Pointage', icon: 'fa-solid fa-clock'},
+            ],
 
-            if(res.status===403 && matchLicense){
-              this.licenseBlocker.visible = true;
-              this.licenseBlocker.detail = detail || 'Licence RH invalide ou expirée.';
-              throw new Error('403 - Licence RH invalide ou expirée');
+            get viewTitle() {
+                const i = this.navigation.find(n => n.id === this.currentView);
+                return i ? i.name : 'LyneERP RH';
+            },
+            get viewDesc() {
+                return ({
+                    dashboard: 'Vue d’ensemble de votre activité RH',
+                    employees: 'Gérez votre effectif et les informations employés',
+                    recruitment: 'Recrutez avec l’aide de l’IA',
+                    leaves: 'Suivez et approuvez les demandes de congés',
+                    attendance: 'Surveillez la présence et les heures'
+                })[this.currentView] || 'Plateforme RH intelligente';
+            },
+
+            toggleDark() {
+                this.dark = !this.dark;
+                Conf.dark = this.dark;
+                Conf.save();
+            },
+            switchView(key) {
+                this.currentView = key;
+                this.activeNav = key;
+                this.prefetch(key);
+            },
+
+            /* ===== Auth end-to-end ===== */
+            async ensureAuthenticated() {
+                try {
+                    if (!this.token) {
+                        this.token = getStoredAccessToken();
+                    }
+                    const hasBearer = !!this.token && !!parseJwt(this.token);
+
+                    // S'il n'y a PAS de Bearer, on s'appuie sur la SESSION Django :
+                    // On tente whoami() sans Authorization -> SessionAuthentication fera l’affaire.
+                    if (!hasBearer) {
+                        const who = await this.apiCall('/auth/whoami/', { /* pas d'Authorization */});
+                        this.user = who?.user || {};
+                        this.tenantId = this.tenantId || who?.tenant || deriveTenantFromHost(location.hostname) || '';
+                        await this.fetchLicense();
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        this.showToast('Authentifié (session)', 'success');
+                        return;
+                    }
+
+                    // Sinon (Bearer dispo), on vérifie l’expiration et on poursuit comme avant
+                    const claims = parseJwt(this.token);
+                    await refreshTokenIfNeeded(claims.exp);
+                    this.token = getStoredAccessToken();
+
+                    // whoami avec Bearer
+                    const who = await this.apiCall('/auth/whoami/');
+                    this.user = who?.user || {
+                        preferred_username: claims.preferred_username,
+                        username: claims.preferred_username
+                    };
+                    this.tenantId = this.tenantId || who?.tenant || claims.tenant || claims.tenant_id || deriveTenantFromHost(location.hostname) || '';
+                    await this.fetchLicense();
+                    Conf.token = this.token;
+                    Conf.tenantId = this.tenantId;
+                    Conf.save();
+                    this.showToast('Authentifié (JWT)', 'success');
+
+                } catch (e) {
+                    console.error(e);
+                    this.authHint = true;
+                    setTimeout(() => window.location.assign('/auth/keycloak/login/'), 800);
+                    throw e;
+                }
             }
 
-            if(res.status===401||res.status===403){
-              this.authHint=true;
-            }
-            const msg = `${res.status} ${res.statusText}${detail? ' - '+detail : ''}`;
-            throw new Error(msg);
-          }
-          return payload;
-        }catch(e){
-          console.error(e); if(!this.licenseBlocker.visible) this.showToast(e.message||'Erreur API','error'); throw e;
-        }finally{ this.loading=false; }
-      },
+            /* ===== License helpers ===== */
+            async fetchLicense() {
+                try {
+                    const res = await this.apiCall('/license/status/');
+                    this.license.status = res?.status || 'unknown';
+                    this.license.plan = res?.plan || null;
+                    this.license.valid_until = res?.valid_until || null;
+                    if (this.license.status === 'expired' || this.license.status === 'invalid') {
+                        this.licenseBlocker.visible = true;
+                        this.licenseBlocker.detail = res?.detail || 'Licence RH invalide ou expirée.';
+                    } else {
+                        this.licenseBlocker.visible = false;
+                        this.licenseBlocker.detail = '';
+                    }
+                } catch (e) {
+                    console.warn('license/status error', e);
+                }
+            },
 
-      /* Prefetch */
-      prefetch(k){
-        if(this.licenseBlocker.visible) return;
-        if(k==='dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
-        if(k==='employees' && !this.employees.length) this.loadEmployees();
-        if(k==='recruitment' && !this.recruitments.length) this.loadRecruitments();
-      },
+            async refreshLicense() {
+                try {
+                    this.loading = true;
+                    await this.apiCall('/license/refresh/', {method: 'POST', body: JSON.stringify({})});
+                    await this.fetchLicense();
+                    if (!this.licenseBlocker.visible) {
+                        this.showToast('Licence rafraîchie', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Impossible de rafraîchir la licence', 'error');
+                } finally {
+                    this.loading = false;
+                }
+            },
 
-      /* Data loaders */
-      async loadDashboardStats(){ try{ if(this.licenseBlocker.visible) return; this.dashboardStats=await this.apiCall('/dashboard/stats/'); }catch(_){} },
-      async loadEmployees(){ try{ if(this.licenseBlocker.visible) return; const d=await this.apiCall('/employees/'); this.employees=d?.results||d||[]; }catch(_){} },
-      async loadRecruitments(){ try{ if(this.licenseBlocker.visible) return; const d=await this.apiCall('/recruitments/'); this.recruitments=d?.results||d||[]; }catch(_){} },
+            async openBillingPortal() {
+                try {
+                    const r = await this.apiCall('/license/portal/');
+                    if (r && r.url) {
+                        window.location.assign(r.url);
+                    } else {
+                        window.location.assign('/billing/portal');
+                    }
+                } catch {
+                    window.location.assign('/billing/portal');
+                }
+            },
 
-      /* Toasts */
-      showToast(message,type='info'){ const t={message,type,visible:true}; this.toasts.push(t); setTimeout(()=>{t.visible=false; this.toasts=this.toasts.filter(x=>x!==t)},3800); },
-      removeToast(i){ this.toasts.splice(i,1); },
+            /* ===== API helper ===== */
+            async apiCall(path, options = {}) {
+                this.authHint = false;
+                const headers = {'Content-Type': 'application/json'};
+                if (this.tenantId) headers['X-Tenant-Id'] = this.tenantId;
+                if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+                const url = `${this.apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
 
-      /* Conf */
-      saveConf(){ Conf.apiBase=this.apiBase; Conf.tenantId=this.tenantId; Conf.token=this.token; Conf.dark=this.dark; Conf.save(); this.showToast('Configuration enregistrée','success'); },
+                try {
+                    this.loading = true;
+                    const res = await fetch(url, {...options, headers});
+                    const isJson = (res.headers.get('content-type') || '').includes('application/json');
+                    const payload = res.status === 204 ? null : (isJson ? await res.json().catch(() => null) : null);
 
-      /* Online/Offline */
-      handleOnline(){ this.online=true; this.showToast('Connexion rétablie','success'); },
-      handleOffline(){ this.online=false; this.showToast('Vous êtes hors ligne','warning'); },
+                    if (!res.ok) {
+                        const detail = payload?.detail || payload?.message || '';
+                        const code = payload?.code || '';
+                        const matchLicense = /licence rh|license rh|license.*expired|licence.*expirée/i.test(detail) || /license_invalid|license_expired/i.test(code);
 
-      /* Logout */
-      logout(){ kcLogout(); },
+                        if (res.status === 403 && matchLicense) {
+                            this.licenseBlocker.visible = true;
+                            this.licenseBlocker.detail = detail || 'Licence RH invalide ou expirée.';
+                            throw new Error('403 - Licence RH invalide ou expirée');
+                        }
 
-      /* Init */
-      async init(){
-        this.apiBase=localStorage.getItem('lyneerp_api')||this.apiBase;
-        this.tenantId=localStorage.getItem('lyneerp_tenant')||deriveTenantFromHost(location.hostname)||this.tenantId;
-        this.token=getStoredAccessToken() || this.token;
+                        if (res.status === 401 || res.status === 403) {
+                            this.authHint = true;
+                        }
+                        const msg = `${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`;
+                        throw new Error(msg);
+                    }
+                    return payload;
+                } catch (e) {
+                    console.error(e);
+                    if (!this.licenseBlocker.visible) this.showToast(e.message || 'Erreur API', 'error');
+                    throw e;
+                } finally {
+                    this.loading = false;
+                }
+            },
 
-        await this.ensureAuthenticated();
+            /* Prefetch */
+            prefetch(k) {
+                if (this.licenseBlocker.visible) return;
+                if (k === 'dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
+                if (k === 'employees' && !this.employees.length) this.loadEmployees();
+                if (k === 'recruitment' && !this.recruitments.length) this.loadRecruitments();
+            },
 
-        if(!this.licenseBlocker.visible){
-          this.loadDashboardStats(); this.loadEmployees(); this.loadRecruitments();
+            /* Data loaders */
+            async loadDashboardStats() {
+                try {
+                    if (this.licenseBlocker.visible) return;
+                    this.dashboardStats = await this.apiCall('/dashboard/stats/');
+                } catch (_) {
+                }
+            },
+            async loadEmployees() {
+                try {
+                    if (this.licenseBlocker.visible) return;
+                    const d = await this.apiCall('/employees/');
+                    this.employees = d?.results || d || [];
+                } catch (_) {
+                }
+            },
+            async loadRecruitments() {
+                try {
+                    if (this.licenseBlocker.visible) return;
+                    const d = await this.apiCall('/recruitments/');
+                    this.recruitments = d?.results || d || [];
+                } catch (_) {
+                }
+            },
+
+            /* Toasts */
+            showToast(message, type = 'info') {
+                const t = {message, type, visible: true};
+                this.toasts.push(t);
+                setTimeout(() => {
+                    t.visible = false;
+                    this.toasts = this.toasts.filter(x => x !== t)
+                }, 3800);
+            },
+            removeToast(i) {
+                this.toasts.splice(i, 1);
+            },
+
+            /* Conf */
+            saveConf() {
+                Conf.apiBase = this.apiBase;
+                Conf.tenantId = this.tenantId;
+                Conf.token = this.token;
+                Conf.dark = this.dark;
+                Conf.save();
+                this.showToast('Configuration enregistrée', 'success');
+            },
+
+            /* Online/Offline */
+            handleOnline() {
+                this.online = true;
+                this.showToast('Connexion rétablie', 'success');
+            },
+            handleOffline() {
+                this.online = false;
+                this.showToast('Vous êtes hors ligne', 'warning');
+            },
+
+            /* Logout */
+            logout() {
+                kcLogout();
+            },
+
+            /* Init */
+            async init() {
+                this.apiBase = localStorage.getItem('lyneerp_api') || this.apiBase;
+                this.tenantId = localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname) || this.tenantId;
+                this.token = getStoredAccessToken() || this.token;
+
+                await this.ensureAuthenticated();
+
+                if (!this.licenseBlocker.visible) {
+                    this.loadDashboardStats();
+                    this.loadEmployees();
+                    this.loadRecruitments();
+                }
+
+                window.addEventListener('online', () => this.handleOnline());
+                window.addEventListener('offline', () => this.handleOffline());
+            },
+
+            /* Command palette */
+            get cmdResults() {
+                const q = this.cmdQuery.toLowerCase().trim();
+                const items = [
+                    {
+                        key: 'v1',
+                        label: 'Aller au Tableau de bord',
+                        desc: 'Vue synthèse',
+                        icon: 'fa-solid fa-chart-pie',
+                        action: () => this.switchView('dashboard')
+                    },
+                    {
+                        key: 'v2',
+                        label: 'Aller à Employés',
+                        desc: 'Lister et gérer',
+                        icon: 'fa-solid fa-users',
+                        action: () => this.switchView('employees')
+                    },
+                    {
+                        key: 'v3',
+                        label: 'Aller à Recrutement',
+                        desc: 'Offres & candidats',
+                        icon: 'fa-solid fa-briefcase',
+                        action: () => this.switchView('recruitment')
+                    },
+                    {
+                        key: 'v4',
+                        label: 'Aller à Congés',
+                        desc: 'Demandes de congé',
+                        icon: 'fa-solid fa-calendar-check',
+                        action: () => this.switchView('leaves')
+                    },
+                    {
+                        key: 'v5',
+                        label: 'Aller à Pointage',
+                        desc: 'Présences',
+                        icon: 'fa-solid fa-clock',
+                        action: () => this.switchView('attendance')
+                    },
+                    {
+                        key: 'cfg',
+                        label: 'Ouvrir Configuration',
+                        desc: 'API / Tenant / Token',
+                        icon: 'fa-solid fa-gear',
+                        action: () => this.openSettings = true
+                    },
+                    {
+                        key: 'bill',
+                        label: 'Gérer la facturation',
+                        desc: 'Portail licence',
+                        icon: 'fa-solid fa-receipt',
+                        action: () => this.openBillingPortal()
+                    },
+                    {
+                        key: 'dm',
+                        label: 'Basculer Mode sombre',
+                        desc: 'Raccourci ⌘/Ctrl + J',
+                        icon: 'fa-solid fa-moon',
+                        action: () => this.toggleDark()
+                    },
+                ];
+                if (!q) return items;
+                return items.filter(it => it.label.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q));
+            },
         }
-
-        window.addEventListener('online', ()=>this.handleOnline());
-        window.addEventListener('offline', ()=>this.handleOffline());
-      },
-
-      /* Command palette */
-      get cmdResults(){
-        const q=this.cmdQuery.toLowerCase().trim();
-        const items=[
-          {key:'v1',label:'Aller au Tableau de bord',desc:'Vue synthèse',icon:'fa-solid fa-chart-pie',action:()=>this.switchView('dashboard')},
-          {key:'v2',label:'Aller à Employés',desc:'Lister et gérer',icon:'fa-solid fa-users',action:()=>this.switchView('employees')},
-          {key:'v3',label:'Aller à Recrutement',desc:'Offres & candidats',icon:'fa-solid fa-briefcase',action:()=>this.switchView('recruitment')},
-          {key:'v4',label:'Aller à Congés',desc:'Demandes de congé',icon:'fa-solid fa-calendar-check',action:()=>this.switchView('leaves')},
-          {key:'v5',label:'Aller à Pointage',desc:'Présences',icon:'fa-solid fa-clock',action:()=>this.switchView('attendance')},
-          {key:'cfg',label:'Ouvrir Configuration',desc:'API / Tenant / Token',icon:'fa-solid fa-gear',action:()=>this.openSettings=true},
-          {key:'bill',label:'Gérer la facturation',desc:'Portail licence',icon:'fa-solid fa-receipt',action:()=>this.openBillingPortal()},
-          {key:'dm',label:'Basculer Mode sombre',desc:'Raccourci ⌘/Ctrl + J',icon:'fa-solid fa-moon',action:()=>this.toggleDark()},
-        ];
-        if(!q) return items;
-        return items.filter(it=>it.label.toLowerCase().includes(q)||it.desc.toLowerCase().includes(q));
-      },
     }
-  }
 
-  /* Alpine helpers (optionnels) */
-  document.addEventListener('alpine:init', () => {
-    Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
-    Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
-  });
+    /* Alpine helpers (optionnels) */
+    document.addEventListener('alpine:init', () => {
+        Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
+        Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
+    });
 
-  /* Utils globaux */
-  window.formatDate = (s)=> s? new Date(s).toLocaleDateString('fr-FR'): '';
-  window.formatDateTime = (s)=> s? new Date(s).toLocaleString('fr-FR'): '';
+    /* Utils globaux */
+    window.formatDate = (s) => s ? new Date(s).toLocaleDateString('fr-FR') : '';
+    window.formatDateTime = (s) => s ? new Date(s).toLocaleString('fr-FR') : '';
 </script>
 </body>
 </html>

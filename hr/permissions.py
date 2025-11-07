@@ -1,4 +1,7 @@
 #Lyneerp/hr/permissions.py
+import base64
+import json
+
 from django.conf import settings
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
@@ -16,11 +19,6 @@ AUTO_ASSIGN = os.getenv("LICENSING_AUTO_ASSIGN", "1") == "1"  # auto-attribue un
 USE_REMOTE = bool(os.getenv("LICENSING_URL"))
 
 
-def _jwt_sub(request):
-    payload = getattr(request, "auth", {}) or {}
-    return payload.get("sub")
-
-
 def _jwt_roles(request):
     p = getattr(request, "auth", {}) or {}
     realm = p.get("realm_access", {}).get("roles", [])
@@ -28,46 +26,82 @@ def _jwt_roles(request):
     return set(realm) | set(client)
 
 
-def _local_status(tenant, module, sub):
-    # Appelle la vue interne ou interroge le modèle directement
+def _parse_jwt_unverified(token: str):
+    try:
+        header, payload, _ = token.split(".")
+        # base64url → base64
+        payload += "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload.encode()).decode())
+    except Exception:
+        return {}
+
+
+def _sub_from_session(request):
+    # OIDC_SESSION_KEY stocké par tes vues d’auth
+    data = request.session.get(getattr(settings, "OIDC_SESSION_KEY", "oidc_user")) or {}
+    # d’abord l’id_token si présent
+    if data.get("id_token"):
+        claims = _parse_jwt_unverified(data["id_token"])
+        if claims.get("sub"):
+            return claims["sub"]
+    # sinon l’access_token
+    if data.get("access_token"):
+        claims = _parse_jwt_unverified(data["access_token"])
+        if claims.get("sub"):
+            return claims["sub"]
+    # dernier recours : username/email (pas idéal mais évite un blocage dur)
+    return (data.get("preferred_username") or data.get("email") or "").strip() or None
+
+
+def _jwt_sub(request):
+    # 1) Bearer vérifié par KeycloakJWTAuthentication
+    payload = getattr(request, "auth", {}) or {}
+    if payload.get("sub"):
+        return payload["sub"]
+    # 2) Fallback session OIDC (login côté serveur)
+    return _sub_from_session(request)
+
+
+def _local_status(tenant: Tenant, module: str, sub: str):
     from tenants.models import License, SeatAssignment
     from datetime import date
-    lic = License.objects.filter(tenant=tenant, module=module).order_by("-valid_until").first()
+    lic = (License.objects
+           .filter(tenant=tenant, module=module, active=True, valid_until__gte=date.today())
+           .order_by("-valid_until").first())
     if not lic:
-        return {"active": False}
-
-    active = lic.active and lic.valid_until and lic.valid_until >= date.today()
-    if not active:
         return {"active": False}
     seats_used = SeatAssignment.objects.filter(tenant=tenant, module=module, active=True).count()
     user_entitled = SeatAssignment.objects.filter(tenant=tenant, module=module, user_sub=sub, active=True).exists()
     return {
         "active": True,
-        "plan": lic.plan, "valid_until": lic.valid_until,
-        "seats_total": lic.seats, "seats_used": seats_used,
+        "plan": lic.plan,
+        "valid_until": lic.valid_until,
+        "seats_total": lic.seats,
+        "seats_used": seats_used,
         "user_entitled": user_entitled,
-        "jit_allowed": seats_used < lic.seats
+        "jit_allowed": seats_used < lic.seats,
+        "license_id": str(lic.id),
     }
+
+
+def _jit_assign_local(tenant: Tenant, module: str, sub: str, email: str):
+    from hr.auth_utils import ensure_seat_for_user
+    return ensure_seat_for_user(tenant, module, sub, email or "")
 
 
 class HasRHAccess(BasePermission):
     message = "Accès RH non autorisé (licence/siège/rôle)."
-    required_roles = {"rh:use"}  # Adaptable via view.required_roles
+    required_roles = {"rh:use"}
 
     def has_permission(self, request, view):
-        # 0) JWT présent
-        sub = _jwt_sub(request)
-        if not sub:
-            self.message = "Token invalide (sub manquant)"
-            return False
-
-        # 1) Rôles
+        # Rôles (s’ils existent côté token). Si session-only, on les zappe sans bloquer.
         need = set(getattr(view, "required_roles", self.required_roles))
-        if not need.issubset(_jwt_roles(request)):
+        roles = _jwt_roles(request)
+        if need and roles and not need.issubset(roles):
             self.message = "Rôle insuffisant"
             return False
 
-        # 2) Tenant
+        # Tenant
         tenant_hint = (request.headers.get("X-Tenant-Id")
                        or getattr(getattr(request, "tenant", None), "id", None)
                        or request.session.get("tenant_id"))
@@ -76,19 +110,21 @@ class HasRHAccess(BasePermission):
             self.message = "Tenant introuvable"
             return False
 
-        # 3) Licence & siège (local)
-        data = _local_status(tenant_obj, MODULE, sub)
+        # sub (Bearer ou session)
+        sub = _jwt_sub(request)
+        if not sub:
+            self.message = "Token invalide (sub manquant)"
+            return False
 
+        # Licence + siège
+        data = _local_status(tenant_obj, MODULE, sub)
         if not data.get("active"):
             self.message = "Licence RH invalide ou expirée"
             return False
-
         if data.get("user_entitled"):
             return True
-
-        # 3b) Just-in-time seat (local)
         if data.get("jit_allowed"):
-            sa = _jit_assign_local(tenant_obj, MODULE, sub, getattr(getattr(request, "user", None), "email", None))
+            sa = _jit_assign_local(tenant_obj, MODULE, sub, getattr(getattr(request, "user", None), "email", ""))
             return sa is not None
 
         self.message = "Aucun siège disponible ou assigné"
