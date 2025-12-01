@@ -73,7 +73,6 @@ SESSION_COOKIE_DOMAIN = ".lyneerp.com"
 
 # --- OIDC / Keycloak ---
 
-# --- OIDC / Keycloak ---
 
 # Issuer public (ce que verront les navigateurs et ce qui est dans les tokens)
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
@@ -85,17 +84,23 @@ OIDC_OP_DISCOVERY_ENDPOINT = (
 
 # Endpoints publics OIDC (tous en HTTPS)
 OIDC_OP_AUTHORIZATION_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/auth"
-OIDC_OP_TOKEN_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/token"
-OIDC_OP_USER_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/userinfo"
-OIDC_OP_JWKS_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/certs"
+# Endpoints appelés PAR LE BACKEND (via le réseau Docker)
+OIDC_OP_TOKEN_ENDPOINT = (
+    "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
+)
+OIDC_OP_USER_ENDPOINT = (
+    "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/userinfo"
+)
+OIDC_OP_JWKS_ENDPOINT = (
+    "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/certs"
+)
 
 # Client OIDC (Keycloak)
 OIDC_RP_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
-OIDC_RP_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")  # vide si client public
+OIDC_RP_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")
 
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_RP_SCOPES = "openid email profile"
-
 OIDC_STORE_ID_TOKEN = True
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_TIMEOUT = 10
