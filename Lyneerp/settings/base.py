@@ -113,6 +113,11 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
+AUTHENTICATION_BACKENDS = [
+    "hr.oidc_backend.KeycloakOIDCBackend",      # <--- ici
+    "django.contrib.auth.backends.ModelBackend",
+]
+
 SPECTACULAR_SETTINGS = {"TITLE": "LYNE-ERP RH API", "VERSION": "1.0.0"}
 
 # DB

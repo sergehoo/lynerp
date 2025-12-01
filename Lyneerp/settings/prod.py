@@ -96,6 +96,9 @@ OIDC_OP_JWKS_ENDPOINT = (
     "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/certs"
 )
 
+KEYCLOAK_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
+KEYCLOAK_AUDIENCE = "rh-core"
+KEYCLOAK_JWKS_URL = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/certs"
 # Client OIDC (Keycloak)
 OIDC_RP_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
 # OIDC_RP_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")
@@ -107,8 +110,7 @@ OIDC_STORE_ID_TOKEN = True
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_TIMEOUT = 10
 
-OIDC_STORE_ID_TOKEN = True
-OIDC_STORE_ACCESS_TOKEN = True
+
 
 LICENSE_ENFORCEMENT = False
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
