@@ -73,23 +73,21 @@ SESSION_COOKIE_DOMAIN = ".lyneerp.com"
 
 # --- OIDC / Keycloak ---
 
+# --- OIDC / Keycloak ---
+
 # Issuer public (ce que verront les navigateurs et ce qui est dans les tokens)
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
 
-# Option 1 : via Discovery (recommandé)
+# (Optionnel) Discovery – pas obligatoire mais utile
 OIDC_OP_DISCOVERY_ENDPOINT = (
     "https://sso.lyneerp.com/realms/lyneerp/.well-known/openid-configuration"
 )
-# --- OIDC / Keycloak ---
 
 # Endpoints publics OIDC (tous en HTTPS)
 OIDC_OP_AUTHORIZATION_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/auth"
 OIDC_OP_TOKEN_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/token"
 OIDC_OP_USER_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/userinfo"
 OIDC_OP_JWKS_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/certs"
-
-# (Tu peux laisser ou non le discovery, mais ce n’est plus obligatoire)
-# OIDC_OP_DISCOVERY_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/.well-known/openid-configuration"
 
 # Client OIDC (Keycloak)
 OIDC_RP_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
