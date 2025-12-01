@@ -80,32 +80,29 @@ OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
 OIDC_OP_DISCOVERY_ENDPOINT = (
     "https://sso.lyneerp.com/realms/lyneerp/.well-known/openid-configuration"
 )
+# --- OIDC / Keycloak ---
 
-# Si tu utilises Discovery, tu peux supprimer les lignes suivantes :
-# OIDC_OP_AUTHORIZATION_ENDPOINT
-# OIDC_OP_TOKEN_ENDPOINT
-# OIDC_OP_JWKS_ENDPOINT
-# OIDC_OP_USER_ENDPOINT
+# Endpoints publics OIDC (tous en HTTPS)
+OIDC_OP_AUTHORIZATION_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/auth"
+OIDC_OP_TOKEN_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/token"
+OIDC_OP_USER_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/userinfo"
+OIDC_OP_JWKS_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/certs"
+
+# (Tu peux laisser ou non le discovery, mais ce n’est plus obligatoire)
+# OIDC_OP_DISCOVERY_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/.well-known/openid-configuration"
 
 # Client OIDC (Keycloak)
-OIDC_RP_CLIENT_ID = "rh-core"        # doit = client_id dans Keycloak
-OIDC_RP_CLIENT_SECRET = None         # client "Public" dans Keycloak (pas de secret)
+OIDC_RP_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
+OIDC_RP_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")  # vide si client public
 
-# Algo de signature attendu (Keycloak = RS256 par défaut)
 OIDC_RP_SIGN_ALGO = "RS256"
-
-# Scopes demandés
 OIDC_RP_SCOPES = "openid email profile"
 
-# Timeout des appels au serveur d’auth
-OIDC_TIMEOUT = 10
-
-# Stockage des tokens en session (si tu veux les réutiliser ensuite)
 OIDC_STORE_ID_TOKEN = True
 OIDC_STORE_ACCESS_TOKEN = True
+OIDC_TIMEOUT = 10
 
 LICENSE_ENFORCEMENT = False
-
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 CACHES = {
     "default": {
