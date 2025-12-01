@@ -114,7 +114,7 @@ REST_FRAMEWORK = {
     ],
 }
 AUTHENTICATION_BACKENDS = [
-    "hr.oidc_backend.KeycloakOIDCBackend",      # <--- ici
+    "hr.oidc_backend.KeycloakOIDCBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
