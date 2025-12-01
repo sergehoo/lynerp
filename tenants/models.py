@@ -9,7 +9,7 @@ User = get_user_model()
 
 
 class Tenant(models.Model):
-
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     slug = models.SlugField(max_length=64, unique=True)  # ex: acme
     name = models.CharField(max_length=128)
     domain = models.CharField(max_length=255, blank=True)  # ex: acme.lyneerp.com
