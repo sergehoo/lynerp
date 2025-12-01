@@ -98,7 +98,7 @@ OIDC_OP_JWKS_ENDPOINT = (
 # Client OIDC (Keycloak)
 OIDC_RP_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
 OIDC_RP_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")
-
+OIDC_FETCH_USERINFO = False
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_RP_SCOPES = "openid email profile"
 OIDC_STORE_ID_TOKEN = True
