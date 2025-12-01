@@ -3,10 +3,11 @@ import os
 from .base import *
 
 DEBUG = True
-SECURE_SSL_REDIRECT = False
+SECURE_SSL_REDIRECT = True
 # pour le retour en HTTPS strict
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 CSRF_TRUSTED_ORIGINS = [
     "http://www.lynerp.com",
@@ -70,28 +71,36 @@ SESSION_COOKIE_DOMAIN = ".lyneerp.com"
 
 
 
-# --- Garde l'issuer et l'AUTH endpoint publics (utilisés par le navigateur) ---
-OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
-OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth"
+# --- OIDC / Keycloak ---
 
-# --- Endpoints appelés côté serveur : utilise le DNS docker du service keycloak ---
-OIDC_OP_TOKEN_ENDPOINT= "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
-OIDC_OP_JWKS_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/certs"
-OIDC_OP_USER_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/userinfo"
-
-OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
-OIDC_RP_CLIENT_SECRET = None                     # None pour client public
+# Issuer public (ce que verront les navigateurs et ce qui est dans les tokens)
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
 
-# Algorithme de signature attendu pour les ID tokens (Keycloak = RS256 par défaut)
+# Option 1 : via Discovery (recommandé)
+OIDC_OP_DISCOVERY_ENDPOINT = (
+    "https://sso.lyneerp.com/realms/lyneerp/.well-known/openid-configuration"
+)
+
+# Si tu utilises Discovery, tu peux supprimer les lignes suivantes :
+# OIDC_OP_AUTHORIZATION_ENDPOINT
+# OIDC_OP_TOKEN_ENDPOINT
+# OIDC_OP_JWKS_ENDPOINT
+# OIDC_OP_USER_ENDPOINT
+
+# Client OIDC (Keycloak)
+OIDC_RP_CLIENT_ID = "rh-core"        # doit = client_id dans Keycloak
+OIDC_RP_CLIENT_SECRET = None         # client "Public" dans Keycloak (pas de secret)
+
+# Algo de signature attendu (Keycloak = RS256 par défaut)
 OIDC_RP_SIGN_ALGO = "RS256"
-# 1) Scopes demandés (sinon certains IdP ne renvoient pas email/username)
+
+# Scopes demandés
 OIDC_RP_SCOPES = "openid email profile"
 
-# 2) Timeout des appels OIDC (échange code->token)
+# Timeout des appels au serveur d’auth
 OIDC_TIMEOUT = 10
 
-# 3) (Optionnel) Stocker les tokens en session si tu en as besoin après login
+# Stockage des tokens en session (si tu veux les réutiliser ensuite)
 OIDC_STORE_ID_TOKEN = True
 OIDC_STORE_ACCESS_TOKEN = True
 
