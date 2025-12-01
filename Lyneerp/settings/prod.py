@@ -69,35 +69,22 @@ SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_DOMAIN = ".lyneerp.com"
 
 
-# Client OIDC (Keycloak)
-OIDC_RP_CLIENT_ID = "rh-core"  # ton KEYCLOAK_AUDIENCE
-OIDC_RP_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")  # dans ton .env
-
-# Endpoints Keycloak pour le realm "lyneerp"
-OIDC_OP_AUTHORIZATION_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/auth"
-OIDC_OP_TOKEN_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/token"
-OIDC_OP_USER_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/userinfo"
-OIDC_OP_JWKS_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/certs"
-
-# Facultatif mais conseillé
-OIDC_OP_LOGOUT_ENDPOINT = "https://sso.lyneerp.com/realms/lyneerp/protocol/openid-connect/logout"
-OIDC_RP_SIGN_ALGO = "RS256"
 
 # --- Garde l'issuer et l'AUTH endpoint publics (utilisés par le navigateur) ---
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
-# OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth"
+OIDC_OP_AUTHORIZATION_ENDPOINT = f"{OIDC_OP_ISSUER}/protocol/openid-connect/auth"
 
 # --- Endpoints appelés côté serveur : utilise le DNS docker du service keycloak ---
-# OIDC_OP_TOKEN_ENDPOINT= "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
-# OIDC_OP_JWKS_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/certs"
-# OIDC_OP_USER_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/userinfo"
+OIDC_OP_TOKEN_ENDPOINT= "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/token"
+OIDC_OP_JWKS_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/certs"
+OIDC_OP_USER_ENDPOINT = "http://keycloak:8080/realms/lyneerp/protocol/openid-connect/userinfo"
 
-# OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
-# OIDC_RP_CLIENT_SECRET = None                     # None pour client public
+OIDC_RP_CLIENT_ID = "rh-core"                    # client type "Public" dans Keycloak
+OIDC_RP_CLIENT_SECRET = None                     # None pour client public
 OIDC_OP_ISSUER = "https://sso.lyneerp.com/realms/lyneerp"
 
 # Algorithme de signature attendu pour les ID tokens (Keycloak = RS256 par défaut)
-# OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_RP_SIGN_ALGO = "RS256"
 # 1) Scopes demandés (sinon certains IdP ne renvoient pas email/username)
 OIDC_RP_SCOPES = "openid email profile"
 
