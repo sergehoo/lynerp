@@ -1,10 +1,11 @@
 # Lyneerp/hr/views.py
 
 import logging
-from typing import Dict, Any, List
+import uuid
+from typing import Dict, Any, List, Optional
 import pandas as pd
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Count, Avg
@@ -60,7 +61,7 @@ from hr.api.serializers import (
     RecruitmentSerializer,
     RecruitmentFilterSerializer,
 )
-from tenants.models import Tenant
+from tenants.models import Tenant, TenantDomain
 
 # Services (export, etc.)
 try:
@@ -74,61 +75,96 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
-def get_current_tenant_from_request(request) -> Tenant:
-    tenant_key = (
-            request.headers.get("X-Tenant-Id")
-            or request.META.get("HTTP_X_TENANT_ID")
-            or request.query_params.get("tenant")
-    )
-    if not tenant_key:
-        raise ValidationError("X-Tenant-Id manquant")
+def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
+    """
+    Résout le tenant à partir (dans l'ordre) :
+    - du token OIDC (si présent)
+    - du header X-Tenant-Id
+    - du host (sous-domaine ou TenantDomain)
+    """
 
-    # 1) essayer comme PK int
-    try:
-        return Tenant.objects.get(pk=int(tenant_key))
-    except (ValueError, Tenant.DoesNotExist):
-        pass
+    # 1) Via OIDC (si tu ajoutes oidc au request)
+    oidc = getattr(request, "oidc", {}) or {}
+    raw = oidc.get("tenant") or oidc.get("tenant_id")
+    if raw:
+        # On tente d'abord comme slug
+        tenant = Tenant.objects.filter(slug=raw).first()
+        if tenant:
+            return tenant
+        # Sinon comme UUID
+        try:
+            uuid_val = uuid.UUID(str(raw))
+            tenant = Tenant.objects.filter(id=uuid_val).first()
+            if tenant:
+                return tenant
+        except ValueError:
+            pass
 
-    # 2) sinon on essaie comme slug
-    try:
-        return Tenant.objects.get(slug=tenant_key)
-    except Tenant.DoesNotExist:
-        raise ValidationError(f"Tenant inconnu: {tenant_key}")
+    # 2) Header X-Tenant-Id (venant du front)
+    hdr = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
+    if hdr:
+        # slug
+        tenant = Tenant.objects.filter(slug=hdr).first()
+        if tenant:
+            return tenant
+        # uuid
+        try:
+            uuid_val = uuid.UUID(str(hdr))
+            tenant = Tenant.objects.filter(id=uuid_val).first()
+            if tenant:
+                return tenant
+        except ValueError:
+            pass
 
+    # 3) Par le host (acme.rh.lyneerp.com → acme)
+    host = request.get_host().split(":")[0].lower()
+
+    # 3.a) TenantDomain direct
+    dom = TenantDomain.objects.filter(domain=host).select_related("tenant").first()
+    if dom:
+        return dom.tenant
+
+    # 3.b) Sous-domaine -> slug
+    parts = host.split(".")
+    if len(parts) >= 3:
+        sub = parts[0]
+        tenant = Tenant.objects.filter(slug=sub).first()
+        if tenant:
+            return tenant
+
+    return None
 
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------
-class BaseTenantViewSet:
-    """Mixin de base pour filtrer par tenant"""
+class BaseTenantViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet de base multi-tenant :
+    - Résout le Tenant à partir de la requête
+    - Filtre soit sur `tenant` (FK), soit sur `tenant_id` (CharField)
+    """
 
-    def get_tenant(self) -> Tenant:
-        if not hasattr(self, "_current_tenant"):
-            self._current_tenant = get_current_tenant_from_request(self.request)
-        return self._current_tenant
+    def get_tenant(self):
+        return get_current_tenant_from_request(self.request)
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        try:
-            tenant = self.get_tenant()
-        except ValidationError:
-            # pas de tenant → aucune donnée
-            return qs.none()
+        tenant = self.get_tenant()
+        if not tenant:
+            return self.queryset.none()
 
+        qs = super().get_queryset() if hasattr(super(), "get_queryset") else self.queryset
         model = qs.model
 
-        # 1) Modèles avec tenant = ForeignKey(Tenant) : Department, Employee, Position, etc.
+        # Modèle avec FK Tenant
         if hasattr(model, "tenant"):
             return qs.filter(tenant=tenant)
 
-        # 2) Modèles avec tenant_id = CharField : LeaveRequest, LeaveType, etc.
+        # Modèle avec champ tenant_id (CharField)
         if hasattr(model, "tenant_id"):
-            # on choisit de stocker le slug dans les CharField
-            return qs.filter(tenant_id=getattr(tenant, "slug", str(tenant.pk)))
+            return qs.filter(tenant_id=str(tenant.id))
 
-        # 3) Fallback : pas de filtrage si pas de notion de tenant
-        return qs
-
+        # Modèle non-tenantisable (rare)
+        return qs.none()
 
 # -----------------------------
 # Dashboard RH
@@ -393,14 +429,16 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def import_employees(self, request):
         """Import d'employés depuis un fichier CSV/XLSX"""
-        tenant_id = request.headers.get("X-Tenant-Id")
+        tenant = get_current_tenant_from_request(request)
+        if not tenant:
+            return Response({"detail": "Tenant introuvable"}, status=400)
+
         serializer = EmployeeImportSerializer(data=request.data)
         if serializer.is_valid():
             file = serializer.validated_data['file']
             update_existing = serializer.validated_data['update_existing']
 
             try:
-                # Lire le fichier Excel/CSV
                 if file.name.lower().endswith('.xlsx'):
                     df = pd.read_excel(file)
                 else:
@@ -417,8 +455,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
                                 'first_name': row.get('first_name'),
                                 'last_name': row.get('last_name'),
                                 'email': row.get('email'),
-                                'tenant_id': tenant_id,
-                                # Ajoute d'autres champs si présents dans le fichier...
+                                'tenant': tenant,
                             }
 
                             if not employee_data['matricule'] or not employee_data['email']:
@@ -427,7 +464,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
                             if update_existing:
                                 Employee.objects.update_or_create(
                                     matricule=employee_data['matricule'],
-                                    tenant_id=employee_data['tenant_id'],
+                                    tenant=tenant,
                                     defaults=employee_data
                                 )
                             else:

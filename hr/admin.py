@@ -195,7 +195,7 @@ class PositionAdmin(admin.ModelAdmin):
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ['matricule', 'full_name', 'email', 'department', 'position', 'hire_date', 'is_active', 'tenant']
+    list_display = ['matricule', 'full_name', 'email', 'department', 'position', 'hire_date', 'is_active', 'user_account','tenant']
     list_filter = [TenantFilter, ActiveFilter, 'department', 'contract_type', 'work_schedule', 'hire_date']
     search_fields = ['first_name', 'last_name', 'email', 'matricule', 'phone']
     list_select_related = ['department', 'position', 'user_account']
@@ -204,7 +204,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         ('Informations personnelles', {
             'fields': [
                 'matricule', 'first_name', 'last_name', 'email', 'phone',
-                'date_of_birth', 'gender', 'address', 'emergency_contact',
+                'date_of_birth', 'gender', 'address', 'emergency_contact','user_account',
             ]
         }),
         ('Informations professionnelles', {
