@@ -507,7 +507,7 @@
     function normalizeApiBase(val) {
         if (!val) return '/api/rh';
         let v = val.trim();
-        // si on donne le root (ex: https://rh.lyneerp.com), ajoute /api/rh
+        // si on donne le root (https://rh.lyneerp.com), ajoute /api/rh
         if (/^https?:\/\//i.test(v) && !/\/api\/rh\/?$/i.test(v)) {
             v = v.replace(/\/+$/, '') + '/api/rh';
         }
@@ -515,7 +515,7 @@
         return v.replace(/\/+$/, '');
     }
 
-    // CSRF (pour requêtes mutantes en même-origin)
+
     function getCookie(name) {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
         if (match) return decodeURIComponent(match[2]);

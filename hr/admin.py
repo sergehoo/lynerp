@@ -204,7 +204,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         ('Informations personnelles', {
             'fields': [
                 'matricule', 'first_name', 'last_name', 'email', 'phone',
-                'date_of_birth', 'gender', 'address', 'emergency_contact','user_account',
+                'date_of_birth', 'gender', 'address', 'emergency_contact',
             ]
         }),
         ('Informations professionnelles', {
