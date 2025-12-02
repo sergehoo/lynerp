@@ -572,49 +572,49 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 #         serializer = AttendanceSerializer(attendances, many=True)
 #         return Response(serializer.data)
 
-class EmployeeViewSet( viewsets.ModelViewSet):
+class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
-    # filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
-    def get_queryset(self):
-        # 1) Résoudre clairement le tenant
-        tenant = get_current_tenant_from_request(self.request)
-        if not tenant:
-            return Employee.objects.none()
-
-        # 2) Filtrer sur ce tenant (FK)
-        queryset = Employee.objects.filter(tenant=tenant)
-
-        # 3) Filtrage avancé
-        filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
-        if filter_serializer.is_valid():
-            filt: Dict[str, Any] = {}
-
-            if filter_serializer.validated_data.get('department'):
-                filt['department_id'] = filter_serializer.validated_data['department']
-
-            if filter_serializer.validated_data.get('position'):
-                filt['position_id'] = filter_serializer.validated_data['position']
-
-            if filter_serializer.validated_data.get('contract_type'):
-                filt['contract_type'] = filter_serializer.validated_data['contract_type']
-
-            if filter_serializer.validated_data.get('is_active') is not None:
-                filt['is_active'] = filter_serializer.validated_data['is_active']
-
-            if filter_serializer.validated_data.get('hire_date_from'):
-                filt['hire_date__gte'] = filter_serializer.validated_data['hire_date_from']
-
-            if filter_serializer.validated_data.get('hire_date_to'):
-                filt['hire_date__lte'] = filter_serializer.validated_data['hire_date_to']
-
-            queryset = queryset.filter(**filt)
-
-        return queryset
+    # def get_queryset(self):
+    #     # 1) Résoudre clairement le tenant
+    #     tenant = get_current_tenant_from_request(self.request)
+    #     if not tenant:
+    #         return Employee.objects.none()
+    #
+    #     # 2) Filtrer sur ce tenant (FK)
+    #     queryset = Employee.objects.filter(tenant=tenant)
+    #
+    #     # 3) Filtrage avancé
+    #     filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
+    #     if filter_serializer.is_valid():
+    #         filt: Dict[str, Any] = {}
+    #
+    #         if filter_serializer.validated_data.get('department'):
+    #             filt['department_id'] = filter_serializer.validated_data['department']
+    #
+    #         if filter_serializer.validated_data.get('position'):
+    #             filt['position_id'] = filter_serializer.validated_data['position']
+    #
+    #         if filter_serializer.validated_data.get('contract_type'):
+    #             filt['contract_type'] = filter_serializer.validated_data['contract_type']
+    #
+    #         if filter_serializer.validated_data.get('is_active') is not None:
+    #             filt['is_active'] = filter_serializer.validated_data['is_active']
+    #
+    #         if filter_serializer.validated_data.get('hire_date_from'):
+    #             filt['hire_date__gte'] = filter_serializer.validated_data['hire_date_from']
+    #
+    #         if filter_serializer.validated_data.get('hire_date_to'):
+    #             filt['hire_date__lte'] = filter_serializer.validated_data['hire_date_to']
+    #
+    #         queryset = queryset.filter(**filt)
+    #
+    #     return queryset
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
