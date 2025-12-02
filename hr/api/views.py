@@ -133,6 +133,7 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
 
     return None
 
+
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------
@@ -170,6 +171,7 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
 
         # 3) Modèle non-tenantisable
         return qs.none()
+
 
 # -----------------------------
 # Dashboard RH
@@ -591,73 +593,39 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
     # def get_queryset(self):
-    #     # 1) Résoudre clairement le tenant
-    #     tenant = get_current_tenant_from_request(self.request)
-    #     if not tenant:
-    #         return Employee.objects.none()
+    #     # Déjà filtré par tenant via BaseTenantViewSet
+    #     queryset = super().get_queryset()
     #
-    #     # 2) Filtrer sur ce tenant (FK)
-    #     queryset = Employee.objects.filter(tenant=tenant)
-    #
-    #     # 3) Filtrage avancé
+    #     # Filtrage avancé
     #     filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
     #     if filter_serializer.is_valid():
+    #         data = filter_serializer.validated_data
     #         filt: Dict[str, Any] = {}
     #
-    #         if filter_serializer.validated_data.get('department'):
-    #             filt['department_id'] = filter_serializer.validated_data['department']
+    #         # ⚠️ Le front envoie des IDs pour department / position
+    #         if data.get('department'):
+    #             filt['department_id'] = data['department']
     #
-    #         if filter_serializer.validated_data.get('position'):
-    #             filt['position_id'] = filter_serializer.validated_data['position']
+    #         if data.get('position'):
+    #             filt['position_id'] = data['position']
     #
-    #         if filter_serializer.validated_data.get('contract_type'):
-    #             filt['contract_type'] = filter_serializer.validated_data['contract_type']
+    #         if data.get('contract_type'):
+    #             filt['contract_type'] = data['contract_type']
     #
-    #         if filter_serializer.validated_data.get('is_active') is not None:
-    #             filt['is_active'] = filter_serializer.validated_data['is_active']
+    #         if data.get('is_active') is not None:
+    #             filt['is_active'] = data['is_active']
     #
-    #         if filter_serializer.validated_data.get('hire_date_from'):
-    #             filt['hire_date__gte'] = filter_serializer.validated_data['hire_date_from']
+    #         if data.get('hire_date_from'):
+    #             filt['hire_date__gte'] = data['hire_date_from']
     #
-    #         if filter_serializer.validated_data.get('hire_date_to'):
-    #             filt['hire_date__lte'] = filter_serializer.validated_data['hire_date_to']
+    #         if data.get('hire_date_to'):
+    #             filt['hire_date__lte'] = data['hire_date_to']
     #
     #         queryset = queryset.filter(**filt)
     #
     #     return queryset
 
-    def get_queryset(self):
-        # Déjà filtré par tenant via BaseTenantViewSet
-        queryset = super().get_queryset()
 
-        # Filtrage avancé
-        filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
-        if filter_serializer.is_valid():
-            data = filter_serializer.validated_data
-            filt: Dict[str, Any] = {}
-
-            # ⚠️ Le front envoie des IDs pour department / position
-            if data.get('department'):
-                filt['department_id'] = data['department']
-
-            if data.get('position'):
-                filt['position_id'] = data['position']
-
-            if data.get('contract_type'):
-                filt['contract_type'] = data['contract_type']
-
-            if data.get('is_active') is not None:
-                filt['is_active'] = data['is_active']
-
-            if data.get('hire_date_from'):
-                filt['hire_date__gte'] = data['hire_date_from']
-
-            if data.get('hire_date_to'):
-                filt['hire_date__lte'] = data['hire_date_to']
-
-            queryset = queryset.filter(**filt)
-
-        return queryset
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
@@ -776,35 +744,37 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     search_fields = ['title', 'reference']
     ordering_fields = ['created_at', 'publication_date']
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #
+    #     filter_serializer = RecruitmentFilterSerializer(data=self.request.query_params)
+    #     if filter_serializer.is_valid():
+    #         data = filter_serializer.validated_data
+    #         filt: Dict[str, Any] = {}
+    #
+    #         if data.get('status'):
+    #             filt['status'] = data['status']
+    #
+    #         if data.get('department'):
+    #             filt['department_id'] = data['department']
+    #
+    #         if data.get('position'):
+    #             filt['position_id'] = data['position']
+    #
+    #         if data.get('hiring_manager'):
+    #             filt['hiring_manager_id'] = data['hiring_manager']
+    #
+    #         if data.get('publication_date_from'):
+    #             filt['publication_date__gte'] = data['publication_date_from']
+    #
+    #         if data.get('publication_date_to'):
+    #             filt['publication_date__lte'] = data['publication_date_to']
+    #
+    #         queryset = queryset.filter(**filt)
+    #
+    #     return queryset
+    #
 
-        filter_serializer = RecruitmentFilterSerializer(data=self.request.query_params)
-        if filter_serializer.is_valid():
-            data = filter_serializer.validated_data
-            filt: Dict[str, Any] = {}
-
-            if data.get('status'):
-                filt['status'] = data['status']
-
-            if data.get('department'):
-                filt['department_id'] = data['department']
-
-            if data.get('position'):
-                filt['position_id'] = data['position']
-
-            if data.get('hiring_manager'):
-                filt['hiring_manager_id'] = data['hiring_manager']
-
-            if data.get('publication_date_from'):
-                filt['publication_date__gte'] = data['publication_date_from']
-
-            if data.get('publication_date_to'):
-                filt['publication_date__lte'] = data['publication_date_to']
-
-            queryset = queryset.filter(**filt)
-
-        return queryset
 # -----------------------------
 # Candidatures (fusion des deux définitions)
 # -----------------------------
