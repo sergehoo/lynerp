@@ -73,11 +73,12 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+
 def get_current_tenant_from_request(request) -> Tenant:
     tenant_key = (
-        request.headers.get("X-Tenant-Id")
-        or request.META.get("HTTP_X_TENANT_ID")
-        or request.query_params.get("tenant")
+            request.headers.get("X-Tenant-Id")
+            or request.META.get("HTTP_X_TENANT_ID")
+            or request.query_params.get("tenant")
     )
     if not tenant_key:
         raise ValidationError("X-Tenant-Id manquant")
@@ -93,6 +94,8 @@ def get_current_tenant_from_request(request) -> Tenant:
         return Tenant.objects.get(slug=tenant_key)
     except Tenant.DoesNotExist:
         raise ValidationError(f"Tenant inconnu: {tenant_key}")
+
+
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------
@@ -126,176 +129,10 @@ class BaseTenantViewSet:
         # 3) Fallback : pas de filtrage si pas de notion de tenant
         return qs
 
+
 # -----------------------------
 # Dashboard RH
 # -----------------------------
-class HRDashboardViewSet(viewsets.ViewSet):
-    """Vues pour le tableau de bord RH"""
-    permission_classes = [IsAuthenticated, HasRHAccess]
-
-    @action(detail=False, methods=['get'])
-    def stats(self, request):
-        """Récupérer les statistiques du tableau de bord"""
-        tenant_id = request.headers.get("X-Tenant-Id")
-        if not tenant_id:
-            oidc = getattr(request, "oidc", {}) or {}
-            tenant_id = oidc.get("tenant") or oidc.get("tenant_id")
-        if not tenant_id:
-            return Response({"detail": "X-Tenant-Id manquant et aucun tenant dans le token"}, status=400)
-
-        # Calculer les statistiques
-        total_employees = Employee.objects.filter(tenant_id=tenant_id).count()
-        active_employees = Employee.objects.filter(tenant_id=tenant_id, is_active=True).count()
-
-        # Employés en congé aujourd'hui
-        today = timezone.now().date()
-        employees_on_leave = Employee.objects.filter(
-            tenant_id=tenant_id,
-            is_active=True,
-            leaverequest__status='approved',
-            leaverequest__start_date__lte=today,
-            leaverequest__end_date__gte=today
-        ).distinct().count()
-
-        # Nouvelles embauches ce mois-ci
-        current_month = timezone.now().month
-        current_year = timezone.now().year
-        new_hires_this_month = Employee.objects.filter(
-            tenant_id=tenant_id,
-            hire_date__month=current_month,
-            hire_date__year=current_year
-        ).count()
-
-        # Demandes de congé en attente
-        pending_leave_requests = LeaveRequest.objects.filter(
-            tenant_id=tenant_id,
-            status='pending'
-        ).count()
-
-        # Recrutements actifs
-        active_recruitments = Recruitment.objects.filter(
-            tenant_id=tenant_id,
-            status__in=['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
-        ).count()
-
-        # Évaluations à venir (brouillons planifiés)
-        upcoming_reviews = PerformanceReview.objects.filter(
-            tenant_id=tenant_id,
-            review_date__gte=today,
-            status='DRAFT'
-        ).count()
-
-        stats_data = {
-            'total_employees': total_employees,
-            'active_employees': active_employees,
-            'employees_on_leave': employees_on_leave,
-            'new_hires_this_month': new_hires_this_month,
-            'pending_leave_requests': pending_leave_requests,
-            'active_recruitments': active_recruitments,
-            'upcoming_reviews': upcoming_reviews,
-        }
-
-        serializer = HRDashboardSerializer(stats_data)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'])
-    def recruitment_stats(self, request):
-        """Statistiques de recrutement"""
-        tenant_id = request.headers.get("X-Tenant-Id")
-        if not tenant_id:
-            oidc = getattr(request, "oidc", {}) or {}
-            tenant_id = oidc.get("tenant") or oidc.get("tenant_id")
-        if not tenant_id:
-            return Response({"detail": "X-Tenant-Id manquant et aucun tenant dans le token"}, status=400)
-
-        total_recruitments = Recruitment.objects.filter(tenant_id=tenant_id).count()
-        active_recruitments = Recruitment.objects.filter(
-            tenant_id=tenant_id,
-            status__in=['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
-        ).count()
-
-        total_applications = JobApplication.objects.filter(
-            tenant_id=tenant_id
-        ).count()
-
-        applications_this_week = JobApplication.objects.filter(
-            tenant_id=tenant_id,
-            applied_at__gte=timezone.now() - timezone.timedelta(days=7)
-        ).count()
-
-        # Score IA moyen
-        avg_ai_score = JobApplication.objects.filter(
-            tenant_id=tenant_id,
-            ai_score__isnull=False
-        ).aggregate(avg_score=Avg('ai_score'))['avg_score'] or 0
-
-        apps_by_status = dict(
-            JobApplication.objects
-            .filter(tenant_id=tenant_id)
-            .values('status')
-            .annotate(count=Count('id'))
-            .values_list('status', 'count')
-        )
-
-        stats_data = {
-            'total_recruitments': total_recruitments,
-            'active_recruitments': active_recruitments,
-            'total_applications': total_applications,
-            'applications_this_week': applications_this_week,
-            'average_ai_score': round(avg_ai_score, 2),
-            'applications_by_status': apps_by_status,
-        }
-
-        serializer = RecruitmentStatsSerializer(stats_data)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'])
-    def employee_stats(self, request):
-        """Statistiques détaillées des employés"""
-        tenant_id = request.headers.get("X-Tenant-Id")
-        if not tenant_id:
-            oidc = getattr(request, "oidc", {}) or {}
-            tenant_id = oidc.get("tenant") or oidc.get("tenant_id")
-        if not tenant_id:
-            return Response({"detail": "X-Tenant-Id manquant et aucun tenant dans le token"}, status=400)
-
-        # Répartition par département
-        by_department = dict(
-            Employee.objects
-            .filter(tenant_id=tenant_id, is_active=True)
-            .values('department__name')
-            .annotate(count=Count('id'))
-            .values_list('department__name', 'count')
-        )
-
-        # Répartition par type de contrat
-        by_contract = dict(
-            Employee.objects
-            .filter(tenant_id=tenant_id, is_active=True)
-            .values('contract_type')
-            .annotate(count=Count('id'))
-            .values_list('contract_type', 'count')
-        )
-
-        # Distribution par genre
-        gender_dist = dict(
-            Employee.objects
-            .filter(tenant_id=tenant_id, is_active=True)
-            .exclude(gender='')
-            .values('gender')
-            .annotate(count=Count('id'))
-            .values_list('gender', 'count')
-        )
-
-        stats_data = {
-            'total_by_department': by_department,
-            'total_by_contract_type': by_contract,
-            'gender_distribution': gender_dist,
-        }
-
-        serializer = EmployeeStatsSerializer(stats_data)
-        return Response(serializer.data)
-
 
 # -----------------------------
 # Actions en masse
@@ -315,7 +152,7 @@ class BulkActionsViewSet(viewsets.ViewSet):
 
             leave_requests = LeaveRequest.objects.filter(
                 id__in=leave_request_ids,
-                tenant_id=tenant.slug,   # 👈 cohérent avec CharField
+                tenant_id=tenant.slug,  # 👈 cohérent avec CharField
             )
 
             updated_count = 0
@@ -341,6 +178,163 @@ class BulkActionsViewSet(viewsets.ViewSet):
                 "action": action_type
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class HRDashboardViewSet(viewsets.ViewSet):
+    """Vues pour le tableau de bord RH"""
+    permission_classes = [IsAuthenticated, HasRHAccess]
+
+    def get_tenant(self, request) -> Tenant:
+        # même logique que pour BaseTenantViewSet
+        return get_current_tenant_from_request(request)
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Récupérer les statistiques du tableau de bord"""
+        tenant = self.get_tenant(request)
+        tenant_slug = tenant.slug
+
+        # Models avec tenant = FK(Tenant)
+        total_employees = Employee.objects.filter(tenant=tenant).count()
+        active_employees = Employee.objects.filter(tenant=tenant, is_active=True).count()
+
+        # Employés en congé aujourd'hui
+        today = timezone.now().date()
+        employees_on_leave = Employee.objects.filter(
+            tenant=tenant,
+            is_active=True,
+            leaverequest__status='approved',
+            leaverequest__start_date__lte=today,
+            leaverequest__end_date__gte=today
+        ).distinct().count()
+
+        # Nouvelles embauches ce mois-ci
+        current_month = today.month
+        current_year = today.year
+        new_hires_this_month = Employee.objects.filter(
+            tenant=tenant,
+            hire_date__month=current_month,
+            hire_date__year=current_year
+        ).count()
+
+        # Models avec tenant_id = CharField
+        pending_leave_requests = LeaveRequest.objects.filter(
+            tenant_id=tenant_slug,
+            status='pending'
+        ).count()
+
+        active_recruitments = Recruitment.objects.filter(
+            tenant_id=tenant_slug,
+            status__in=['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
+        ).count()
+
+        upcoming_reviews = PerformanceReview.objects.filter(
+            tenant_id=tenant_slug,
+            review_date__gte=today,
+            status='DRAFT'
+        ).count()
+
+        stats_data = {
+            'total_employees': total_employees,
+            'active_employees': active_employees,
+            'employees_on_leave': employees_on_leave,
+            'new_hires_this_month': new_hires_this_month,
+            'pending_leave_requests': pending_leave_requests,
+            'active_recruitments': active_recruitments,
+            'upcoming_reviews': upcoming_reviews,
+        }
+
+        serializer = HRDashboardSerializer(stats_data)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def recruitment_stats(self, request):
+        """Statistiques de recrutement"""
+        tenant = self.get_tenant(request)
+        tenant_slug = tenant.slug
+
+        total_recruitments = Recruitment.objects.filter(
+            tenant_id=tenant_slug
+        ).count()
+
+        active_recruitments = Recruitment.objects.filter(
+            tenant_id=tenant_slug,
+            status__in=['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
+        ).count()
+
+        total_applications = JobApplication.objects.filter(
+            tenant_id=tenant_slug
+        ).count()
+
+        applications_this_week = JobApplication.objects.filter(
+            tenant_id=tenant_slug,
+            applied_at__gte=timezone.now() - timezone.timedelta(days=7)
+        ).count()
+
+        avg_ai_score = JobApplication.objects.filter(
+            tenant_id=tenant_slug,
+            ai_score__isnull=False
+        ).aggregate(avg_score=Avg('ai_score'))['avg_score'] or 0
+
+        apps_by_status = dict(
+            JobApplication.objects
+            .filter(tenant_id=tenant_slug)
+            .values('status')
+            .annotate(count=Count('id'))
+            .values_list('status', 'count')
+        )
+
+        stats_data = {
+            'total_recruitments': total_recruitments,
+            'active_recruitments': active_recruitments,
+            'total_applications': total_applications,
+            'applications_this_week': applications_this_week,
+            'average_ai_score': round(avg_ai_score, 2),
+            'applications_by_status': apps_by_status,
+        }
+
+        serializer = RecruitmentStatsSerializer(stats_data)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def employee_stats(self, request):
+        """Statistiques détaillées des employés"""
+        tenant = self.get_tenant(request)
+
+        by_department = dict(
+            Employee.objects
+            .filter(tenant=tenant, is_active=True)
+            .values('department__name')
+            .annotate(count=Count('id'))
+            .values_list('department__name', 'count')
+        )
+
+        by_contract = dict(
+            Employee.objects
+            .filter(tenant=tenant, is_active=True)
+            .values('contract_type')
+            .annotate(count=Count('id'))
+            .values_list('contract_type', 'count')
+        )
+
+        gender_dist = dict(
+            Employee.objects
+            .filter(tenant=tenant, is_active=True)
+            .exclude(gender='')
+            .values('gender')
+            .annotate(count=Count('id'))
+            .values_list('gender', 'count')
+        )
+
+        stats_data = {
+            'total_by_department': by_department,
+            'total_by_contract_type': by_contract,
+            'gender_distribution': gender_dist,
+        }
+
+        serializer = EmployeeStatsSerializer(stats_data)
+        return Response(serializer.data)
+
 
 # -----------------------------
 # ViewSets RH
