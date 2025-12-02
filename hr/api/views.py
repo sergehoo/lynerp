@@ -239,6 +239,9 @@ class HRDashboardViewSet(viewsets.ViewSet):
     def recruitment_stats(self, request):
         """Statistiques de recrutement"""
         tenant = self.get_tenant(request)
+        if not tenant:
+            return Response({"detail": "Tenant introuvable"}, status=400)
+
         tenant_slug = tenant.slug
 
         total_recruitments = Recruitment.objects.filter(
@@ -272,13 +275,38 @@ class HRDashboardViewSet(viewsets.ViewSet):
             .values_list('status', 'count')
         )
 
+        # Conversion : candidatures HIRED / total candidatures
+        hires = JobApplication.objects.filter(
+            tenant_id=tenant_slug,
+            status='HIRED'
+        ).count()
+        hire_conversion_rate = (hires / total_applications * 100.0) if total_applications > 0 else 0.0
+
+        # Stats IA
+        ai_qs = AIProcessingResult.objects.filter(tenant_id=tenant_slug)
+        ai_completed = ai_qs.filter(status='COMPLETED').count()
+        ai_failed = ai_qs.filter(status='FAILED').count()
+        ai_avg_overall = ai_qs.aggregate(a=Avg('overall_match_score'))['a'] or 0.0
+
+        ai_processing_stats = {
+            "completed": ai_completed,
+            "failed": ai_failed,
+            "avg_overall_match_score": round(ai_avg_overall, 2),
+        }
+
+        # TODO plus tard : calcul réel du time-to-hire
+        average_time_to_hire = 0.0
+
         stats_data = {
             'total_recruitments': total_recruitments,
             'active_recruitments': active_recruitments,
             'total_applications': total_applications,
             'applications_this_week': applications_this_week,
             'average_ai_score': round(avg_ai_score, 2),
+            'hire_conversion_rate': round(hire_conversion_rate, 2),
+            'average_time_to_hire': average_time_to_hire,
             'applications_by_status': apps_by_status,
+            'ai_processing_stats': ai_processing_stats,
         }
 
         serializer = RecruitmentStatsSerializer(stats_data)

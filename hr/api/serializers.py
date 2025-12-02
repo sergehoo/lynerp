@@ -1,4 +1,3 @@
-
 # Lyneerp/hr/serializers.py
 from rest_framework import serializers
 from hr.models import (
@@ -408,21 +407,17 @@ class HRDashboardSerializer(serializers.Serializer):
     upcoming_reviews = serializers.IntegerField()
     average_performance_rating = serializers.FloatField(required=False, default=0.0)
 
+
 class RecruitmentStatsSerializer(serializers.Serializer):
-    """Statistiques de recrutement"""
     total_recruitments = serializers.IntegerField()
     active_recruitments = serializers.IntegerField()
     total_applications = serializers.IntegerField()
     applications_this_week = serializers.IntegerField()
     average_ai_score = serializers.FloatField()
-    hire_conversion_rate = serializers.FloatField()
-    average_time_to_hire = serializers.FloatField()
-
-    # Répartition par statut
+    hire_conversion_rate = serializers.FloatField(required=False, default=0.0)
+    average_time_to_hire = serializers.FloatField(required=False, default=0.0)
     applications_by_status = serializers.DictField()
-
-    # Performance IA
-    ai_processing_stats = serializers.DictField()
+    ai_processing_stats = serializers.DictField(required=False, default=dict)
 
 
 class EmployeeStatsSerializer(serializers.Serializer):
