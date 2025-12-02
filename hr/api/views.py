@@ -133,53 +133,6 @@ class BaseTenantViewSet:
 # -----------------------------
 # Dashboard RH
 # -----------------------------
-
-# -----------------------------
-# Actions en masse
-# -----------------------------
-class BulkActionsViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, HasRHAccess]
-
-    @action(detail=False, methods=['post'])
-    def bulk_leave_action(self, request):
-        """Action batch sur les demandes de congé"""
-        tenant = get_current_tenant_from_request(request)  # 👈
-        serializer = BulkLeaveActionSerializer(data=request.data)
-        if serializer.is_valid():
-            leave_request_ids = serializer.validated_data['leave_request_ids']
-            action_type = serializer.validated_data['action']
-            reason = serializer.validated_data.get('reason', '')
-
-            leave_requests = LeaveRequest.objects.filter(
-                id__in=leave_request_ids,
-                tenant_id=tenant.slug,  # 👈 cohérent avec CharField
-            )
-
-            updated_count = 0
-            with transaction.atomic():
-                for leave_request in leave_requests.select_for_update():
-                    if action_type == 'approve':
-                        leave_request.status = 'approved'
-                        leave_request.approved_by = getattr(request.user, "employee_profile", None)
-                        leave_request.approved_at = timezone.now()
-                    elif action_type == 'reject':
-                        leave_request.status = 'rejected'
-                        leave_request.rejection_reason = reason
-                        leave_request.approved_by = getattr(request.user, "employee_profile", None)
-                        leave_request.approved_at = timezone.now()
-                    elif action_type == 'cancel':
-                        leave_request.status = 'cancelled'
-
-                    leave_request.save()
-                    updated_count += 1
-
-            return Response({
-                "message": f"{updated_count} demandes de congé mises à jour",
-                "action": action_type
-            })
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class HRDashboardViewSet(viewsets.ViewSet):
     """Vues pour le tableau de bord RH"""
     permission_classes = [IsAuthenticated, HasRHAccess]
@@ -334,6 +287,52 @@ class HRDashboardViewSet(viewsets.ViewSet):
 
         serializer = EmployeeStatsSerializer(stats_data)
         return Response(serializer.data)
+
+
+# -----------------------------
+# Actions en masse
+# -----------------------------
+class BulkActionsViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, HasRHAccess]
+
+    @action(detail=False, methods=['post'])
+    def bulk_leave_action(self, request):
+        """Action batch sur les demandes de congé"""
+        tenant = get_current_tenant_from_request(request)  # 👈
+        serializer = BulkLeaveActionSerializer(data=request.data)
+        if serializer.is_valid():
+            leave_request_ids = serializer.validated_data['leave_request_ids']
+            action_type = serializer.validated_data['action']
+            reason = serializer.validated_data.get('reason', '')
+
+            leave_requests = LeaveRequest.objects.filter(
+                id__in=leave_request_ids,
+                tenant_id=tenant.slug,  # 👈 cohérent avec CharField
+            )
+
+            updated_count = 0
+            with transaction.atomic():
+                for leave_request in leave_requests.select_for_update():
+                    if action_type == 'approve':
+                        leave_request.status = 'approved'
+                        leave_request.approved_by = getattr(request.user, "employee_profile", None)
+                        leave_request.approved_at = timezone.now()
+                    elif action_type == 'reject':
+                        leave_request.status = 'rejected'
+                        leave_request.rejection_reason = reason
+                        leave_request.approved_by = getattr(request.user, "employee_profile", None)
+                        leave_request.approved_at = timezone.now()
+                    elif action_type == 'cancel':
+                        leave_request.status = 'cancelled'
+
+                    leave_request.save()
+                    updated_count += 1
+
+            return Response({
+                "message": f"{updated_count} demandes de congé mises à jour",
+                "action": action_type
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # -----------------------------
