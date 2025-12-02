@@ -26,11 +26,18 @@ class TenantFilter(admin.SimpleListFilter):
     parameter_name = 'tenant'
 
     def lookups(self, request, model_admin):
-        tenants = set([c['tenant'] for c in model_admin.model.objects.values('tenant').distinct()])
-        return [(t, t) for t in tenants]
+        # On récupère les valeurs distinctes de tenant_id
+        tenants = (
+            model_admin.model.objects
+            .values_list('tenant_id', flat=True)
+            .distinct()
+        )
+        # On enlève les valeurs vides et on retourne (value, label)
+        return [(t, t) for t in tenants if t]
 
     def queryset(self, request, queryset):
         if self.value():
+            # Filtrage cohérent avec la colonne tenant_id
             return queryset.filter(tenant_id=self.value())
         return queryset
 
