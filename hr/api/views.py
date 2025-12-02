@@ -60,6 +60,7 @@ from hr.api.serializers import (
     EmployeeStatsSerializer,
     RecruitmentSerializer,
     RecruitmentFilterSerializer,
+    AIProcessingResult,
 )
 from tenants.models import Tenant, TenantDomain
 
