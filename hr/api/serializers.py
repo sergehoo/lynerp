@@ -390,27 +390,23 @@ class RecruitmentWorkflowSerializer(serializers.ModelSerializer):
 
 # Sérialiseurs pour les statistiques et tableaux de bord
 class HRDashboardSerializer(serializers.Serializer):
-    """Sérialiseur pour le tableau de bord RH"""
     total_employees = serializers.IntegerField()
     active_employees = serializers.IntegerField()
     employees_on_leave = serializers.IntegerField()
     new_hires_this_month = serializers.IntegerField()
-    turnover_rate = serializers.FloatField()
-    average_tenure = serializers.FloatField()
 
-    # Congés
+    turnover_rate = serializers.FloatField(required=False, default=0.0)
+    average_tenure = serializers.FloatField(required=False, default=0.0)
+
     pending_leave_requests = serializers.IntegerField()
-    approved_leave_this_month = serializers.IntegerField()
+    approved_leave_this_month = serializers.IntegerField(required=False, default=0)
 
-    # Recrutement
     active_recruitments = serializers.IntegerField()
-    total_applications = serializers.IntegerField()
-    applications_this_month = serializers.IntegerField()
+    total_applications = serializers.IntegerField(required=False, default=0)
+    applications_this_month = serializers.IntegerField(required=False, default=0)
 
-    # Performance
     upcoming_reviews = serializers.IntegerField()
-    average_performance_rating = serializers.FloatField()
-
+    average_performance_rating = serializers.FloatField(required=False, default=0.0)
 
 class RecruitmentStatsSerializer(serializers.Serializer):
     """Statistiques de recrutement"""
