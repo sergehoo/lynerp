@@ -421,23 +421,181 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+# class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
+#     queryset = Employee.objects.all()
+#     serializer_class = EmployeeSerializer
+#     permission_classes = [IsAuthenticated]
+#     # permission_classes = [IsAuthenticated, HasRHAccess, HasRole]
+#     # required_roles = ["hr:view"]
+#     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+#     search_fields = ['first_name', 'last_name', 'email', 'matricule']
+#     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
+#
+#     def get_queryset(self):
+#         queryset = super().get_queryset()
+#
+#         # Filtrage avancé
+#         filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
+#         if filter_serializer.is_valid():
+#             filt: Dict[str, Any] = {}
+#             if filter_serializer.validated_data.get('department'):
+#                 filt['department__name'] = filter_serializer.validated_data['department']
+#             if filter_serializer.validated_data.get('position'):
+#                 filt['position__title'] = filter_serializer.validated_data['position']
+#             if filter_serializer.validated_data.get('contract_type'):
+#                 filt['contract_type'] = filter_serializer.validated_data['contract_type']
+#             if filter_serializer.validated_data.get('is_active') is not None:
+#                 filt['is_active'] = filter_serializer.validated_data['is_active']
+#             if filter_serializer.validated_data.get('hire_date_from'):
+#                 filt['hire_date__gte'] = filter_serializer.validated_data['hire_date_from']
+#             if filter_serializer.validated_data.get('hire_date_to'):
+#                 filt['hire_date__lte'] = filter_serializer.validated_data['hire_date_to']
+#
+#             queryset = queryset.filter(**filt)
+#
+#         return queryset
+#
+#     @action(detail=False, methods=['post'])
+#     def import_employees(self, request):
+#         """Import d'employés depuis un fichier CSV/XLSX"""
+#         tenant = get_current_tenant_from_request(request)
+#         if not tenant:
+#             return Response({"detail": "Tenant introuvable"}, status=400)
+#
+#         serializer = EmployeeImportSerializer(data=request.data)
+#         if serializer.is_valid():
+#             file = serializer.validated_data['file']
+#             update_existing = serializer.validated_data['update_existing']
+#
+#             try:
+#                 if file.name.lower().endswith('.xlsx'):
+#                     df = pd.read_excel(file)
+#                 else:
+#                     df = pd.read_csv(file)
+#
+#                 imported_count = 0
+#                 errors = []
+#
+#                 with transaction.atomic():
+#                     for index, row in df.iterrows():
+#                         try:
+#                             employee_data = {
+#                                 'matricule': row.get('matricule'),
+#                                 'first_name': row.get('first_name'),
+#                                 'last_name': row.get('last_name'),
+#                                 'email': row.get('email'),
+#                                 'tenant': tenant,
+#                             }
+#
+#                             if not employee_data['matricule'] or not employee_data['email']:
+#                                 raise ValueError("matricule et email sont requis")
+#
+#                             if update_existing:
+#                                 Employee.objects.update_or_create(
+#                                     matricule=employee_data['matricule'],
+#                                     tenant=tenant,
+#                                     defaults=employee_data
+#                                 )
+#                             else:
+#                                 Employee.objects.create(**employee_data)
+#
+#                             imported_count += 1
+#
+#                         except Exception as e:
+#                             errors.append(f"Ligne {index + 2}: {str(e)}")
+#
+#                 return Response({
+#                     "message": f"{imported_count} employés importés",
+#                     "errors": errors
+#                 })
+#
+#             except Exception as e:
+#                 return Response(
+#                     {"error": f"Erreur lors de l'import: {str(e)}"},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+#
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     @action(detail=False, methods=['post'])
+#     def export_employees(self, request):
+#         """Export d'employés"""
+#         tenant_id = request.headers.get("X-Tenant-Id")
+#         serializer = EmployeeExportSerializer(data=request.data)
+#         if serializer.is_valid():
+#             export_format = serializer.validated_data['format']
+#             fields = serializer.validated_data['fields']
+#             filters_data = serializer.validated_data.get('filters', {})
+#
+#             export_service = EmployeeExportService()
+#             result = export_service.export_employees(
+#                 tenant_id=tenant_id,
+#                 export_format=export_format,
+#                 fields=fields,
+#                 filters=filters_data
+#             )
+#
+#             if result.get('success'):
+#                 return HttpResponse(
+#                     result['content'],
+#                     content_type=result['content_type'],
+#                     headers={'Content-Disposition': f'attachment; filename="{result["filename"]}"'}
+#                 )
+#             else:
+#                 return Response(
+#                     {"error": result.get('error', "Export échoué")},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+#
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     @action(detail=True, methods=['get'])
+#     def leave_balance(self, request, pk=None):
+#         """Solde de congés d'un employé"""
+#         employee = self.get_object()
+#         balances = LeaveBalance.objects.filter(employee=employee)
+#         serializer = LeaveBalanceSerializer(balances, many=True)
+#         return Response(serializer.data)
+#
+#     @action(detail=True, methods=['get'])
+#     def attendance(self, request, pk=None):
+#         """Pointage d'un employé"""
+#         employee = self.get_object()
+#         month = int(request.query_params.get('month', timezone.now().month))
+#         year = int(request.query_params.get('year', timezone.now().year))
+#
+#         attendances = Attendance.objects.filter(
+#             employee=employee,
+#             date__year=year,
+#             date__month=month
+#         )
+#         serializer = AttendanceSerializer(attendances, many=True)
+#         return Response(serializer.data)
+
 class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
-    # permission_classes = [IsAuthenticated, HasRHAccess, HasRole]
-    # required_roles = ["hr:view"]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # 1) Résoudre le tenant
+        tenant = get_current_tenant_from_request(self.request)
 
-        # Filtrage avancé
+        # Si pas de tenant → aucun résultat
+        if not tenant:
+            return Employee.objects.none()
+
+        # 2) Filtrer explicitement sur le tenant FK
+        queryset = Employee.objects.filter(tenant=tenant)
+
+        # 3) Filtrage avancé (comme avant)
         filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
         if filter_serializer.is_valid():
             filt: Dict[str, Any] = {}
+
             if filter_serializer.validated_data.get('department'):
                 filt['department__name'] = filter_serializer.validated_data['department']
             if filter_serializer.validated_data.get('position'):
@@ -454,125 +612,6 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
             queryset = queryset.filter(**filt)
 
         return queryset
-
-    @action(detail=False, methods=['post'])
-    def import_employees(self, request):
-        """Import d'employés depuis un fichier CSV/XLSX"""
-        tenant = get_current_tenant_from_request(request)
-        if not tenant:
-            return Response({"detail": "Tenant introuvable"}, status=400)
-
-        serializer = EmployeeImportSerializer(data=request.data)
-        if serializer.is_valid():
-            file = serializer.validated_data['file']
-            update_existing = serializer.validated_data['update_existing']
-
-            try:
-                if file.name.lower().endswith('.xlsx'):
-                    df = pd.read_excel(file)
-                else:
-                    df = pd.read_csv(file)
-
-                imported_count = 0
-                errors = []
-
-                with transaction.atomic():
-                    for index, row in df.iterrows():
-                        try:
-                            employee_data = {
-                                'matricule': row.get('matricule'),
-                                'first_name': row.get('first_name'),
-                                'last_name': row.get('last_name'),
-                                'email': row.get('email'),
-                                'tenant': tenant,
-                            }
-
-                            if not employee_data['matricule'] or not employee_data['email']:
-                                raise ValueError("matricule et email sont requis")
-
-                            if update_existing:
-                                Employee.objects.update_or_create(
-                                    matricule=employee_data['matricule'],
-                                    tenant=tenant,
-                                    defaults=employee_data
-                                )
-                            else:
-                                Employee.objects.create(**employee_data)
-
-                            imported_count += 1
-
-                        except Exception as e:
-                            errors.append(f"Ligne {index + 2}: {str(e)}")
-
-                return Response({
-                    "message": f"{imported_count} employés importés",
-                    "errors": errors
-                })
-
-            except Exception as e:
-                return Response(
-                    {"error": f"Erreur lors de l'import: {str(e)}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['post'])
-    def export_employees(self, request):
-        """Export d'employés"""
-        tenant_id = request.headers.get("X-Tenant-Id")
-        serializer = EmployeeExportSerializer(data=request.data)
-        if serializer.is_valid():
-            export_format = serializer.validated_data['format']
-            fields = serializer.validated_data['fields']
-            filters_data = serializer.validated_data.get('filters', {})
-
-            export_service = EmployeeExportService()
-            result = export_service.export_employees(
-                tenant_id=tenant_id,
-                export_format=export_format,
-                fields=fields,
-                filters=filters_data
-            )
-
-            if result.get('success'):
-                return HttpResponse(
-                    result['content'],
-                    content_type=result['content_type'],
-                    headers={'Content-Disposition': f'attachment; filename="{result["filename"]}"'}
-                )
-            else:
-                return Response(
-                    {"error": result.get('error', "Export échoué")},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['get'])
-    def leave_balance(self, request, pk=None):
-        """Solde de congés d'un employé"""
-        employee = self.get_object()
-        balances = LeaveBalance.objects.filter(employee=employee)
-        serializer = LeaveBalanceSerializer(balances, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['get'])
-    def attendance(self, request, pk=None):
-        """Pointage d'un employé"""
-        employee = self.get_object()
-        month = int(request.query_params.get('month', timezone.now().month))
-        year = int(request.query_params.get('year', timezone.now().year))
-
-        attendances = Attendance.objects.filter(
-            employee=employee,
-            date__year=year,
-            date__month=month
-        )
-        serializer = AttendanceSerializer(attendances, many=True)
-        return Response(serializer.data)
-
-
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
