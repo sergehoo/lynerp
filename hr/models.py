@@ -164,7 +164,7 @@ class Employee(models.Model):
     )
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
-    emergency_contact = models.JSONField(default=dict, blank=True)
+    emergency_contact = models.JSONField(default=dict, blank=True, null=True)
 
     # Informations professionnelles
     salary = models.DecimalField(
