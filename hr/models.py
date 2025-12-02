@@ -276,7 +276,6 @@ class Employee(models.Model):
             else:
                 return contract.get_status_display()
 
-
 class ContractType(models.Model):
     """Types de contrats standardisés"""
     name = models.CharField(max_length=100, help_text="Nom du type de contrat")

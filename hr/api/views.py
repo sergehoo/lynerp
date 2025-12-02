@@ -581,37 +581,41 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
     def get_queryset(self):
-        # 1) Résoudre le tenant
+        # 1) Résoudre clairement le tenant
         tenant = get_current_tenant_from_request(self.request)
-
-        # Si pas de tenant → aucun résultat
         if not tenant:
             return Employee.objects.none()
 
-        # 2) Filtrer explicitement sur le tenant FK
+        # 2) Filtrer sur ce tenant (FK)
         queryset = Employee.objects.filter(tenant=tenant)
 
-        # 3) Filtrage avancé (comme avant)
+        # 3) Filtrage avancé
         filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
         if filter_serializer.is_valid():
             filt: Dict[str, Any] = {}
 
             if filter_serializer.validated_data.get('department'):
-                filt['department__name'] = filter_serializer.validated_data['department']
+                filt['department_id'] = filter_serializer.validated_data['department']
+
             if filter_serializer.validated_data.get('position'):
-                filt['position__title'] = filter_serializer.validated_data['position']
+                filt['position_id'] = filter_serializer.validated_data['position']
+
             if filter_serializer.validated_data.get('contract_type'):
                 filt['contract_type'] = filter_serializer.validated_data['contract_type']
+
             if filter_serializer.validated_data.get('is_active') is not None:
                 filt['is_active'] = filter_serializer.validated_data['is_active']
+
             if filter_serializer.validated_data.get('hire_date_from'):
                 filt['hire_date__gte'] = filter_serializer.validated_data['hire_date_from']
+
             if filter_serializer.validated_data.get('hire_date_to'):
                 filt['hire_date__lte'] = filter_serializer.validated_data['hire_date_to']
 
             queryset = queryset.filter(**filt)
 
         return queryset
+
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer

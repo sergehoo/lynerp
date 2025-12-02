@@ -433,7 +433,8 @@ class EmployeeStatsSerializer(serializers.Serializer):
 # Sérialiseurs pour les filtres et recherches
 class EmployeeFilterSerializer(serializers.Serializer):
     """Sérialiseur pour filtrer les employés"""
-    department = serializers.CharField(required=False)
+    department = serializers.IntegerField(required=False)
+    # department = serializers.CharField(required=False)
     position = serializers.CharField(required=False)
     contract_type = serializers.CharField(required=False)
     is_active = serializers.BooleanField(required=False)
