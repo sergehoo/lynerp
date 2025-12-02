@@ -615,35 +615,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     #         queryset = queryset.filter(**filt)
     #
     #     return queryset
-    def get_queryset(self):
-        # 1) Part de la logique multi-tenant existante
-        queryset = super().get_queryset()
 
-        # 2) Filtrage avancé
-        filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
-        if filter_serializer.is_valid():
-            data = filter_serializer.validated_data
-
-            if data.get('department'):
-                # on filtre par ID, pas par name
-                queryset = queryset.filter(department_id=data['department'])
-
-            if data.get('position'):
-                queryset = queryset.filter(position_id=data['position'])
-
-            if data.get('contract_type'):
-                queryset = queryset.filter(contract_type=data['contract_type'])
-
-            if data.get('is_active') is not None:
-                queryset = queryset.filter(is_active=data['is_active'])
-
-            if data.get('hire_date_from'):
-                queryset = queryset.filter(hire_date__gte=data['hire_date_from'])
-
-            if data.get('hire_date_to'):
-                queryset = queryset.filter(hire_date__lte=data['hire_date_to'])
-
-        return queryset
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
