@@ -8,7 +8,7 @@ from django.conf import settings
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Q
 from django.db import transaction
 from rest_framework import viewsets, status, filters, permissions
 from rest_framework.decorators import action
@@ -78,67 +78,71 @@ logger = logging.getLogger(__name__)
 
 def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
     """
-    Résout le tenant à partir (dans l'ordre) :
-    - du token OIDC (si présent)
-    - du header X-Tenant-Id
-    - du host (TenantDomain puis Tenant.domain puis sous-domaine)
+    Résout le tenant à partir, dans l'ordre :
+    1) du token OIDC (request.oidc.tenant / tenant_id : slug ou UUID)
+    2) du header X-Tenant-Id : slug ou UUID
+    3) du host (TenantDomain ou sous-domaine = slug)
     """
+
+    # 1) Via OIDC (si tu ajoutes oidc au request)
     oidc = getattr(request, "oidc", {}) or {}
     raw = oidc.get("tenant") or oidc.get("tenant_id")
     if raw:
-        tenant = Tenant.objects.filter(slug=raw).first()
-        if tenant:
-            return tenant
+        # slug
+        t = Tenant.objects.filter(slug=raw).first()
+        if t:
+            return t
+        # UUID
         try:
             uuid_val = uuid.UUID(str(raw))
-            tenant = Tenant.objects.filter(id=uuid_val).first()
-            if tenant:
-                return tenant
+            t = Tenant.objects.filter(id=uuid_val).first()
+            if t:
+                return t
         except ValueError:
             pass
 
-    # Header X-Tenant-Id
+    # 2) Header X-Tenant-Id
     hdr = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
     if hdr:
-        tenant = Tenant.objects.filter(slug=hdr).first()
-        if tenant:
-            return tenant
+        t = Tenant.objects.filter(slug=hdr).first()
+        if t:
+            return t
         try:
             uuid_val = uuid.UUID(str(hdr))
-            tenant = Tenant.objects.filter(id=uuid_val).first()
-            if tenant:
-                return tenant
+            t = Tenant.objects.filter(id=uuid_val).first()
+            if t:
+                return t
         except ValueError:
             pass
 
-    # Host
+    # 3) Par le host
     host = request.get_host().split(":")[0].lower()
 
-    # 3.a TenantDomain
+    # 3.a) TenantDomain direct
     dom = TenantDomain.objects.filter(domain=host).select_related("tenant").first()
     if dom:
         return dom.tenant
 
-    # 3.b Tenant.domain direct
-    tenant = Tenant.objects.filter(domain=host).first()
-    if tenant:
-        return tenant
-
-    # 3.c Sous-domaine → slug (acme.rh.lyneerp.com → acme)
+    # 3.b) Sous-domaine -> slug
     parts = host.split(".")
     if len(parts) >= 3:
         sub = parts[0]
-        tenant = Tenant.objects.filter(slug=sub).first()
-        if tenant:
-            return tenant
+        t = Tenant.objects.filter(slug=sub).first()
+        if t:
+            return t
 
     return None
-
 
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------
 class BaseTenantViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet de base multi-tenant :
+    - Résout le Tenant à partir de la requête
+    - Filtre soit sur `tenant` (FK), soit sur `tenant_id` (CharField)
+    """
+
     def get_tenant(self):
         return get_current_tenant_from_request(self.request)
 
@@ -150,16 +154,22 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset() if hasattr(super(), "get_queryset") else self.queryset
         model = qs.model
 
-        # 1) Modèles avec FK Tenant
+        # 1) Modèle avec FK Tenant
         if hasattr(model, "tenant"):
             return qs.filter(tenant=tenant)
 
-        # 2) Modèles avec CharField tenant_id
+        # 2) Modèle avec champ tenant_id (CharField)
         if hasattr(model, "tenant_id"):
-            return qs.filter(tenant_id=tenant.slug)
+            # Convention : on stocke de préférence tenant.slug,
+            # mais on reste compatible si certains enregistrements contiennent l'UUID.
+            slug = getattr(tenant, "slug", None)
+            filt = Q(tenant_id=str(tenant.id))
+            if slug:
+                filt |= Q(tenant_id=slug)
+            return qs.filter(filt).distinct()
 
+        # 3) Modèle non-tenantisable
         return qs.none()
-
 
 # -----------------------------
 # Dashboard RH
@@ -616,6 +626,38 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     #
     #     return queryset
 
+    def get_queryset(self):
+        # Déjà filtré par tenant via BaseTenantViewSet
+        queryset = super().get_queryset()
+
+        # Filtrage avancé
+        filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
+        if filter_serializer.is_valid():
+            data = filter_serializer.validated_data
+            filt: Dict[str, Any] = {}
+
+            # ⚠️ Le front envoie des IDs pour department / position
+            if data.get('department'):
+                filt['department_id'] = data['department']
+
+            if data.get('position'):
+                filt['position_id'] = data['position']
+
+            if data.get('contract_type'):
+                filt['contract_type'] = data['contract_type']
+
+            if data.get('is_active') is not None:
+                filt['is_active'] = data['is_active']
+
+            if data.get('hire_date_from'):
+                filt['hire_date__gte'] = data['hire_date_from']
+
+            if data.get('hire_date_to'):
+                filt['hire_date__lte'] = data['hire_date_to']
+
+            queryset = queryset.filter(**filt)
+
+        return queryset
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
@@ -735,59 +777,34 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'publication_date']
 
     def get_queryset(self):
-        # 1) déjà filtré par tenant via BaseTenantViewSet
         queryset = super().get_queryset()
 
-        # 2) Filtrage avancé
         filter_serializer = RecruitmentFilterSerializer(data=self.request.query_params)
         if filter_serializer.is_valid():
+            data = filter_serializer.validated_data
             filt: Dict[str, Any] = {}
 
-            # status = texte → OK
-            if filter_serializer.validated_data.get('status'):
-                filt['status'] = filter_serializer.validated_data['status']
+            if data.get('status'):
+                filt['status'] = data['status']
 
-            # department = ID → filtrer sur department_id
-            if filter_serializer.validated_data.get('department'):
-                filt['department_id'] = filter_serializer.validated_data['department']
+            if data.get('department'):
+                filt['department_id'] = data['department']
 
-            # position = ID → filtrer sur position_id
-            if filter_serializer.validated_data.get('position'):
-                filt['position_id'] = filter_serializer.validated_data['position']
+            if data.get('position'):
+                filt['position_id'] = data['position']
 
-            # hiring_manager = ID → filtrer sur hiring_manager_id
-            if filter_serializer.validated_data.get('hiring_manager'):
-                filt['hiring_manager_id'] = filter_serializer.validated_data['hiring_manager']
+            if data.get('hiring_manager'):
+                filt['hiring_manager_id'] = data['hiring_manager']
 
-            # dates
-            if filter_serializer.validated_data.get('publication_date_from'):
-                filt['publication_date__gte'] = filter_serializer.validated_data['publication_date_from']
+            if data.get('publication_date_from'):
+                filt['publication_date__gte'] = data['publication_date_from']
 
-            if filter_serializer.validated_data.get('publication_date_to'):
-                filt['publication_date__lte'] = filter_serializer.validated_data['publication_date_to']
+            if data.get('publication_date_to'):
+                filt['publication_date__lte'] = data['publication_date_to']
 
             queryset = queryset.filter(**filt)
 
         return queryset
-
-    @action(detail=True, methods=['post'])
-    def publish(self, request, pk=None):
-        """Publier un recrutement"""
-        recruitment = self.get_object()
-        recruitment.status = 'OPEN'
-        recruitment.publication_date = timezone.now().date()
-        recruitment.save()
-        return Response({"status": recruitment.status})
-
-    @action(detail=True, methods=['post'])
-    def close(self, request, pk=None):
-        """Clôturer un recrutement"""
-        recruitment = self.get_object()
-        recruitment.status = 'CLOSED'
-        recruitment.closing_date = timezone.now().date()
-        recruitment.save()
-        return Response({"status": recruitment.status})
-
 # -----------------------------
 # Candidatures (fusion des deux définitions)
 # -----------------------------

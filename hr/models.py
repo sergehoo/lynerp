@@ -56,7 +56,6 @@ class Department(models.Model):
         t = self.tenant.slug if (self.tenant and getattr(self.tenant, "slug", None)) else self.tenant_id
         return f"{self.name} ({t})"
 
-
     @property
     def active_contracts_count(self):
         """Nombre de contrats actifs dans le département"""
@@ -111,7 +110,7 @@ class Position(models.Model):
         on_delete=models.PROTECT,
         db_column='tenant_id',
         related_name='positions',
-        db_index=True,null=True,blank=True
+        db_index=True, null=True, blank=True
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -138,11 +137,11 @@ class Employee(models.Model):
     email = models.EmailField()
     department = models.ForeignKey(Department, null=True, on_delete=models.SET_NULL)
     hire_date = models.DateField()
-    contract_type = models.CharField(max_length=64,null=True)
-    extra = models.JSONField(default=dict, blank=True,null=True)
+    contract_type = models.CharField(max_length=64, null=True)
+    extra = models.JSONField(default=dict, blank=True, null=True)
     tenant = models.ForeignKey(
         Tenant,
-        on_delete=models.PROTECT, db_column='tenant_id', null=True, # tenant requis
+        on_delete=models.PROTECT, db_column='tenant_id', null=True,  # tenant requis
         db_index=True,
     )
 
@@ -275,6 +274,7 @@ class Employee(models.Model):
                 return "Actif"
             else:
                 return contract.get_status_display()
+
 
 class ContractType(models.Model):
     """Types de contrats standardisés"""
@@ -809,7 +809,6 @@ class ContractHistory(models.Model):
 
 
 class SalaryHistory(models.Model):
-
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='salary_history')
     effective_date = models.DateField()
     gross_salary = models.DecimalField(max_digits=10, decimal_places=2)
@@ -824,7 +823,6 @@ class SalaryHistory(models.Model):
 
 
 class HRDocument(models.Model):
-
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
     category = models.CharField(max_length=50)  # 'contract','id','medical','other'...
     file = models.FileField(upload_to=TenantPath('hr_documents'))
@@ -875,7 +873,6 @@ class LeaveType(models.Model):
 
 
 class HolidayCalendar(models.Model):
-
     name = models.CharField(max_length=80)
     country = models.CharField(max_length=2, blank=True)  # 'CI','FR', ...
     tenant_id = models.CharField(max_length=64, db_index=True)
@@ -886,7 +883,6 @@ class HolidayCalendar(models.Model):
 
 
 class Holiday(models.Model):
-
     calendar = models.ForeignKey(HolidayCalendar, on_delete=models.CASCADE, related_name='days')
     date = models.DateField()
     label = models.CharField(max_length=120)
@@ -898,7 +894,6 @@ class Holiday(models.Model):
 
 
 class WorkScheduleTemplate(models.Model):
-
     name = models.CharField(max_length=80)  # ex: 'Standard 8-17'
     tenant_id = models.CharField(max_length=64, db_index=True)
     rules = models.JSONField(default=dict, blank=True)  # {mon:{start:'08:00', end:'17:00', break:60}, ...}
@@ -915,7 +910,6 @@ class LeaveRequest(models.Model):
         ('rejected', 'Rejeté'),
         ('cancelled', 'Annulé')
     )
-
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     start_date = models.DateField()
@@ -1026,7 +1020,6 @@ class LeaveBalance(models.Model):
 
 
 class LeaveApprovalStep(models.Model):
-
     leave_request = models.ForeignKey('LeaveRequest', on_delete=models.CASCADE, related_name='approval_steps')
     step = models.PositiveIntegerField()  # 1,2,...
     approver = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True,
