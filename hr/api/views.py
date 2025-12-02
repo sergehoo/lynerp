@@ -80,18 +80,14 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
     Résout le tenant à partir (dans l'ordre) :
     - du token OIDC (si présent)
     - du header X-Tenant-Id
-    - du host (sous-domaine ou TenantDomain)
+    - du host (TenantDomain puis Tenant.domain puis sous-domaine)
     """
-
-    # 1) Via OIDC (si tu ajoutes oidc au request)
     oidc = getattr(request, "oidc", {}) or {}
     raw = oidc.get("tenant") or oidc.get("tenant_id")
     if raw:
-        # On tente d'abord comme slug
         tenant = Tenant.objects.filter(slug=raw).first()
         if tenant:
             return tenant
-        # Sinon comme UUID
         try:
             uuid_val = uuid.UUID(str(raw))
             tenant = Tenant.objects.filter(id=uuid_val).first()
@@ -100,14 +96,12 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
         except ValueError:
             pass
 
-    # 2) Header X-Tenant-Id (venant du front)
+    # Header X-Tenant-Id
     hdr = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
     if hdr:
-        # slug
         tenant = Tenant.objects.filter(slug=hdr).first()
         if tenant:
             return tenant
-        # uuid
         try:
             uuid_val = uuid.UUID(str(hdr))
             tenant = Tenant.objects.filter(id=uuid_val).first()
@@ -116,15 +110,20 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
         except ValueError:
             pass
 
-    # 3) Par le host (acme.rh.lyneerp.com → acme)
+    # Host
     host = request.get_host().split(":")[0].lower()
 
-    # 3.a) TenantDomain direct
+    # 3.a TenantDomain
     dom = TenantDomain.objects.filter(domain=host).select_related("tenant").first()
     if dom:
         return dom.tenant
 
-    # 3.b) Sous-domaine -> slug
+    # 3.b Tenant.domain direct
+    tenant = Tenant.objects.filter(domain=host).first()
+    if tenant:
+        return tenant
+
+    # 3.c Sous-domaine → slug (acme.rh.lyneerp.com → acme)
     parts = host.split(".")
     if len(parts) >= 3:
         sub = parts[0]
@@ -134,16 +133,11 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
 
     return None
 
+
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------
 class BaseTenantViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet de base multi-tenant :
-    - Résout le Tenant à partir de la requête
-    - Filtre soit sur `tenant` (FK), soit sur `tenant_id` (CharField)
-    """
-
     def get_tenant(self):
         return get_current_tenant_from_request(self.request)
 
@@ -155,15 +149,14 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset() if hasattr(super(), "get_queryset") else self.queryset
         model = qs.model
 
-        # Modèle avec FK Tenant
+        # 1) Modèles avec FK Tenant
         if hasattr(model, "tenant"):
             return qs.filter(tenant=tenant)
 
-        # Modèle avec champ tenant_id (CharField)
+        # 2) Modèles avec CharField tenant_id
         if hasattr(model, "tenant_id"):
-            return qs.filter(tenant_id=str(tenant.id))
+            return qs.filter(tenant_id=tenant.slug)
 
-        # Modèle non-tenantisable (rare)
         return qs.none()
 
 # -----------------------------
@@ -174,13 +167,19 @@ class HRDashboardViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, HasRHAccess]
 
     def get_tenant(self, request) -> Tenant:
-        # même logique que pour BaseTenantViewSet
         return get_current_tenant_from_request(request)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Récupérer les statistiques du tableau de bord"""
         tenant = self.get_tenant(request)
+        tenant_slug = tenant.slug
+        if not tenant:
+            return Response(
+                {"detail": "Tenant introuvable pour cette requête"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         tenant_slug = tenant.slug
 
         # Models avec tenant = FK(Tenant)
