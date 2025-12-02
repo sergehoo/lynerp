@@ -525,7 +525,7 @@ class PerformanceReviewAdmin(admin.ModelAdmin):
 class RecruitmentAdmin(admin.ModelAdmin):
     list_display = [
         'title', 'reference', 'department', 'position', 'status',
-        'publication_date', 'applications_count', 'is_active', 'tenant_id'
+        'publication_date', 'applications_count', 'is_active'
     ]
     list_filter = [TenantFilter, 'status', 'contract_type', 'publication_date']
     search_fields = ['title', 'reference', 'department__name', 'position__title']
@@ -534,7 +534,7 @@ class RecruitmentAdmin(admin.ModelAdmin):
     filter_horizontal = ['recruiters']
     fieldsets = [
         ('Informations générales', {
-            'fields': ['title', 'reference', 'department', 'position', 'tenant_id']
+            'fields': ['title', 'reference', 'department', 'position']
         }),
         ('Description', {
             'fields': ['job_description', 'requirements']
