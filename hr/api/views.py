@@ -160,6 +160,7 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
 
         return qs.none()
 
+
 # -----------------------------
 # Dashboard RH
 # -----------------------------
@@ -425,7 +426,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
     # permission_classes = [IsAuthenticated, HasRHAccess, HasRole]
-    required_roles = ["hr:view"]
+    # required_roles = ["hr:view"]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
