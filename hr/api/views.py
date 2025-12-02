@@ -11,6 +11,7 @@ from django.db.models import Count, Avg
 from django.db import transaction
 from rest_framework import viewsets, status, filters, permissions
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
@@ -59,6 +60,7 @@ from hr.api.serializers import (
     RecruitmentSerializer,
     RecruitmentFilterSerializer,
 )
+from tenants.models import Tenant
 
 # Services (export, etc.)
 try:
@@ -71,19 +73,58 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+def get_current_tenant_from_request(request) -> Tenant:
+    tenant_key = (
+        request.headers.get("X-Tenant-Id")
+        or request.META.get("HTTP_X_TENANT_ID")
+        or request.query_params.get("tenant")
+    )
+    if not tenant_key:
+        raise ValidationError("X-Tenant-Id manquant")
 
+    # 1) essayer comme PK int
+    try:
+        return Tenant.objects.get(pk=int(tenant_key))
+    except (ValueError, Tenant.DoesNotExist):
+        pass
+
+    # 2) sinon on essaie comme slug
+    try:
+        return Tenant.objects.get(slug=tenant_key)
+    except Tenant.DoesNotExist:
+        raise ValidationError(f"Tenant inconnu: {tenant_key}")
 # -----------------------------
 # Mixins multi-tenant
 # -----------------------------
 class BaseTenantViewSet:
-    """Mixin de base pour filtrer par tenant (via header X-Tenant-Id)"""
+    """Mixin de base pour filtrer par tenant"""
+
+    def get_tenant(self) -> Tenant:
+        if not hasattr(self, "_current_tenant"):
+            self._current_tenant = get_current_tenant_from_request(self.request)
+        return self._current_tenant
 
     def get_queryset(self):
-        tenant_id = self.request.headers.get("X-Tenant-Id")
-        if not tenant_id:
-            return self.queryset.none()
-        return self.queryset.filter(tenant_id=tenant_id)
+        qs = super().get_queryset()
+        try:
+            tenant = self.get_tenant()
+        except ValidationError:
+            # pas de tenant → aucune donnée
+            return qs.none()
 
+        model = qs.model
+
+        # 1) Modèles avec tenant = ForeignKey(Tenant) : Department, Employee, Position, etc.
+        if hasattr(model, "tenant"):
+            return qs.filter(tenant=tenant)
+
+        # 2) Modèles avec tenant_id = CharField : LeaveRequest, LeaveType, etc.
+        if hasattr(model, "tenant_id"):
+            # on choisit de stocker le slug dans les CharField
+            return qs.filter(tenant_id=getattr(tenant, "slug", str(tenant.pk)))
+
+        # 3) Fallback : pas de filtrage si pas de notion de tenant
+        return qs
 
 # -----------------------------
 # Dashboard RH
@@ -260,13 +301,12 @@ class HRDashboardViewSet(viewsets.ViewSet):
 # Actions en masse
 # -----------------------------
 class BulkActionsViewSet(viewsets.ViewSet):
-    """Vues pour les actions batch"""
     permission_classes = [IsAuthenticated, HasRHAccess]
 
     @action(detail=False, methods=['post'])
     def bulk_leave_action(self, request):
         """Action batch sur les demandes de congé"""
-        tenant_id = request.headers.get("X-Tenant-Id")
+        tenant = get_current_tenant_from_request(request)  # 👈
         serializer = BulkLeaveActionSerializer(data=request.data)
         if serializer.is_valid():
             leave_request_ids = serializer.validated_data['leave_request_ids']
@@ -275,7 +315,7 @@ class BulkActionsViewSet(viewsets.ViewSet):
 
             leave_requests = LeaveRequest.objects.filter(
                 id__in=leave_request_ids,
-                tenant_id=tenant_id
+                tenant_id=tenant.slug,   # 👈 cohérent avec CharField
             )
 
             updated_count = 0
@@ -301,45 +341,6 @@ class BulkActionsViewSet(viewsets.ViewSet):
                 "action": action_type
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['post'])
-    def bulk_employee_action(self, request):
-        """Action batch sur les employés"""
-        tenant_id = request.headers.get("X-Tenant-Id")
-        serializer = BulkEmployeeActionSerializer(data=request.data)
-        if serializer.is_valid():
-            employee_ids = serializer.validated_data['employee_ids']
-            action_type = serializer.validated_data['action']
-            data = serializer.validated_data.get('data', {})
-
-            employees = Employee.objects.filter(
-                id__in=employee_ids,
-                tenant_id=tenant_id
-            )
-
-            updated_count = 0
-            with transaction.atomic():
-                for employee in employees.select_for_update():
-                    if action_type == 'activate':
-                        employee.is_active = True
-                    elif action_type == 'deactivate':
-                        employee.is_active = False
-                    elif action_type == 'terminate':
-                        employee.is_active = False
-                        employee.termination_date = timezone.now().date()
-                        employee.termination_reason = data.get('reason', '')
-                    elif action_type == 'change_department' and data.get('department_id'):
-                        employee.department_id = data['department_id']
-
-                    employee.save()
-                    updated_count += 1
-
-            return Response({
-                "message": f"{updated_count} employés mis à jour",
-                "action": action_type
-            })
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 # -----------------------------
 # ViewSets RH
