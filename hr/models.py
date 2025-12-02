@@ -138,11 +138,11 @@ class Employee(models.Model):
     email = models.EmailField()
     department = models.ForeignKey(Department, null=True, on_delete=models.SET_NULL)
     hire_date = models.DateField()
-    contract_type = models.CharField(max_length=64)
-    extra = models.JSONField(default=dict, blank=True)
+    contract_type = models.CharField(max_length=64,null=True)
+    extra = models.JSONField(default=dict, blank=True,null=True)
     tenant = models.ForeignKey(
         Tenant,
-        on_delete=models.PROTECT, db_column='tenant_id',  # tenant requis
+        on_delete=models.PROTECT, db_column='tenant_id', null=True, # tenant requis
         db_index=True,
     )
 
