@@ -734,29 +734,41 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     search_fields = ['title', 'reference']
     ordering_fields = ['created_at', 'publication_date']
 
-    # def get_queryset(self):
-    #     queryset = super().get_queryset()
-    #
-    #     # Filtrage avancé
-    #     filter_serializer = RecruitmentFilterSerializer(data=self.request.query_params)
-    #     if filter_serializer.is_valid():
-    #         filt: Dict[str, Any] = {}
-    #         if filter_serializer.validated_data.get('status'):
-    #             filt['status'] = filter_serializer.validated_data['status']
-    #         if filter_serializer.validated_data.get('department'):
-    #             filt['department__name'] = filter_serializer.validated_data['department']
-    #         if filter_serializer.validated_data.get('position'):
-    #             filt['position__title'] = filter_serializer.validated_data['position']
-    #         if filter_serializer.validated_data.get('hiring_manager'):
-    #             filt['hiring_manager__id'] = filter_serializer.validated_data['hiring_manager']
-    #         if filter_serializer.validated_data.get('publication_date_from'):
-    #             filt['publication_date__gte'] = filter_serializer.validated_data['publication_date_from']
-    #         if filter_serializer.validated_data.get('publication_date_to'):
-    #             filt['publication_date__lte'] = filter_serializer.validated_data['publication_date_to']
-    #
-    #         queryset = queryset.filter(**filt)
-    #
-    #     return queryset
+    def get_queryset(self):
+        # 1) déjà filtré par tenant via BaseTenantViewSet
+        queryset = super().get_queryset()
+
+        # 2) Filtrage avancé
+        filter_serializer = RecruitmentFilterSerializer(data=self.request.query_params)
+        if filter_serializer.is_valid():
+            filt: Dict[str, Any] = {}
+
+            # status = texte → OK
+            if filter_serializer.validated_data.get('status'):
+                filt['status'] = filter_serializer.validated_data['status']
+
+            # department = ID → filtrer sur department_id
+            if filter_serializer.validated_data.get('department'):
+                filt['department_id'] = filter_serializer.validated_data['department']
+
+            # position = ID → filtrer sur position_id
+            if filter_serializer.validated_data.get('position'):
+                filt['position_id'] = filter_serializer.validated_data['position']
+
+            # hiring_manager = ID → filtrer sur hiring_manager_id
+            if filter_serializer.validated_data.get('hiring_manager'):
+                filt['hiring_manager_id'] = filter_serializer.validated_data['hiring_manager']
+
+            # dates
+            if filter_serializer.validated_data.get('publication_date_from'):
+                filt['publication_date__gte'] = filter_serializer.validated_data['publication_date_from']
+
+            if filter_serializer.validated_data.get('publication_date_to'):
+                filt['publication_date__lte'] = filter_serializer.validated_data['publication_date_to']
+
+            queryset = queryset.filter(**filt)
+
+        return queryset
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
@@ -775,7 +787,6 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         recruitment.closing_date = timezone.now().date()
         recruitment.save()
         return Response({"status": recruitment.status})
-
 
 # -----------------------------
 # Candidatures (fusion des deux définitions)
