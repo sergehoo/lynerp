@@ -572,7 +572,7 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 #         serializer = AttendanceSerializer(attendances, many=True)
 #         return Response(serializer.data)
 
-class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
+class EmployeeViewSet( viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
