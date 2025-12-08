@@ -11,8 +11,8 @@ from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
-from django.db import transaction
-from rest_framework import viewsets, status, filters, permissions
+from django.db import transaction, IntegrityError
+from rest_framework import viewsets, status, filters, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -589,6 +589,10 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 User = get_user_model()
 
 
+log = logging.getLogger(__name__)
+User = get_user_model()
+
+
 class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
@@ -601,38 +605,46 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 
     def _get_tenant_from_user(self):
         """
-        1. Si un middleware a déjà posé request.tenant → on le prend.
-        2. Sinon, on essaie via le header X-Tenant-Id.
-        3. En dernier recours, via user.employee.tenant.
+        1. request.tenant (middleware / BaseTenantViewSet)
+        2. header X-Tenant-Id
+        3. user.employee.tenant (si user déjà lié à un employé)
         """
+        req = self.request
+
         # 1) Middleware / BaseTenantViewSet
-        req_tenant = getattr(self.request, "tenant", None)
+        req_tenant = getattr(req, "tenant", None)
         if req_tenant is not None:
+            log.debug("[EmployeeViewSet] tenant depuis request.tenant = %s", req_tenant)
             return req_tenant
 
-        # 2) Header X-Tenant-Id (ton front l’envoie déjà)
+        # 2) Header
         tenant_id = (
-            self.request.headers.get("X-Tenant-Id")
-            or self.request.META.get("HTTP_X_TENANT_ID")
+            req.headers.get("X-Tenant-Id") or
+            req.META.get("HTTP_X_TENANT_ID")
         )
         if tenant_id:
             try:
-                return Tenant.objects.get(pk=tenant_id)
+                t = Tenant.objects.get(pk=tenant_id)
+                log.debug("[EmployeeViewSet] tenant depuis X-Tenant-Id = %s", t)
+                return t
             except Tenant.DoesNotExist:
-                pass
+                log.warning("[EmployeeViewSet] X-Tenant-Id=%s introuvable", tenant_id)
 
-        # 3) Fallback depuis le user connecté
-        user = self.request.user
+        # 3) user.employee.tenant
+        user = req.user
         if not user or user.is_anonymous:
+            log.warning("[EmployeeViewSet] utilisateur anonyme, pas de tenant")
             return None
 
-        emp = getattr(user, "employee", None)  # OneToOneField related_name='employee'
-        return getattr(emp, "tenant", None) if emp else None
+        emp = getattr(user, "employee", None)
+        tenant = getattr(emp, "tenant", None) if emp else None
+        log.debug("[EmployeeViewSet] tenant depuis user.employee = %s", tenant)
+        return tenant
 
     def _get_or_create_user_for_employee(self, validated_data):
         """
         Crée ou récupère un user à partir de l'email de l'employé.
-        Compatible avec un custom User sans champ `username`.
+        Compatible avec custom User sans `username`.
         """
         email = validated_data.get("email")
         first_name = validated_data.get("first_name") or ""
@@ -641,25 +653,31 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         if not email:
             return None
 
-        # champs par défaut (ne pas mettre username si modèle n'en a pas)
         defaults = {
             "first_name": first_name,
             "last_name": last_name,
             "is_active": True,
         }
 
-        # On ajoute username uniquement si le modèle User a ce champ
+        # Ajout de username uniquement si le modèle User a ce champ
         if any(f.name == "username" for f in User._meta.get_fields()):
             defaults["username"] = email
 
         try:
-            user, _created = User.objects.get_or_create(
+            user, created = User.objects.get_or_create(
                 email=email,
                 defaults=defaults,
             )
+            log.debug(
+                "[EmployeeViewSet] user_account=%s (created=%s) pour email=%s",
+                user, created, email
+            )
         except User.MultipleObjectsReturned:
-            # Au cas où plusieurs users partagent le même email
             user = User.objects.filter(email=email).order_by("id").first()
+            log.warning(
+                "[EmployeeViewSet] Multiple User pour email=%s, on prend le premier id=%s",
+                email, user.id if user else None
+            )
 
         return user
 
@@ -668,20 +686,37 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Fixe automatiquement :
-        - tenant = tenant de l'utilisateur connecté
+        - tenant = tenant de l'utilisateur connecté / header / middleware
         - user_account = User créé / récupéré via email
         """
         tenant = self._get_tenant_from_user()
         user = self._get_or_create_user_for_employee(serializer.validated_data)
 
-        extra_kwargs = {}
-        if tenant is not None:
-            extra_kwargs["tenant"] = tenant
+        if tenant is None:
+            # on log clairement au lieu de laisser partir un 500 chelou
+            log.error("[EmployeeViewSet] Impossible de déterminer le tenant (perform_create)")
+            raise serializers.ValidationError(
+                {"tenant": "Impossible de déterminer le tenant pour cette requête."}
+            )
+
+        extra_kwargs = {"tenant": tenant}
         if user is not None:
             extra_kwargs["user_account"] = user
 
-        serializer.save(**extra_kwargs)
+        log.debug(
+            "[EmployeeViewSet] perform_create tenant=%s, user_account=%s, data=%s",
+            tenant, user, serializer.validated_data
+        )
 
+        try:
+            with transaction.atomic():
+                serializer.save(**extra_kwargs)
+        except IntegrityError as e:
+            # typiquement : doublon OneToOne user_account, doublon unique_together, etc.
+            log.exception("[EmployeeViewSet] IntegrityError à la création de l'employé")
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Contrainte d'intégrité : {str(e)}"]}
+            )
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()

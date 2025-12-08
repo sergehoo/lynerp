@@ -75,17 +75,15 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
         from hr.models import Employee
 
-        # Si on est en édition, on autorise l’email déjà utilisé par CET employé
-        if self.instance and self.instance.user_account == existing_user:
+        # si on édite un employé déjà lié à ce user → OK
+        if self.instance and self.instance.user_account_id == existing_user.id:
             return value
 
         if Employee.objects.filter(user_account=existing_user).exists():
             raise serializers.ValidationError(
                 "Un employé est déjà lié à cet utilisateur."
             )
-
         return value
-
     class Meta:
         model = Employee
         fields = [
