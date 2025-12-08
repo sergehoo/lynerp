@@ -538,11 +538,11 @@
     // Si on n’a aucun token à donner à Keycloak, on évite d’appeler son logout
     // (sinon -> "Missing parameters: id_token_hint")
     if (!hintToken) {
-        window.location.assign('/login/');
+        window.location.assign('/oidc/authenticate/');
         return;
     }
 
-    const redirectUri = window.location.origin + '/login/';
+    const redirectUri = window.location.origin + '/oidc/authenticate/';
 
     const url =
         `${KC.issuer}/protocol/openid-connect/logout` +

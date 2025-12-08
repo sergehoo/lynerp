@@ -1,58 +1,102 @@
 <!-- Lyneerp/hr/templates/hr/partials/attendance.html -->
-<div class="space-y-6" x-data="attendanceView()" x-init="init()">
+<div class="space-y-8" x-data="attendanceView()" x-init="init()">
   <!-- Header -->
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div>
-      <h3 class="text-2xl font-bold text-gray-800">Pointage</h3>
-      <p class="text-gray-600">Vue calendrier mensuelle, édition rapide et exports.</p>
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900 text-white text-xs font-medium mb-2">
+        <i class="fas fa-business-time text-[11px]"></i>
+        <span>Ressources humaines • Pointage</span>
+      </div>
+      <h3 class="text-2xl font-semibold text-slate-900 tracking-tight">Pointage & présences</h3>
+      <p class="text-sm text-slate-500 mt-1">
+        Vue mensuelle en grille, édition rapide des pointages et export des données.
+      </p>
     </div>
-    <div class="flex gap-2">
-      <button @click="showBulkCheckIn = true"
-              class="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">
-        <i class="fas fa-users mr-2"></i>Pointage collectif
+    <div class="flex flex-wrap gap-2">
+      <button
+        @click="showBulkCheckIn = true"
+        class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:bg-emerald-700">
+        <i class="fas fa-users text-[13px]"></i>
+        <span>Pointage collectif</span>
       </button>
-      <button @click="exportCSV"
-              class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700">
-        <i class="fas fa-download mr-2"></i>Exporter CSV
+      <button
+        @click="exportCSV"
+        class="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:bg-slate-800">
+        <i class="fas fa-download text-[13px]"></i>
+        <span>Exporter CSV</span>
       </button>
     </div>
   </div>
 
   <!-- Filtres + sélecteur de période -->
-  <div class="bg-white p-4 border rounded-2xl shadow-sm">
-    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <button @click="prevMonth()" class="p-2 rounded-xl border hover:bg-gray-50">
-          <i class="fas fa-chevron-left"></i>
+  <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-5">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <!-- Période -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          @click="prevMonth()"
+          class="p-2 rounded-full border border-gray-200 bg-white text-slate-700 hover:bg-gray-50 inline-flex items-center justify-center">
+          <i class="fas fa-chevron-left text-xs"></i>
         </button>
+
         <div class="flex items-center gap-2">
-          <select x-model.number="selectedMonth" @change="reload()" class="rounded-xl border px-3 py-2">
+          <select
+            x-model.number="selectedMonth"
+            @change="reload()"
+            class="rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
             <template x-for="m in months" :key="m.value">
               <option :value="m.value" x-text="m.label"></option>
             </template>
           </select>
-          <select x-model.number="selectedYear" @change="reload()" class="rounded-xl border px-3 py-2">
-            <template x-for="y in years" :key="y"><option :value="y" x-text="y"></option></template>
+          <select
+            x-model.number="selectedYear"
+            @change="reload()"
+            class="rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+            <template x-for="y in years" :key="y">
+              <option :value="y" x-text="y"></option>
+            </template>
           </select>
         </div>
-        <button @click="goToday()" class="px-3 py-2 rounded-xl border hover:bg-gray-50">Aujourd’hui</button>
-        <button @click="nextMonth()" class="p-2 rounded-xl border hover:bg-gray-50">
-          <i class="fas fa-chevron-right"></i>
+
+        <button
+          @click="goToday()"
+          class="px-3 py-2 rounded-full border border-gray-200 bg-white text-xs font-medium text-slate-700 hover:bg-gray-50">
+          Aujourd’hui
+        </button>
+
+        <button
+          @click="nextMonth()"
+          class="p-2 rounded-full border border-gray-200 bg-white text-slate-700 hover:bg-gray-50 inline-flex items-center justify-center">
+          <i class="fas fa-chevron-right text-xs"></i>
         </button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <!-- Filtres -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-auto">
         <div class="relative">
-          <input type="text" placeholder="Rechercher (nom, matricule)…"
-                 class="w-full pl-9 pr-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500"
-                 x-model="search" @input.debounce.350ms="applyFilters()">
-          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input
+            type="text"
+            placeholder="Rechercher (nom, matricule)…"
+            class="w-full pl-9 pr-3 py-2.5 rounded-full border border-gray-200 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300"
+            x-model="search"
+            @input.debounce.350ms="applyFilters()">
+          <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
         </div>
-        <select x-model="filterDept" @change="applyFilters()" class="rounded-xl border px-3 py-2">
+
+        <select
+          x-model="filterDept"
+          @change="applyFilters()"
+          class="rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           <option value="">Tous les départements</option>
-          <template x-for="d in departments" :key="d.id"><option :value="d.id" x-text="d.name"></option></template>
+          <template x-for="d in departments" :key="d.id">
+            <option :value="d.id" x-text="d.name"></option>
+          </template>
         </select>
-        <select x-model="filterActive" @change="applyFilters()" class="rounded-xl border px-3 py-2">
+
+        <select
+          x-model="filterActive"
+          @change="applyFilters()"
+          class="rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           <option value="">Actif + Inactif</option>
           <option value="true">Actif</option>
           <option value="false">Inactif</option>
@@ -63,60 +107,85 @@
 
   <!-- Stats -->
   <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
-      <div class="p-2 rounded-full bg-green-100 text-green-600"><i class="fas fa-user-check"></i></div>
-      <div class="ml-3">
-        <div class="text-sm text-gray-500">Présents</div>
-        <div class="text-2xl font-bold" x-text="attendanceStats.present"></div>
+    <div class="p-5 bg-white border border-gray-100 rounded-3xl shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <i class="fas fa-user-check text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Présents</div>
+        <div class="mt-1 text-2xl font-semibold text-emerald-600 tracking-tight" x-text="attendanceStats.present"></div>
       </div>
     </div>
-    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
-      <div class="p-2 rounded-full bg-red-100 text-red-600"><i class="fas fa-user-times"></i></div>
-      <div class="ml-3">
-        <div class="text-sm text-gray-500">Absents</div>
-        <div class="text-2xl font-bold" x-text="attendanceStats.absent"></div>
+    <div class="p-5 bg-white border border-gray-100 rounded-3xl shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+        <i class="fas fa-user-times text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Absents</div>
+        <div class="mt-1 text-2xl font-semibold text-rose-600 tracking-tight" x-text="attendanceStats.absent"></div>
       </div>
     </div>
-    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
-      <div class="p-2 rounded-full bg-yellow-100 text-yellow-600"><i class="fas fa-clock"></i></div>
-      <div class="ml-3">
-        <div class="text-sm text-gray-500">Retards</div>
-        <div class="text-2xl font-bold" x-text="attendanceStats.late"></div>
+    <div class="p-5 bg-white border border-gray-100 rounded-3xl shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+        <i class="fas fa-clock text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Retards</div>
+        <div class="mt-1 text-2xl font-semibold text-amber-600 tracking-tight" x-text="attendanceStats.late"></div>
       </div>
     </div>
-    <div class="p-4 bg-white border rounded-2xl shadow-sm flex items-center">
-      <div class="p-2 rounded-full bg-blue-100 text-blue-600"><i class="fas fa-business-time"></i></div>
-      <div class="ml-3">
-        <div class="text-sm text-gray-500">Heures supp.</div>
-        <div class="text-2xl font-bold" x-text="attendanceStats.overtime"></div>
+    <div class="p-5 bg-white border border-gray-100 rounded-3xl shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
+        <i class="fas fa-business-time text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Heures supp.</div>
+        <div class="mt-1 text-2xl font-semibold text-sky-600 tracking-tight" x-text="attendanceStats.overtime"></div>
       </div>
     </div>
   </div>
 
   <!-- Légende -->
-  <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>Présent</span>
-    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>Absent</span>
-    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-500"></span>Retard</span>
-    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span>Demi-journée</span>
-    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-purple-500"></span>Congé</span>
-    <span class="inline-flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gray-300"></span>Aucun pointage</span>
-    <span class="inline-flex items-center gap-2 ml-auto">
-      <span class="px-2 py-0.5 rounded bg-gray-100 border">WE</span> Week-end
+  <div class="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+    <span class="inline-flex items-center gap-1.5">
+      <span class="w-3 h-3 rounded-full bg-green-500"></span>Présent
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="w-3 h-3 rounded-full bg-red-500"></span>Absent
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="w-3 h-3 rounded-full bg-yellow-500"></span>Retard
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="w-3 h-3 rounded-full bg-blue-500"></span>Demi-journée
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="w-3 h-3 rounded-full bg-purple-500"></span>Congé
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="w-3 h-3 rounded-full bg-gray-300"></span>Aucun pointage
+    </span>
+    <span class="inline-flex items-center gap-1.5 ml-auto">
+      <span class="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-[11px]">WE</span>
+      <span>Week-end</span>
     </span>
   </div>
 
   <!-- Calendrier -->
-  <div class="bg-white rounded-2xl shadow-sm border overflow-auto">
-    <table class="min-w-full">
+  <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-auto">
+    <table class="min-w-full text-sm text-slate-700 relative">
       <thead class="bg-gray-50 sticky top-0 z-10">
         <tr>
-          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Employé</th>
+          <th
+            class="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase sticky left-0 bg-gray-50 shadow-[2px_0_0_rgba(148,163,184,0.18)] z-20">
+            Employé
+          </th>
           <template x-for="d in calendarDays" :key="d.date">
-            <th class="px-2 py-3 text-center text-xs font-semibold text-gray-500 uppercase"
-                :class="{'bg-slate-50': d.isWeekend }">
-              <div x-text="d.day"></div>
-              <div class="text-gray-400" x-text="d.label"></div>
+            <th
+              class="px-2 py-3 text-center text-[11px] font-semibold uppercase"
+              :class="d.isWeekend ? 'bg-slate-50 text-slate-400' : 'bg-gray-50 text-slate-500'">
+              <div class="text-xs font-semibold" x-text="d.day"></div>
+              <div class="text-[11px] text-slate-400" x-text="d.label"></div>
             </th>
           </template>
         </tr>
@@ -125,10 +194,15 @@
         <!-- skeleton -->
         <template x-if="loading">
           <template x-for="i in 6" :key="'sk'+i">
-            <tr class="border-t">
-              <td class="px-4 py-3"><div class="h-4 w-48 skeleton rounded"></div></td>
+            <tr class="border-t border-gray-100">
+              <td class="px-4 py-3 sticky left-0 bg-white z-10 shadow-[2px_0_0_rgba(148,163,184,0.12)]">
+                <div class="h-4 w-40 skeleton rounded"></div>
+                <div class="h-3 w-28 mt-2 skeleton rounded"></div>
+              </td>
               <template x-for="d in calendarDays" :key="'skd'+d.date">
-                <td class="px-2 py-2"><div class="h-6 w-10 mx-auto skeleton rounded"></div></td>
+                <td class="px-2 py-2">
+                  <div class="h-6 w-10 mx-auto skeleton rounded-full"></div>
+                </td>
               </template>
             </tr>
           </template>
@@ -136,67 +210,108 @@
 
         <!-- rows -->
         <template x-for="emp in filteredEmployees" :key="emp.id">
-          <tr class="border-t hover:bg-gray-50">
+          <tr class="border-t border-gray-100 hover:bg-gray-50/60 transition-colors">
             <!-- col employé -->
-            <td class="px-4 py-3 sticky left-0 bg-white">
-              <div class="text-sm font-semibold" x-text="`${emp.first_name} ${emp.last_name}`"></div>
-              <div class="text-xs text-gray-500" x-text="emp.matricule"></div>
-              <div class="text-xs text-gray-400" x-text="emp.department_name || emp.department?.name || ''"></div>
+            <td
+              class="px-4 py-3 sticky left-0 bg-white z-10 shadow-[2px_0_0_rgba(148,163,184,0.12)]">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-semibold uppercase">
+                  <span x-text="(emp.first_name?.[0] || '') + (emp.last_name?.[0] || '')"></span>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-sm font-semibold text-slate-900 truncate"
+                       x-text="`${emp.first_name} ${emp.last_name}`"></div>
+                  <div class="text-[11px] text-slate-500" x-text="emp.matricule"></div>
+                  <div class="text-[11px] text-slate-400" x-text="emp.department_name || emp.department?.name || ''"></div>
+                </div>
+              </div>
             </td>
 
             <!-- cells jour -->
             <template x-for="d in calendarDays" :key="emp.id + '-' + d.date">
-              <td class="px-2 py-2 text-center"
-                  :class="{'bg-slate-50': d.isWeekend, 'ring-1 ring-blue-300': d.isToday}">
+              <td
+                class="relative px-2 py-2 text-center"
+                :class="{
+                  'bg-slate-50': d.isWeekend,
+                  'ring-1 ring-slate-300 ring-offset-1 ring-offset-slate-50': d.isToday
+                }">
                 <template x-if="attCell(emp.id, d.date)">
-                  <div class="inline-flex flex-col items-center gap-0.5">
-                    <button @click="openCellEditor(emp.id, d.date)"
-                            class="text-[11px] px-1 py-0.5 rounded border hover:bg-gray-50">
-                      <span x-text="attCell(emp.id, d.date).check_in || '—'"></span> /
+                  <div class="inline-flex flex-col items-center gap-1">
+                    <button
+                      @click="openCellEditor(emp.id, d.date)"
+                      class="text-[11px] px-2 py-1 rounded-full border border-gray-200 bg-white hover:bg-gray-50 inline-flex items-center gap-1">
+                      <span x-text="attCell(emp.id, d.date).check_in || '—'"></span>
+                      <span class="text-slate-300">/</span>
                       <span x-text="attCell(emp.id, d.date).check_out || '—'"></span>
                     </button>
-                    <span class="w-3 h-3 rounded-full mt-0.5"
-                          :class="statusDot(attCell(emp.id, d.date).status)"></span>
+                    <span
+                      class="w-3 h-3 rounded-full"
+                      :class="statusDot(attCell(emp.id, d.date).status)"></span>
                   </div>
                 </template>
+
                 <template x-if="!attCell(emp.id, d.date) && !d.isWeekend">
-                  <button @click="openCellEditor(emp.id, d.date)"
-                          class="w-6 h-6 rounded bg-gray-200 hover:bg-gray-300 inline-flex items-center justify-center text-[10px]">+</button>
+                  <button
+                    @click="openCellEditor(emp.id, d.date)"
+                    class="w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 inline-flex items-center justify-center text-[11px] text-slate-700">
+                    +
+                  </button>
                 </template>
 
                 <!-- Popover éditeur -->
-                <div x-show="isEditorOpen(emp.id, d.date)" x-cloak
-                     class="absolute z-20 mt-2 p-3 bg-white border rounded-xl shadow-lg text-left"
-                     :style="popoverPos($event)">
-                  <div class="text-sm font-semibold mb-2" x-text="formatDate(d.date)"></div>
-
-                  <div class="grid grid-cols-2 gap-2 mb-2">
-                    <div>
-                      <label class="text-xs text-gray-600">Entrée</label>
-                      <input type="time" x-model="editor.form.check_in"
-                             class="w-full border rounded px-2 py-1 text-sm">
+                <div
+                  x-show="isEditorOpen(emp.id, d.date)"
+                  x-cloak
+                  class="absolute z-30 mt-2 left-1/2 -translate-x-1/2"
+                  style="min-width: 220px;">
+                  <div class="p-3 bg-white border border-gray-200 rounded-2xl shadow-xl text-left">
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="text-xs font-semibold text-slate-900" x-text="formatDate(d.date)"></div>
+                      <button @click="closeEditor()" class="p-1 rounded-full hover:bg-gray-100 text-slate-400">
+                        <i class="fas fa-times text-[10px]"></i>
+                      </button>
                     </div>
-                    <div>
-                      <label class="text-xs text-gray-600">Sortie</label>
-                      <input type="time" x-model="editor.form.check_out"
-                             class="w-full border rounded px-2 py-1 text-sm">
+
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label class="text-[11px] text-slate-500 mb-0.5 block">Entrée</label>
+                        <input
+                          type="time"
+                          x-model="editor.form.check_in"
+                          class="w-full border border-gray-200 rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-slate-100 focus:border-slate-300">
+                      </div>
+                      <div>
+                        <label class="text-[11px] text-slate-500 mb-0.5 block">Sortie</label>
+                        <input
+                          type="time"
+                          x-model="editor.form.check_out"
+                          class="w-full border border-gray-200 rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-slate-100 focus:border-slate-300">
+                      </div>
                     </div>
-                  </div>
 
-                  <label class="text-xs text-gray-600">Statut</label>
-                  <select x-model="editor.form.status" class="w-full border rounded px-2 py-1 text-sm mb-2">
-                    <option value="PRESENT">PRESENT</option>
-                    <option value="LATE">LATE</option>
-                    <option value="ABSENT">ABSENT</option>
-                    <option value="HALF_DAY">HALF_DAY</option>
-                    <option value="LEAVE">LEAVE</option>
-                  </select>
+                    <label class="text-[11px] text-slate-500 mb-0.5 block">Statut</label>
+                    <select
+                      x-model="editor.form.status"
+                      class="w-full border border-gray-200 rounded-xl px-2 py-1.5 text-xs mb-3 focus:ring-1 focus:ring-slate-100 focus:border-slate-300">
+                      <option value="PRESENT">PRESENT</option>
+                      <option value="LATE">LATE</option>
+                      <option value="ABSENT">ABSENT</option>
+                      <option value="HALF_DAY">HALF_DAY</option>
+                      <option value="LEAVE">LEAVE</option>
+                    </select>
 
-                  <div class="flex items-center justify-end gap-2">
-                    <button @click="closeEditor()" class="px-2 py-1 rounded border text-sm">Annuler</button>
-                    <button @click="saveCell()" class="px-2 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
-                      Enregistrer
-                    </button>
+                    <div class="flex items-center justify-end gap-2">
+                      <button
+                        @click="closeEditor()"
+                        class="px-3 py-1 rounded-full border border-gray-200 text-[11px] text-slate-600 hover:bg-gray-50">
+                        Annuler
+                      </button>
+                      <button
+                        @click="saveCell()"
+                        class="px-3 py-1 rounded-full bg-slate-900 text-white text-[11px] font-semibold hover:bg-slate-800">
+                        Enregistrer
+                      </button>
+                    </div>
                   </div>
                 </div>
               </td>
@@ -206,35 +321,59 @@
 
         <!-- empty -->
         <tr x-show="!loading && !filteredEmployees.length">
-          <td colspan="40" class="py-12 text-center text-gray-500">Aucun employé à afficher pour ces filtres.</td>
+          <td colspan="40" class="py-14 text-center">
+            <div class="inline-flex flex-col items-center justify-center px-6 py-5 rounded-3xl border border-dashed border-gray-300 bg-gray-50/70">
+              <i class="fas fa-users-slash text-gray-300 text-4xl mb-2"></i>
+              <div class="text-sm font-medium text-slate-900">Aucun employé à afficher</div>
+              <div class="text-xs text-slate-500 mt-1">
+                Ajustez les filtres pour voir les pointages correspondants.
+              </div>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
   </div>
 
   <!-- Modal Bulk -->
-  <div x-show="showBulkCheckIn" x-cloak class="fixed inset-0 bg-black/50 z-30 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl">
+  <div
+    x-show="showBulkCheckIn"
+    x-cloak
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-2xl p-6 w-full max-w-2xl">
       <div class="flex items-center justify-between mb-4">
-        <h4 class="text-lg font-semibold">Pointage collectif</h4>
-        <button @click="showBulkCheckIn=false" class="p-2 rounded hover:bg-gray-100"><i class="fas fa-times"></i></button>
+        <div>
+          <h4 class="text-base font-semibold text-slate-900">Pointage collectif</h4>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Sélectionnez les collaborateurs concernés et définissez l’heure d’arrivée.
+          </p>
+        </div>
+        <button @click="showBulkCheckIn=false" class="p-2 rounded-full hover:bg-gray-50 text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto border rounded p-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto border border-gray-100 rounded-2xl p-2 bg-gray-50/60">
         <template x-for="e in filteredEmployees" :key="'bulk'+e.id">
-          <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50">
-            <input type="checkbox" class="rounded" :value="e.id" x-model="selectedEmployees">
-            <span class="text-sm" x-text="`${e.first_name} ${e.last_name}`"></span>
-            <span class="text-xs text-gray-500 ml-auto" x-text="e.matricule"></span>
+          <label class="flex items-center gap-2 px-2 py-1.5 rounded-2xl bg-white hover:bg-gray-50 text-sm cursor-pointer border border-gray-100">
+            <input type="checkbox" class="rounded border-slate-300" :value="e.id" x-model="selectedEmployees">
+            <span class="text-xs font-medium text-slate-800 truncate" x-text="`${e.first_name} ${e.last_name}`"></span>
+            <span class="text-[11px] text-slate-400 ml-auto" x-text="e.matricule"></span>
           </label>
         </template>
       </div>
-      <div class="flex items-center gap-3 mt-4">
+      <div class="flex flex-wrap items-center gap-3 mt-4">
         <div class="flex items-center gap-2">
-          <label class="text-sm text-gray-700">Heure</label>
-          <input type="time" x-model="bulkTime" class="border rounded px-2 py-1">
+          <label class="text-xs font-medium text-slate-600">Heure d’arrivée</label>
+          <input
+            type="time"
+            x-model="bulkTime"
+            class="border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:ring-1 focus:ring-slate-100 focus:border-slate-300">
         </div>
-        <button @click="bulkCheckIn" class="ml-auto px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">
-          Pointer l’arrivée
+        <button
+          @click="bulkCheckIn"
+          class="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
+          <i class="fas fa-check text-[11px]"></i>
+          <span>Pointer l’arrivée</span>
         </button>
       </div>
     </div>
@@ -261,8 +400,8 @@ function attendanceView(){
     attendances: [],
     attendanceStats: { present:0, absent:0, late:0, overtime:'0.0' },
 
-    // référentiels/shared depuis l’app principale
-    employees: [],        // injectée si hrApp la fournit globalement
+    // référentiels/shared
+    employees: [],
     departments: [],
     filteredEmployees: [],
     filterDept: '',
@@ -277,7 +416,6 @@ function attendanceView(){
     // editor popover
     editor: { open:false, empId:null, date:null, form:{ check_in:'', check_out:'', status:'PRESENT' } },
 
-    // helpers
     formatDate(d){ return new Date(d).toLocaleDateString('fr-FR'); },
     statusDot(s){
       return {
@@ -288,11 +426,8 @@ function attendanceView(){
         'LEAVE':'bg-purple-500'
       }[s] || 'bg-gray-300';
     },
-
-    // positions du popover (simple auto à côté du bouton cliqué)
     popoverPos(ev){ return 'transform:translateX(-50%);'; },
 
-    // construit les jours du mois
     buildDays(){
       const out=[]; const d=new Date(this.selectedYear, this.selectedMonth-1, 1);
       const todayISO = new Date().toISOString().slice(0,10);
@@ -310,12 +445,10 @@ function attendanceView(){
       this.calendarDays = out;
     },
 
-    // map attendance par (employee, date)
     attCell(empId, isoDate){
       return this.attendances.find(a => a.employee===empId && a.date===isoDate) || null;
     },
 
-    // ouverture éditeur
     openCellEditor(empId, isoDate){
       const existing = this.attCell(empId, isoDate);
       this.editor.open = true;
@@ -327,13 +460,15 @@ function attendanceView(){
         status: existing?.status || 'PRESENT'
       };
     },
-    closeEditor(){ this.editor = { open:false, empId:null, date:null, form:{check_in:'',check_out:'',status:'PRESENT'} }; },
-    isEditorOpen(empId, isoDate){ return this.editor.open && this.editor.empId===empId && this.editor.date===isoDate; },
+    closeEditor(){
+      this.editor = { open:false, empId:null, date:null, form:{check_in:'',check_out:'',status:'PRESENT'} };
+    },
+    isEditorOpen(empId, isoDate){
+      return this.editor.open && this.editor.empId===empId && this.editor.date===isoDate;
+    },
 
-    // save (POST create si inexistant, sinon PATCH)
     async saveCell(){
       try{
-        // cherche l’enregistrement
         const existing = this.attCell(this.editor.empId, this.editor.date);
         const payload = {
           employee: this.editor.empId,
@@ -350,7 +485,6 @@ function attendanceView(){
       }catch(e){ this.toast('Enregistrement impossible','error'); }
     },
 
-    // export CSV côté client
     exportCSV(){
       const cols = ['matricule','nom','prenom','date','check_in','check_out','status'];
       const rows = [];
@@ -375,7 +509,6 @@ function attendanceView(){
       this.toast('Export CSV généré','success');
     },
 
-    // API helper (même style que le reste de l’app)
     async apiCall(path, options={}){
       const headers = { 'X-Tenant-Id': Conf.tenantId, 'Content-Type':'application/json' };
       if (Conf.token) headers['Authorization'] = `Bearer ${Conf.token}`;
@@ -387,10 +520,8 @@ function attendanceView(){
       return res.status===204 ? null : res.json();
     },
 
-    // chargements
     async loadRefs(){
       try{ const d=await this.apiCall('/departments/'); this.departments=d.results||d; }catch{}
-      // si la liste d’employés n’est pas fournie par la vue globale, on la charge
       if (!this.employees?.length){
         try{
           const e=await this.apiCall('/employees/?page_size=1000&ordering=last_name');
@@ -418,7 +549,6 @@ function attendanceView(){
       this.attendanceStats = { present:p, absent:a, late:l, overtime: ot.toFixed(1) };
     },
 
-    // filtres employés
     applyFilters(){
       const s = (this.search||'').toLowerCase().trim();
       this.filteredEmployees = (this.employees||[]).filter(e=>{
@@ -429,9 +559,11 @@ function attendanceView(){
       });
     },
 
-    // bulk check-in
     async bulkCheckIn(){
-      if(!this.selectedEmployees.length){ this.toast('Sélectionnez au moins un employé','warning'); return; }
+      if(!this.selectedEmployees.length){
+        this.toast('Sélectionnez au moins un employé','warning');
+        return;
+      }
       try{
         await this.apiCall('/attendances/bulk_check_in/', {
           method:'POST',
@@ -443,14 +575,30 @@ function attendanceView(){
       }catch{ this.toast('Erreur pointage collectif','error'); }
     },
 
-    // navigation période
     reload(){ this.buildDays(); this.loadAttendances(); },
-    prevMonth(){ if(this.selectedMonth===1){ this.selectedMonth=12; this.selectedYear--; } else this.selectedMonth--; this.reload(); },
-    nextMonth(){ if(this.selectedMonth===12){ this.selectedMonth=1; this.selectedYear++; } else this.selectedMonth++; this.reload(); },
-    goToday(){ const t=new Date(); this.selectedMonth=t.getMonth()+1; this.selectedYear=t.getFullYear(); this.reload(); },
+    prevMonth(){
+      if(this.selectedMonth===1){ this.selectedMonth=12; this.selectedYear--; }
+      else this.selectedMonth--;
+      this.reload();
+    },
+    nextMonth(){
+      if(this.selectedMonth===12){ this.selectedMonth=1; this.selectedYear++; }
+      else this.selectedMonth++;
+      this.reload();
+    },
+    goToday(){
+      const t=new Date();
+      this.selectedMonth=t.getMonth()+1;
+      this.selectedYear=t.getFullYear();
+      this.reload();
+    },
 
-    // toasts (rely on app globale si dispo)
-    toast(msg,type='info'){ if(window.dispatchEvent){ window.dispatchEvent(new CustomEvent('toast',{detail:{msg,type}})); } console.log(`[${type}]`,msg); },
+    toast(msg,type='info'){
+      if(window.dispatchEvent){
+        window.dispatchEvent(new CustomEvent('toast',{detail:{msg,type}}));
+      }
+      console.log(`[${type}]`,msg);
+    },
 
     async init(){
       this.buildDays();
@@ -459,10 +607,16 @@ function attendanceView(){
     }
   };
 }
-
-// petit style skeleton
 </script>
+
 <style>
-.skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:loading 1.5s infinite}
-@keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton{
+  background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);
+  background-size:200% 100%;
+  animation:loading 1.3s infinite;
+}
+@keyframes loading{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
 </style>

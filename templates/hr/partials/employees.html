@@ -1,62 +1,104 @@
 <!-- Lyneerp/hr/templates/hr/partials/employees.html -->
-<div class="space-y-6" x-data="employeeView()" x-init="init()">
+<div class="space-y-8" x-data="employeeView()" x-init="init()">
   <!-- Header -->
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div>
-      <h3 class="text-2xl font-bold text-gray-800">Gestion des employés</h3>
-      <p class="text-gray-600">Recherchez, filtrez, importez, exportez et gérez votre effectif.</p>
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900 text-white text-xs font-medium mb-2">
+        <i class="fas fa-users-cog text-[11px]"></i>
+        <span>Ressources humaines • Employés</span>
+      </div>
+      <h3 class="text-2xl font-semibold text-slate-900 tracking-tight">Gestion des employés</h3>
+      <p class="text-sm text-slate-500 mt-1">
+        Recherchez, filtrez, importez, exportez et gérez votre effectif en temps réel.
+      </p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <button @click="openImport()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">
-        <i class="fas fa-file-import mr-2"></i>Importer
+      <button
+        @click="openImport()"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white text-sm font-medium text-slate-600 hover:bg-gray-50 shadow-sm">
+        <i class="fas fa-file-import text-[13px]"></i>
+        <span>Importer</span>
       </button>
-      <button @click="openExport()" class="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700">
-        <i class="fas fa-download mr-2"></i>Exporter
+      <button
+        @click="openExport()"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+        <i class="fas fa-download text-[13px]"></i>
+        <span>Exporter</span>
       </button>
-      <button @click="openCreate()" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
-        <i class="fas fa-plus mr-2"></i>Nouvel employé
+      <button
+        @click="openCreate()"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold shadow-sm shadow-slate-400/40 hover:bg-slate-800">
+        <i class="fas fa-plus text-[13px]"></i>
+        <span>Nouvel employé</span>
       </button>
     </div>
   </div>
 
   <!-- Statistiques rapides -->
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <div class="p-4 bg-white border rounded-2xl shadow-sm">
-      <div class="text-sm text-gray-500">Total</div>
-      <div class="mt-1 text-2xl font-bold" x-text="counts.total"></div>
+    <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-md shadow-slate-300/70">
+        <i class="fas fa-users text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Total</div>
+        <div class="mt-1 text-2xl font-semibold text-slate-900 tracking-tight" x-text="counts.total"></div>
+      </div>
     </div>
-    <div class="p-4 bg-white border rounded-2xl shadow-sm">
-      <div class="text-sm text-gray-500">Actifs</div>
-      <div class="mt-1 text-2xl font-bold text-green-600" x-text="counts.active"></div>
+    <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <i class="fas fa-user-check text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Actifs</div>
+        <div class="mt-1 text-2xl font-semibold text-emerald-600 tracking-tight" x-text="counts.active"></div>
+      </div>
     </div>
-    <div class="p-4 bg-white border rounded-2xl shadow-sm">
-      <div class="text-sm text-gray-500">Inactifs</div>
-      <div class="mt-1 text-2xl font-bold text-red-600" x-text="counts.inactive"></div>
+    <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+        <i class="fas fa-user-slash text-sm"></i>
+      </div>
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Inactifs</div>
+        <div class="mt-1 text-2xl font-semibold text-rose-600 tracking-tight" x-text="counts.inactive"></div>
+      </div>
     </div>
   </div>
 
   <!-- Filtres -->
-  <div class="bg-white p-4 border rounded-2xl shadow-sm">
-    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+  <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-5">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
       <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Search -->
         <div class="relative">
-          <input type="text" placeholder="Rechercher (nom, email, matricule)…"
-                 class="w-full pl-10 pr-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500"
-                 x-model="search" @input.debounce.400ms="page=1; fetchEmployees()">
-          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input
+            type="text"
+            placeholder="Rechercher (nom, email, matricule)…"
+            class="w-full pl-10 pr-3 py-2.5 rounded-full border border-gray-200 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300"
+            x-model="search"
+            @input.debounce.400ms="page=1; fetchEmployees()">
+          <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
         </div>
+
+        <!-- Département -->
         <div>
-          <select x-model="filters.department" @change="page=1; fetchEmployees()"
-                  class="w-full rounded-xl border px-3 py-2 focus:ring-2 focus:ring-blue-500">
+          <select
+            x-model="filters.department"
+            @change="page=1; fetchEmployees()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
             <option value="">Tous les départements</option>
             <template x-for="d in departments" :key="d.id">
               <option :value="d.id" x-text="d.name"></option>
             </template>
           </select>
         </div>
+
+        <!-- Contrat -->
         <div>
-          <select x-model="filters.contract_type" @change="page=1; fetchEmployees()"
-                  class="w-full rounded-xl border px-3 py-2 focus:ring-2 focus:ring-blue-500">
+          <select
+            x-model="filters.contract_type"
+            @change="page=1; fetchEmployees()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
             <option value="">Tous contrats</option>
             <option value="CDI">CDI</option>
             <option value="CDD">CDD</option>
@@ -64,9 +106,13 @@
             <option value="ALTERNANCE">Alternance</option>
           </select>
         </div>
+
+        <!-- Statut -->
         <div>
-          <select x-model="filters.is_active" @change="page=1; fetchEmployees()"
-                  class="w-full rounded-xl border px-3 py-2 focus:ring-2 focus:ring-blue-500">
+          <select
+            x-model="filters.is_active"
+            @change="page=1; fetchEmployees()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
             <option value="">Actif + Inactif</option>
             <option value="true">Actif</option>
             <option value="false">Inactif</option>
@@ -74,9 +120,12 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <select x-model="ordering" @change="page=1; fetchEmployees()"
-                class="rounded-xl border px-3 py-2 focus:ring-2 focus:ring-blue-500">
+      <!-- Tri & page size -->
+      <div class="flex items-center gap-2 justify-end">
+        <select
+          x-model="ordering"
+          @change="page=1; fetchEmployees()"
+          class="rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           <option value="last_name">Nom (A→Z)</option>
           <option value="-last_name">Nom (Z→A)</option>
           <option value="-hire_date">Embauche récents</option>
@@ -84,9 +133,13 @@
           <option value="-created_at">Créés récents</option>
           <option value="created_at">Créés anciens</option>
         </select>
-        <select x-model.number="pageSize" @change="page=1; fetchEmployees()"
-                class="rounded-xl border px-3 py-2">
-          <option>10</option><option>20</option><option>50</option>
+        <select
+          x-model.number="pageSize"
+          @change="page=1; fetchEmployees()"
+          class="rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+          <option>10</option>
+          <option>20</option>
+          <option>50</option>
         </select>
       </div>
     </div>
@@ -94,95 +147,122 @@
 
   <!-- Actions batch -->
   <div class="flex flex-wrap items-center gap-2" x-show="selectedIds.length">
-    <div class="text-sm text-gray-600">
-      <span class="font-semibold" x-text="selectedIds.length"></span> sélectionné(s)
+    <div class="text-xs text-slate-500 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-full">
+      <span class="font-semibold text-slate-900" x-text="selectedIds.length"></span>
+      <span class="ml-1">sélectionné(s)</span>
     </div>
-    <button @click="batch('activate')" class="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-sm">
-      <i class="fas fa-toggle-on mr-1"></i> Activer
+    <button
+      @click="batch('activate')"
+      class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-medium inline-flex items-center gap-1.5">
+      <i class="fas fa-toggle-on text-[11px]"></i> Activer
     </button>
-    <button @click="batch('deactivate')" class="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 text-sm">
-      <i class="fas fa-toggle-off mr-1"></i> Désactiver
+    <button
+      @click="batch('deactivate')"
+      class="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-medium inline-flex items-center gap-1.5">
+      <i class="fas fa-toggle-off text-[11px]"></i> Désactiver
     </button>
-    <button @click="openBatchDepartment()" class="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 text-sm">
-      <i class="fas fa-right-left mr-1"></i> Changer de département
+    <button
+      @click="openBatchDepartment()"
+      class="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-medium inline-flex items-center gap-1.5">
+      <i class="fas fa-right-left text-[11px]"></i> Changer de département
     </button>
-    <button @click="openTerminate()" class="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 text-sm">
-      <i class="fas fa-user-slash mr-1"></i> Terminer
+    <button
+      @click="openTerminate()"
+      class="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-medium inline-flex items-center gap-1.5">
+      <i class="fas fa-user-slash text-[11px]"></i> Terminer
     </button>
   </div>
 
   <!-- Tableau -->
-  <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+  <div class="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="min-w-full">
-        <thead class="bg-gray-50">
+      <table class="min-w-full text-sm text-slate-700">
+        <thead class="bg-gray-50 text-xs font-semibold text-slate-400 uppercase">
           <tr>
             <th class="px-4 py-3">
-              <input type="checkbox" @change="toggleAll($event)" :checked="allChecked" class="rounded">
+              <input type="checkbox" @change="toggleAll($event)" :checked="allChecked" class="rounded border-slate-300">
             </th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employé</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Département</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Poste</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contrat</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Embauche</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Statut</th>
-            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+            <th class="px-6 py-3 text-left">Employé</th>
+            <th class="px-6 py-3 text-left">Département</th>
+            <th class="px-6 py-3 text-left">Poste</th>
+            <th class="px-6 py-3 text-left">Contrat</th>
+            <th class="px-6 py-3 text-left">Embauche</th>
+            <th class="px-6 py-3 text-left">Statut</th>
+            <th class="px-6 py-3 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white divide-y divide-gray-100">
           <!-- skeleton -->
           <template x-if="loading">
             <template x-for="i in 6" :key="i">
               <tr>
-                <td class="px-4 py-4"><div class="h-4 w-4 skeleton rounded"></div></td>
-                <td class="px-6 py-4"><div class="h-4 w-40 skeleton rounded"></div><div class="h-3 w-32 mt-2 skeleton rounded"></div></td>
+                <td class="px-4 py-4"><div class="h-4 w-4 skeleton rounded-full"></div></td>
+                <td class="px-6 py-4">
+                  <div class="h-4 w-40 skeleton rounded"></div>
+                  <div class="h-3 w-32 mt-2 skeleton rounded"></div>
+                </td>
                 <td class="px-6 py-4"><div class="h-4 w-28 skeleton rounded"></div></td>
                 <td class="px-6 py-4"><div class="h-4 w-28 skeleton rounded"></div></td>
                 <td class="px-6 py-4"><div class="h-4 w-16 skeleton rounded"></div></td>
                 <td class="px-6 py-4"><div class="h-4 w-20 skeleton rounded"></div></td>
                 <td class="px-6 py-4"><div class="h-6 w-16 skeleton rounded-full"></div></td>
-                <td class="px-6 py-4"><div class="h-8 w-24 ml-auto skeleton rounded"></div></td>
+                <td class="px-6 py-4"><div class="h-8 w-24 ml-auto skeleton rounded-full"></div></td>
               </tr>
             </template>
           </template>
 
           <!-- rows -->
           <template x-for="emp in employees" :key="emp.id">
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-gray-50/70 transition-colors">
               <td class="px-4 py-4">
-                <input type="checkbox" :value="emp.id" @change="toggleOne(emp.id, $event)"
-                       :checked="selectedIds.includes(emp.id)" class="rounded">
+                <input
+                  type="checkbox"
+                  :value="emp.id"
+                  @change="toggleOne(emp.id, $event)"
+                  :checked="selectedIds.includes(emp.id)"
+                  class="rounded border-slate-300">
               </td>
               <td class="px-6 py-4">
-                <div class="flex items-center">
-                  <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">
-                    <i class="fas fa-user text-gray-500 text-sm"></i>
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full bg-slate-900/90 text-white flex items-center justify-center text-xs font-semibold uppercase">
+                    <span x-text="(emp.first_name?.[0] || '') + (emp.last_name?.[0] || '')"></span>
                   </div>
-                  <div class="ml-3">
-                    <div class="text-sm font-semibold text-gray-900" x-text="`${emp.first_name} ${emp.last_name}`"></div>
-                    <div class="text-xs text-gray-500" x-text="emp.email"></div>
-                    <div class="text-xs text-gray-400" x-text="emp.matricule"></div>
+                  <div class="min-w-0">
+                    <div class="text-sm font-semibold text-slate-900 truncate"
+                         x-text="`${emp.first_name} ${emp.last_name}`"></div>
+                    <div class="text-xs text-slate-500 truncate" x-text="emp.email"></div>
+                    <div class="text-[11px] text-slate-400" x-text="emp.matricule"></div>
                   </div>
                 </div>
               </td>
-              <td class="px-6 py-4 text-sm text-gray-900" x-text="emp.department_name || emp.department?.name || '—'"></td>
-              <td class="px-6 py-4 text-sm text-gray-900" x-text="emp.position_title || emp.position?.title || '—'"></td>
-              <td class="px-6 py-4 text-sm text-gray-900" x-text="emp.contract_type || '—'"></td>
-              <td class="px-6 py-4 text-sm text-gray-600" x-text="formatDate(emp.hire_date) || '—'"></td>
+              <td class="px-6 py-4 text-sm text-slate-700"
+                  x-text="emp.department_name || emp.department?.name || '—'"></td>
+              <td class="px-6 py-4 text-sm text-slate-700"
+                  x-text="emp.position_title || emp.position?.title || '—'"></td>
+              <td class="px-6 py-4 text-sm text-slate-700" x-text="emp.contract_type || '—'"></td>
+              <td class="px-6 py-4 text-sm text-slate-500" x-text="formatDate(emp.hire_date) || '—'"></td>
               <td class="px-6 py-4">
-                <button @click="toggleActive(emp)" class="px-2 py-1 rounded-full text-xs font-semibold"
-                        :class="emp.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
-                  <i :class="emp.is_active ? 'fas fa-toggle-on mr-1' : 'fas fa-toggle-off mr-1'"></i>
+                <button
+                  @click="toggleActive(emp)"
+                  class="px-2.5 py-1 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5"
+                  :class="emp.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'">
+                  <i :class="emp.is_active ? 'fas fa-toggle-on text-[12px]' : 'fas fa-toggle-off text-[12px]'"></i>
                   <span x-text="emp.is_active ? 'Actif' : 'Inactif'"></span>
                 </button>
               </td>
               <td class="px-6 py-4">
                 <div class="flex justify-end gap-2">
-                  <button @click="openEdit(emp)" class="px-3 py-1.5 text-sm rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200">
-                    <i class="fas fa-edit mr-1"></i>Éditer
+                  <button
+                    @click="openEdit(emp)"
+                    class="px-3 py-1.5 text-xs rounded-full bg-slate-900 text-white hover:bg-slate-800 inline-flex items-center gap-1.5">
+                    <i class="fas fa-edit text-[11px]"></i>
+                    <span>Éditer</span>
                   </button>
-                  <button @click="confirmDelete(emp)" class="px-3 py-1.5 text-sm rounded-lg bg-white border text-red-600 hover:bg-red-50">
-                    <i class="fas fa-trash mr-1"></i>Supprimer
+                  <button
+                    @click="confirmDelete(emp)"
+                    class="px-3 py-1.5 text-xs rounded-full bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 inline-flex items-center gap-1.5">
+                    <i class="fas fa-trash text-[11px]"></i>
+                    <span>Supprimer</span>
                   </button>
                 </div>
               </td>
@@ -192,12 +272,17 @@
           <!-- empty -->
           <tr x-show="!loading && employees.length===0">
             <td colspan="8" class="py-16 text-center">
-              <i class="fas fa-users text-gray-300 text-5xl mb-3"></i>
-              <div class="text-lg font-medium text-gray-900">Aucun employé</div>
-              <div class="text-gray-500 mb-4">Ajoutez votre premier collaborateur.</div>
-              <button @click="openCreate()" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700">
-                <i class="fas fa-plus mr-2"></i>Ajouter un employé
-              </button>
+              <div class="inline-flex flex-col items-center justify-center px-6 py-5 rounded-3xl border border-dashed border-gray-300 bg-gray-50/60">
+                <i class="fas fa-users text-gray-300 text-4xl mb-2"></i>
+                <div class="text-sm font-medium text-slate-900">Aucun employé</div>
+                <div class="text-xs text-slate-500 mb-3">Ajoutez votre premier collaborateur pour commencer.</div>
+                <button
+                  @click="openCreate()"
+                  class="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-slate-800">
+                  <i class="fas fa-plus text-[11px]"></i>
+                  <span>Ajouter un employé</span>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -205,68 +290,98 @@
     </div>
 
     <!-- Pagination -->
-    <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
-      <div class="text-sm text-gray-600" x-text="paginationText()"></div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 bg-gray-50/80">
+      <div class="text-xs text-slate-500" x-text="paginationText()"></div>
       <div class="flex gap-2">
-        <button @click="prevPage()" :disabled="page<=1"
-                class="px-3 py-1.5 rounded-lg border text-gray-700 hover:bg-gray-100 disabled:opacity-40">
-          <i class="fas fa-chevron-left mr-1"></i> Précédent
+        <button
+          @click="prevPage()"
+          :disabled="page<=1"
+          class="px-3 py-1.5 rounded-full border border-gray-200 text-xs font-medium text-slate-700 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5">
+          <i class="fas fa-chevron-left text-[10px]"></i>
+          <span>Précédent</span>
         </button>
-        <button @click="nextPage()" :disabled="page>=maxPage"
-                class="px-3 py-1.5 rounded-lg border text-gray-700 hover:bg-gray-100 disabled:opacity-40">
-          Suivant <i class="fas fa-chevron-right ml-1"></i>
+        <button
+          @click="nextPage()"
+          :disabled="page>=maxPage"
+          class="px-3 py-1.5 rounded-full border border-gray-200 text-xs font-medium text-slate-700 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5">
+          <span>Suivant</span>
+          <i class="fas fa-chevron-right text-[10px]"></i>
         </button>
       </div>
     </div>
   </div>
 
   <!-- Modal Création / Édition -->
-  <div x-show="showForm" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-3xl rounded-2xl shadow-xl overflow-hidden">
-      <div class="flex items-center justify-between px-6 py-4 border-b">
-        <h4 class="text-lg font-semibold" x-text="editId ? 'Modifier l’employé' : 'Nouvel employé'"></h4>
-        <button @click="closeForm()" class="p-2 hover:bg-gray-100 rounded-xl"><i class="fas fa-times"></i></button>
+  <div x-show="showForm" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div>
+          <h4 class="text-base font-semibold text-slate-900" x-text="editId ? 'Modifier l’employé' : 'Nouvel employé'"></h4>
+          <p class="text-xs text-slate-500 mt-0.5">Complétez les informations principales de l’employé.</p>
+        </div>
+        <button @click="closeForm()" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
       </div>
 
       <form @submit.prevent="submitForm()" class="p-6 space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Matricule</label>
-            <input type="text" x-model.trim="form.matricule" required
-                   class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Matricule</label>
+            <input
+              type="text"
+              x-model.trim="form.matricule"
+              required
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Email</label>
-            <input type="email" x-model.trim="form.email" required
-                   class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Email</label>
+            <input
+              type="email"
+              x-model.trim="form.email"
+              required
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Prénom</label>
-            <input type="text" x-model.trim="form.first_name" required
-                   class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Prénom</label>
+            <input
+              type="text"
+              x-model.trim="form.first_name"
+              required
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Nom</label>
-            <input type="text" x-model.trim="form.last_name" required
-                   class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Nom</label>
+            <input
+              type="text"
+              x-model.trim="form.last_name"
+              required
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Date d’embauche</label>
-            <input type="date" x-model="form.hire_date" required
-                   class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Date d’embauche</label>
+            <input
+              type="date"
+              x-model="form.hire_date"
+              required
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Type de contrat</label>
-            <select x-model="form.contract_type"
-                    class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
-              <option value="CDI">CDI</option><option value="CDD">CDD</option>
-              <option value="STAGE">Stage</option><option value="ALTERNANCE">Alternance</option>
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Type de contrat</label>
+            <select
+              x-model="form.contract_type"
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+              <option value="CDI">CDI</option>
+              <option value="CDD">CDD</option>
+              <option value="STAGE">Stage</option>
+              <option value="ALTERNANCE">Alternance</option>
             </select>
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Département</label>
-            <select x-model="form.department"
-                    class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Département</label>
+            <select
+              x-model="form.department"
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
               <option value="">—</option>
               <template x-for="d in departments" :key="d.id">
                 <option :value="d.id" x-text="d.name"></option>
@@ -274,25 +389,34 @@
             </select>
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Poste</label>
-            <select x-model="form.position"
-                    class="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Poste</label>
+            <select
+              x-model="form.position"
+              class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
               <option value="">—</option>
               <template x-for="p in positions" :key="p.id">
                 <option :value="p.id" x-text="p.title"></option>
               </template>
             </select>
           </div>
-          <div class="flex items-center gap-2 pt-1">
-            <input type="checkbox" x-model="form.is_active" class="rounded">
-            <label class="text-sm text-gray-700">Actif</label>
+          <div class="flex items-center gap-2 pt-2">
+            <input type="checkbox" x-model="form.is_active" class="rounded border-slate-300">
+            <label class="text-xs text-slate-600">Actif</label>
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t">
-          <button type="button" @click="closeForm()" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Annuler</button>
-          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700" :disabled="submitting">
-            <i class="fas fa-circle-notch fa-spin mr-2" x-show="submitting"></i>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+          <button
+            type="button"
+            @click="closeForm()"
+            class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+            Annuler
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 inline-flex items-center gap-2"
+            :disabled="submitting">
+            <i class="fas fa-circle-notch fa-spin text-[11px]" x-show="submitting"></i>
             <span x-text="editId ? 'Enregistrer' : 'Créer'"></span>
           </button>
         </div>
@@ -301,25 +425,37 @@
   </div>
 
   <!-- Modal Import -->
-  <div x-show="showImport" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden">
-      <div class="flex items-center justify-between px-6 py-4 border-b">
-        <h4 class="text-lg font-semibold">Importer des employés</h4>
-        <button @click="showImport=false" class="p-2 hover:bg-gray-100 rounded-xl"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="p-6 space-y-4">
+  <div x-show="showImport" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Fichier (.csv ou .xlsx)</label>
-          <input type="file" accept=".csv,.xlsx" @change="handleFile" class="w-full">
+          <h4 class="text-base font-semibold text-slate-900">Importer des employés</h4>
+          <p class="text-xs text-slate-500 mt-0.5">Importez un fichier Excel ou CSV conforme à votre modèle.</p>
+        </div>
+        <button @click="showImport=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4 text-sm">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Fichier (.csv ou .xlsx)</label>
+          <input type="file" accept=".csv,.xlsx" @change="handleFile" class="w-full text-xs">
         </div>
         <div class="flex items-center gap-2">
-          <input type="checkbox" x-model="importUpdateExisting" class="rounded">
-          <label class="text-sm text-gray-700">Mettre à jour les enregistrements existants</label>
+          <input type="checkbox" x-model="importUpdateExisting" class="rounded border-slate-300">
+          <label class="text-xs text-slate-600">Mettre à jour les enregistrements existants</label>
         </div>
       </div>
-      <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
-        <button @click="showImport=false" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Annuler</button>
-        <button @click="doImport()" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700" :disabled="!importFile">
+      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+        <button
+          @click="showImport=false"
+          class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button
+          @click="doImport()"
+          class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+          :disabled="!importFile">
           Importer
         </button>
       </div>
@@ -327,27 +463,32 @@
   </div>
 
   <!-- Modal Export -->
-  <div x-show="showExport" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
-      <div class="flex items-center justify-between px-6 py-4 border-b">
-        <h4 class="text-lg font-semibold">Exporter les employés</h4>
-        <button @click="showExport=false" class="p-2 hover:bg-gray-100 rounded-xl"><i class="fas fa-times"></i></button>
+  <div x-show="showExport" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div>
+          <h4 class="text-base font-semibold text-slate-900">Exporter les employés</h4>
+          <p class="text-xs text-slate-500 mt-0.5">Filtrez les données puis générez un fichier à partager.</p>
+        </div>
+        <button @click="showExport=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
       </div>
-      <div class="p-6 space-y-6">
+      <div class="p-6 space-y-6 text-sm">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="md:col-span-1">
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Format</label>
-            <select x-model="exportFormat" class="w-full border rounded-xl px-3 py-2">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Format</label>
+            <select x-model="exportFormat" class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs">
               <option value="xlsx">Excel (.xlsx)</option>
               <option value="csv">CSV (.csv)</option>
             </select>
           </div>
           <div class="md:col-span-2">
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Champs</label>
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Champs</label>
             <div class="grid grid-cols-2 gap-2">
               <template x-for="f in exportFieldsAll" :key="f.value">
-                <label class="text-sm flex items-center gap-2">
-                  <input type="checkbox" :value="f.value" x-model="exportFields" class="rounded">
+                <label class="text-xs flex items-center gap-2">
+                  <input type="checkbox" :value="f.value" x-model="exportFields" class="rounded border-slate-300">
                   <span x-text="f.label"></span>
                 </label>
               </template>
@@ -357,8 +498,8 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Département</label>
-            <select x-model="exportFilters.department" class="w-full border rounded-xl px-3 py-2">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Département</label>
+            <select x-model="exportFilters.department" class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs">
               <option value="">Tous</option>
               <template x-for="d in departments" :key="d.id">
                 <option :value="d.id" x-text="d.name"></option>
@@ -366,16 +507,18 @@
             </select>
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Contrat</label>
-            <select x-model="exportFilters.contract_type" class="w-full border rounded-xl px-3 py-2">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Contrat</label>
+            <select x-model="exportFilters.contract_type" class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs">
               <option value="">Tous</option>
-              <option value="CDI">CDI</option><option value="CDD">CDD</option>
-              <option value="STAGE">Stage</option><option value="ALTERNANCE">Alternance</option>
+              <option value="CDI">CDI</option>
+              <option value="CDD">CDD</option>
+              <option value="STAGE">Stage</option>
+              <option value="ALTERNANCE">Alternance</option>
             </select>
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 mb-1 block">Statut</label>
-            <select x-model="exportFilters.is_active" class="w-full border rounded-xl px-3 py-2">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Statut</label>
+            <select x-model="exportFilters.is_active" class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs">
               <option value="">Actif + Inactif</option>
               <option value="true">Actif</option>
               <option value="false">Inactif</option>
@@ -383,10 +526,16 @@
           </div>
         </div>
       </div>
-      <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
-        <button @click="showExport=false" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Annuler</button>
-        <button @click="doExport()" class="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700"
-                :disabled="!exportFields.length">
+      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+        <button
+          @click="showExport=false"
+          class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button
+          @click="doExport()"
+          class="px-4 py-2 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
+          :disabled="!exportFields.length">
           Exporter
         </button>
       </div>
@@ -394,57 +543,101 @@
   </div>
 
   <!-- Confirm Delete -->
-  <div x-show="confirming" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-      <div class="px-6 py-4 border-b">
-        <h4 class="text-lg font-semibold text-gray-800">Supprimer l’employé</h4>
+  <div x-show="confirming" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h4 class="text-base font-semibold text-slate-900">Supprimer l’employé</h4>
+        <button @click="confirming=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
       </div>
-      <div class="p-6">
-        <p class="text-gray-700">Supprimer <span class="font-semibold" x-text="toDelete?.first_name + ' ' + toDelete?.last_name"></span> ?</p>
+      <div class="p-6 text-sm text-slate-700">
+        <p>Supprimer définitivement
+          <span class="font-semibold" x-text="toDelete?.first_name + ' ' + toDelete?.last_name"></span> ?
+        </p>
+        <p class="text-xs text-slate-500 mt-2">Cette action est irréversible.</p>
       </div>
-      <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
-        <button @click="confirming=false" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Annuler</button>
-        <button @click="doDelete()" class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">Supprimer</button>
+      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+        <button
+          @click="confirming=false"
+          class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button
+          @click="doDelete()"
+          class="px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700">
+          Supprimer
+        </button>
       </div>
     </div>
   </div>
 
   <!-- Modals batch -->
-  <div x-show="showBatchDept" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-      <div class="px-6 py-4 border-b"><h4 class="text-lg font-semibold">Changer de département</h4></div>
-      <div class="p-6 space-y-4">
-        <select x-model="batchDepartmentId" class="w-full border rounded-xl px-3 py-2">
+  <div x-show="showBatchDept" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h4 class="text-base font-semibold text-slate-900">Changer de département</h4>
+        <button @click="showBatchDept=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4 text-sm">
+        <select x-model="batchDepartmentId" class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs">
           <option value="">Sélectionner…</option>
           <template x-for="d in departments" :key="d.id">
             <option :value="d.id" x-text="d.name"></option>
           </template>
         </select>
       </div>
-      <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
-        <button @click="showBatchDept=false" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Annuler</button>
-        <button @click="batch('change_department')" :disabled="!batchDepartmentId"
-                class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">Appliquer</button>
+      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+        <button
+          @click="showBatchDept=false"
+          class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button
+          @click="batch('change_department')"
+          :disabled="!batchDepartmentId"
+          class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800">
+          Appliquer
+        </button>
       </div>
     </div>
   </div>
 
-  <div x-show="showTerminate" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-      <div class="px-6 py-4 border-b"><h4 class="text-lg font-semibold">Terminer les contrats</h4></div>
-      <div class="p-6 space-y-4">
-        <input type="text" x-model="terminateReason" placeholder="Motif (optionnel)"
-               class="w-full border rounded-xl px-3 py-2">
+  <div x-show="showTerminate" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h4 class="text-base font-semibold text-slate-900">Terminer les contrats</h4>
+        <button @click="showTerminate=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+          <i class="fas fa-times text-sm"></i>
+        </button>
       </div>
-      <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
-        <button @click="showTerminate=false" class="px-4 py-2 rounded-xl border hover:bg-gray-50">Annuler</button>
-        <button @click="batch('terminate')" class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">Terminer</button>
+      <div class="p-6 space-y-4 text-sm">
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Motif (optionnel)</label>
+        <input
+          type="text"
+          x-model="terminateReason"
+          class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+        <button
+          @click="showTerminate=false"
+          class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button
+          @click="batch('terminate')"
+          class="px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700">
+          Terminer
+        </button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
+/* JS d’origine conservé (juste ré-indenter) */
 function employeeView() {
   return {
     // state
@@ -531,7 +724,6 @@ function employeeView() {
         for (const e of (data.results||data)) e.is_active ? active++ : inactive++;
         this.counts = { total: data.count ?? this.total, active, inactive };
 
-        // reset sélection si nécessaire
         this.selectedIds = this.selectedIds.filter(id => this.employees.find(e=>e.id===id));
       } catch(e){
         console.error(e);
@@ -561,7 +753,11 @@ function employeeView() {
     // CRUD simple
     openCreate(){
       this.editId=null;
-      this.form = { matricule:'', email:'', first_name:'', last_name:'', hire_date:new Date().toISOString().slice(0,10), contract_type:'CDI', department:'', position:'', is_active:true };
+      this.form = {
+        matricule:'', email:'', first_name:'', last_name:'',
+        hire_date:new Date().toISOString().slice(0,10),
+        contract_type:'CDI', department:'', position:'', is_active:true
+      };
       this.showForm=true;
     },
     openEdit(emp){
@@ -645,7 +841,6 @@ function employeeView() {
         const form = new FormData();
         form.append('file', this.importFile);
         form.append('update_existing', String(this.importUpdateExisting));
-        // NB: import_employees attend MultiPartParser côté DRF
         await this.apiCall('/employees/import_employees/', { method:'POST', body: form });
         this.toast('Import terminé','success');
         this.showImport=false;
@@ -680,7 +875,12 @@ function employeeView() {
 
     // utils
     formatDate(d){ if(!d) return ''; return new Date(d).toLocaleDateString('fr-FR'); },
-    toast(msg,type='info'){ if(window.dispatchEvent){ window.dispatchEvent(new CustomEvent('toast',{detail:{msg,type}})); } console.log(`[${type}]`,msg); },
+    toast(msg,type='info'){
+      if(window.dispatchEvent){
+        window.dispatchEvent(new CustomEvent('toast',{detail:{msg,type}}));
+      }
+      console.log(`[${type}]`,msg);
+    },
 
     // init
     async init(){ await this.fetchRefs(); await this.fetchEmployees(); }
@@ -689,6 +889,13 @@ function employeeView() {
 </script>
 
 <style>
-.skeleton { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-@keyframes loading { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton {
+  background: linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: loading 1.3s infinite;
+}
+@keyframes loading {
+  0% {background-position:200% 0}
+  100% {background-position:-200% 0}
+}
 </style>
