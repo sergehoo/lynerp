@@ -68,6 +68,24 @@ class EmployeeSerializer(serializers.ModelSerializer):
     seniority = serializers.ReadOnlyField()
     is_on_leave = serializers.ReadOnlyField()
 
+    def validate_email(self, value):
+        existing_user = User.objects.filter(email=value).first()
+        if not existing_user:
+            return value
+
+        from hr.models import Employee
+
+        # Si on est en édition, on autorise l’email déjà utilisé par CET employé
+        if self.instance and self.instance.user_account == existing_user:
+            return value
+
+        if Employee.objects.filter(user_account=existing_user).exists():
+            raise serializers.ValidationError(
+                "Un employé est déjà lié à cet utilisateur."
+            )
+
+        return value
+
     class Meta:
         model = Employee
         fields = [

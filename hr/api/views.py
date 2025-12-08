@@ -600,12 +600,34 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     # ─────────── Utilitaires internes ───────────
 
     def _get_tenant_from_user(self):
+        """
+        1. Si un middleware a déjà posé request.tenant → on le prend.
+        2. Sinon, on essaie via le header X-Tenant-Id.
+        3. En dernier recours, via user.employee.tenant.
+        """
+        # 1) Middleware / BaseTenantViewSet
+        req_tenant = getattr(self.request, "tenant", None)
+        if req_tenant is not None:
+            return req_tenant
+
+        # 2) Header X-Tenant-Id (ton front l’envoie déjà)
+        tenant_id = (
+            self.request.headers.get("X-Tenant-Id")
+            or self.request.META.get("HTTP_X_TENANT_ID")
+        )
+        if tenant_id:
+            try:
+                return Tenant.objects.get(pk=tenant_id)
+            except Tenant.DoesNotExist:
+                pass
+
+        # 3) Fallback depuis le user connecté
         user = self.request.user
         if not user or user.is_anonymous:
             return None
 
-        emp = getattr(user, "employee", None)
-        return getattr(emp, "tenant", None)
+        emp = getattr(user, "employee", None)  # OneToOneField related_name='employee'
+        return getattr(emp, "tenant", None) if emp else None
 
     def _get_or_create_user_for_employee(self, validated_data):
         """
@@ -659,6 +681,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
             extra_kwargs["user_account"] = user
 
         serializer.save(**extra_kwargs)
+
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
