@@ -103,20 +103,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "hr.auth.KeycloakJWTAuthentication",
-    ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
-    ],
-}
-AUTHENTICATION_BACKENDS = [
-    "hr.oidc_backend.KeycloakOIDCBackend",
-    "django.contrib.auth.backends.ModelBackend",
-]
 
 SPECTACULAR_SETTINGS = {"TITLE": "LYNE-ERP RH API", "VERSION": "1.0.0"}
 

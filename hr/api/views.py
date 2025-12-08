@@ -742,7 +742,7 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'reference']
-    ordering_fields = ['created_at', 'publication_date']
+    ordering_fields = ['created_at', 'publication_date', 'title']
 
     # def get_queryset(self):
     #     queryset = super().get_queryset()
