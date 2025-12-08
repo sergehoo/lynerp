@@ -895,7 +895,7 @@
                     this.showForm = false;
                     this.fetchEmployees();
                 } catch (e) {
-                    // récupère le message d’erreur éventuel
+                    console.error('Erreur submit employé:', e);
                     const msg = e && e.message ? e.message : 'Enregistrement impossible';
                     this.toast(msg, 'error');
                 } finally {

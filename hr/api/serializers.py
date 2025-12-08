@@ -95,66 +95,6 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "termination_reason": {"required": False},
             "extra":              {"required": False, "allow_null": True},
         }
-
-    def _resolve_tenant(self, request):
-        """
-        Essaie plusieurs sources :
-        - request.tenant (si ton BaseTenantViewSet / middleware la pose)
-        - request.user.tenant (si tu as ce FK)
-        - request.user.tenants.first() (si relation M2M)
-        """
-        tenant = getattr(request, "tenant", None)
-
-        if tenant is None and hasattr(request.user, "tenant"):
-            tenant = request.user.tenant
-
-        if tenant is None and hasattr(request.user, "tenants"):
-            tenant = request.user.tenants.first()
-
-        if tenant is None:
-            raise serializers.ValidationError(
-                "Impossible de déterminer le tenant pour cette requête."
-            )
-        return tenant
-
-    def _get_or_create_user(self, email, first_name, last_name):
-        """
-        Crée (ou récupère) un utilisateur pour le lier à user_account.
-        À adapter si tu as déjà une politique de création d’utilisateurs.
-        """
-        if not email:
-            return None
-
-        # ⚠️ si tu veux un user par tenant, adapte ici (username unique par tenant, etc.)
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "username": email,          # ou un slug sur le matricule, etc.
-                "first_name": first_name or "",
-                "last_name": last_name or "",
-                "is_active": True,
-            },
-        )
-        return user
-
-    def create(self, validated_data):
-        request = self.context.get("request")
-        if request is None:
-            raise serializers.ValidationError("Contexte requête manquant dans le serializer.")
-
-        # 1) Résoudre le tenant
-        tenant = self._resolve_tenant(request)
-        validated_data["tenant"] = tenant
-
-        # 2) Créer / récupérer l'utilisateur lié
-        email = validated_data.get("email")
-        first_name = validated_data.get("first_name")
-        last_name = validated_data.get("last_name")
-        user = self._get_or_create_user(email, first_name, last_name)
-        validated_data["user_account"] = user
-
-        # 3) Création standard
-        return super().create(validated_data)
 class LeaveTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeaveType

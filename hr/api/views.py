@@ -5,6 +5,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -588,15 +589,71 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
-    # authentication_classes = [JWTAuthentication]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
+    def _resolve_tenant(self):
+        """
+        Essaie plusieurs sources pour retrouver le tenant :
+        - request.tenant (si déjà posé)
+        - header X-Tenant-Id (id ou slug)
+        """
+        request = self.request
+        tenant = getattr(request, "tenant", None)
+
+        if tenant:
+            return tenant
+
+        header_val = (
+                request.headers.get("X-Tenant-Id")
+                or request.META.get("HTTP_X_TENANT_ID")
+        )
+        if not header_val:
+            raise ValidationError({"tenant": "Tenant non fourni (X-Tenant-Id manquant)."})
+
+        # selon ton modèle : pk ou slug
+        try:
+            tenant = Tenant.objects.get(pk=header_val)
+        except (Tenant.DoesNotExist, ValueError):
+            try:
+                tenant = Tenant.objects.get(slug=header_val)
+            except Tenant.DoesNotExist:
+                raise ValidationError({"tenant": "Tenant invalide pour ce header."})
+
+        return tenant
+
+    def _get_or_create_user_for_employee(self, data):
+        """
+        Créer ou récupérer un User pour le lier à user_account.
+        """
+        email = data.get("email")
+        first_name = data.get("first_name") or ""
+        last_name = data.get("last_name") or ""
+
+        if not email:
+            return None  # tu peux décider de rendre ça obligatoire si tu veux
+
+        user, _created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "username": email,  # ou base sur le matricule
+                "first_name": first_name,
+                "last_name": last_name,
+                "is_active": True,
+            },
+        )
+        return user
+
+    def perform_create(self, serializer):
+        tenant = self._resolve_tenant()
+        user = self._get_or_create_user_for_employee(serializer.validated_data)
+
+        serializer.save(
+            tenant=tenant,
+            user_account=user,
+        )
+
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
@@ -746,6 +803,7 @@ class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     #
     #     return queryset
     #
+
 
 # -----------------------------
 # Candidatures (fusion des deux définitions)
