@@ -597,56 +597,69 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
-    def _get_tenant_id_from_request(self):
+    # ─────────── Utilitaires internes ───────────
+
+    def _get_tenant_from_user(self):
         """
-        Récupère l'id du tenant depuis le header X-Tenant-Id.
-        On évite volontairement de faire un .get() sur Tenant pour
-        ne pas provoquer de 500 en cas d'id invalide.
+        Récupère le tenant depuis l'utilisateur connecté.
+        Suppose que request.user.tenant (ou tenant_id) existe.
         """
-        request = self.request
-        return (
-                request.headers.get("X-Tenant-Id")
-                or request.META.get("HTTP_X_TENANT_ID")
-        )
+        user = self.request.user
+        # adapte ici à ton modèle User si besoin
+        return getattr(user, "tenant", None)
 
     def _get_or_create_user_for_employee(self, validated_data):
+        """
+        Crée ou récupère un user à partir de l'email de l'employé.
+        Compatible avec un custom User sans champ `username`.
+        """
         email = validated_data.get("email")
         first_name = validated_data.get("first_name") or ""
         last_name = validated_data.get("last_name") or ""
 
         if not email:
-            return None  # si tu veux rendre ça obligatoire, on peut ajouter une ValidationError
+            return None
 
-        user, _created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "username": email,  # éventuellement matricule si tu préfères
-                "first_name": first_name,
-                "last_name": last_name,
-                "is_active": True,
-            },
-        )
+        # champs par défaut (ne pas mettre username si modèle n'en a pas)
+        defaults = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "is_active": True,
+        }
+
+        # On ajoute username uniquement si le modèle User a ce champ
+        if any(f.name == "username" for f in User._meta.get_fields()):
+            defaults["username"] = email
+
+        try:
+            user, _created = User.objects.get_or_create(
+                email=email,
+                defaults=defaults,
+            )
+        except User.MultipleObjectsReturned:
+            # Au cas où plusieurs users partagent le même email
+            user = User.objects.filter(email=email).order_by("id").first()
+
         return user
+
+    # ─────────── Hooks DRF ───────────
 
     def perform_create(self, serializer):
         """
         Fixe automatiquement :
-        - tenant (via header X-Tenant-Id → tenant_id)
-        - user_account (création auto User si email présent)
+        - tenant = tenant de l'utilisateur connecté
+        - user_account = User créé / récupéré via email
         """
-        tenant_id = self._get_tenant_id_from_request()
-        extra_kwargs = {}
-
-        if tenant_id:
-            # modèle Employee: tenant = ForeignKey(Tenant, db_column='tenant_id', ...)
-            extra_kwargs["tenant_id"] = tenant_id
-
+        tenant = self._get_tenant_from_user()
         user = self._get_or_create_user_for_employee(serializer.validated_data)
+
+        extra_kwargs = {}
+        if tenant is not None:
+            extra_kwargs["tenant"] = tenant
         if user is not None:
             extra_kwargs["user_account"] = user
 
         serializer.save(**extra_kwargs)
-
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
