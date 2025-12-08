@@ -4,12 +4,13 @@ from django.contrib import admin
 # Lyneerp/hr/admin.py
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.db import models
 from django.utils.html import format_html
 from django.db.models import Count
 from django.urls import reverse
 from django.utils import timezone
 
-from tenants.models import License, SeatAssignment
+from tenants.models import License, SeatAssignment, Tenant
 from .models import (
     Department, Position, Employee, EmploymentContract, SalaryHistory, HRDocument,
     LeaveType, HolidayCalendar, Holiday, WorkScheduleTemplate, LeaveRequest,
@@ -537,8 +538,12 @@ class RecruitmentAdmin(admin.ModelAdmin):
     list_filter = [TenantFilter, 'status', 'contract_type', 'publication_date']
     search_fields = ['title', 'reference', 'department__name', 'position__title']
     list_select_related = ['department', 'position', 'hiring_manager']
-    readonly_fields = ['applications_count', 'applications_pending_review', 'is_active', 'created_at', 'updated_at']
+    readonly_fields = [
+        'applications_count', 'applications_pending_review',
+        'is_active', 'created_at', 'updated_at'
+    ]
     filter_horizontal = ['recruiters']
+
     fieldsets = [
         ('Informations générales', {
             'fields': ['title', 'reference', 'department', 'position']
@@ -569,16 +574,58 @@ class RecruitmentAdmin(admin.ModelAdmin):
     ]
     inlines = [JobApplicationInline]
 
+    # --- Optimisation nb candidatures depuis l'annotation ---
     def applications_count(self, obj):
-        return obj.applications_count
-
+        # utilise l'annotation si dispo, sinon fallback sur la propriété
+        return getattr(obj, "_applications_count", obj.applications.count())
     applications_count.short_description = "Nb candidatures"
 
+    # idem si tu veux afficher dans le readonly_field
+    def applications_pending_review(self, obj):
+        return getattr(obj, "_applications_pending_review",
+                       obj.applications.filter(status='APPLIED').count())
+    applications_pending_review.short_description = "En attente de revue"
+
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            _applications_count=Count('applications')
+        qs = super().get_queryset(request).annotate(
+            _applications_count=Count('applications'),
+            _applications_pending_review=Count(
+                'applications',
+                filter=models.Q(applications__status='APPLIED')
+            )
         ).select_related('department', 'position', 'hiring_manager')
 
+        # si tu veux restreindre par tenant dans l'admin :
+        tenant = getattr(request, "tenant", None)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        return qs
+
+    # --- Auto-set tenant & hiring_manager à la sauvegarde ---
+    def save_model(self, request, obj, form, change):
+        # 1) Tenant : si pas déjà renseigné, on le prend depuis request.tenant
+        if not obj.tenant_id:
+            tenant = getattr(request, "tenant", None)
+
+            # si tu utilises un header X-Tenant-Id dans l'admin, tu peux aussi le récupérer ici
+            if not tenant:
+                tenant_id = request.headers.get("X-Tenant-Id")
+                if tenant_id:
+                    try:
+                        tenant = Tenant.objects.get(pk=tenant_id)
+                    except Tenant.DoesNotExist:
+                        pass
+
+            if tenant:
+                obj.tenant = tenant
+
+        # 2) Hiring manager par défaut = employee lié au user courant
+        if not obj.hiring_manager_id:
+            employee = getattr(request.user, "employee", None)
+            if employee and (not obj.tenant_id or employee.tenant_id == obj.tenant_id):
+                obj.hiring_manager = employee
+
+        super().save_model(request, obj, form, change)
 
 @admin.register(JobApplication)
 class JobApplicationAdmin(admin.ModelAdmin):
