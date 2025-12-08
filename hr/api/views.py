@@ -692,7 +692,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         - tenant = tenant de l'utilisateur connecté / header / middleware
         - user_account = User créé / récupéré via email
         """
-        tenant = self._get_tenant_from_user()
+        tenant = self._get_tenant_kwargs()
         user = self._get_or_create_user_for_employee(serializer.validated_data)
 
         if tenant is None:
