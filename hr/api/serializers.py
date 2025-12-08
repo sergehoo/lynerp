@@ -75,45 +75,40 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "hire_date", "contract_type", "date_of_birth", "gender", "phone",
             "address", "emergency_contact", "salary", "work_schedule",
             "is_active", "termination_date", "termination_reason",
-            "user_account", "extra", "tenant_id", "created_at", "updated_at",
+            "user_account", "extra", "created_at", "updated_at",
             "seniority", "is_on_leave",
         ]
         read_only_fields = [
             "id", "created_at", "updated_at",
             "full_name", "seniority", "is_on_leave",
-            # ⚠️ Ces 2 champs NE doivent pas être fournis par le front
-            "tenant_id", "user_account",
+            # ces champs sont gérés côté backend
+            "user_account",
         ]
         extra_kwargs = {
             # tous facultatifs au create côté API
-            "date_of_birth": {"required": False, "allow_null": True},
-            "gender": {"required": False, "allow_null": True, "allow_blank": True},
-            "phone": {"required": False, "allow_null": True, "allow_blank": True},
-            "address": {"required": False, "allow_null": True, "allow_blank": True},
-            "emergency_contact": {"required": False, "allow_null": True, "allow_blank": True},
-            "salary": {"required": False, "allow_null": True},
-            "work_schedule": {"required": False, "allow_null": True, "allow_blank": True},
-            "termination_date": {"required": False, "allow_null": True},
-            "termination_reason": {"required": False, "allow_null": True, "allow_blank": True},
-            "extra": {"required": False, "allow_null": True},
+            "date_of_birth":      {"required": False, "allow_null": True},
+            "gender":             {"required": False},  # CharField + blank=True dans le modèle
+            "phone":              {"required": False},
+            "address":            {"required": False},
+            "emergency_contact":  {"required": False, "allow_null": True},
+            "salary":             {"required": False, "allow_null": True},
+            # work_schedule a déjà un default='FULL_TIME', donc pas besoin de null/blank côté API
+            "termination_date":   {"required": False, "allow_null": True},
+            "termination_reason": {"required": False},
+            "extra":              {"required": False, "allow_null": True},
         }
 
     def create(self, validated_data):
         """
-        On fixe automatiquement le tenant (et éventuellement d’autres champs
-        système) au lieu de les attendre du front.
+        On fixe automatiquement le tenant au lieu de l’attendre du front.
         """
         request = self.context.get("request")
-        tenant = getattr(request, "tenant", None)  # selon ton BaseTenantViewSet
+        tenant = getattr(request, "tenant", None)
 
-        # si ton modèle a `tenant = ForeignKey(Tenant, ...)`
         if tenant is not None:
             validated_data["tenant"] = tenant
 
-        # user_account : si tu crées un User lié, c’est ici que tu le fais
-        # sinon, tu laisses null (le champ modèle doit autoriser null / blank)
         return super().create(validated_data)
-
 class LeaveTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeaveType

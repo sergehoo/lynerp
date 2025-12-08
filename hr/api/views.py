@@ -592,39 +592,10 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
-    # def get_queryset(self):
-    #     # Déjà filtré par tenant via BaseTenantViewSet
-    #     queryset = super().get_queryset()
-    #
-    #     # Filtrage avancé
-    #     filter_serializer = EmployeeFilterSerializer(data=self.request.query_params)
-    #     if filter_serializer.is_valid():
-    #         data = filter_serializer.validated_data
-    #         filt: Dict[str, Any] = {}
-    #
-    #         # ⚠️ Le front envoie des IDs pour department / position
-    #         if data.get('department'):
-    #             filt['department_id'] = data['department']
-    #
-    #         if data.get('position'):
-    #             filt['position_id'] = data['position']
-    #
-    #         if data.get('contract_type'):
-    #             filt['contract_type'] = data['contract_type']
-    #
-    #         if data.get('is_active') is not None:
-    #             filt['is_active'] = data['is_active']
-    #
-    #         if data.get('hire_date_from'):
-    #             filt['hire_date__gte'] = data['hire_date_from']
-    #
-    #         if data.get('hire_date_to'):
-    #             filt['hire_date__lte'] = data['hire_date_to']
-    #
-    #         queryset = queryset.filter(**filt)
-    #
-    #     return queryset
-
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
