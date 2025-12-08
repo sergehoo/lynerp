@@ -877,29 +877,27 @@
 
             async submitForm() {
                 this.submitting = true;
-
                 try {
                     const payload = {...this.form};
-
                     if (this.editId) {
                         await this.apiCall(`/employees/${this.editId}/`, {
                             method: 'PATCH',
                             body: JSON.stringify(payload),
                         });
-                        this.toast('Employé mis à jour', 'success');
+                        this.toast('Employé mis à jour avec succès', 'success');
                     } else {
                         await this.apiCall('/employees/', {
                             method: 'POST',
                             body: JSON.stringify(payload),
                         });
-                        this.toast('Employé créé', 'success');
+                        this.toast('Employé créé avec succès', 'success');
                     }
-
                     this.showForm = false;
                     this.fetchEmployees();
                 } catch (e) {
-                    console.error('Erreur submit employé:', e);
-                    this.toast(e.message || 'Enregistrement impossible', 'error');
+                    // récupère le message d’erreur éventuel
+                    const msg = e && e.message ? e.message : 'Enregistrement impossible';
+                    this.toast(msg, 'error');
                 } finally {
                     this.submitting = false;
                 }
