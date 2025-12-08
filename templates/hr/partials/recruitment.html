@@ -32,6 +32,7 @@
   </div>
 
   <!-- Statuts / filtres -->
+    <!-- Statuts / filtres -->
   <div class="flex flex-wrap gap-2">
     <template x-for="chip in statusChips" :key="chip.key">
       <button
@@ -47,6 +48,70 @@
           x-text="counts[chip.key] ?? 0"></span>
       </button>
     </template>
+  </div>
+
+  <!-- Filtres détaillés -->
+  <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-4 mt-2">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Département -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Département</label>
+          <select
+            x-model="filters.department"
+            @change="page=1; fetchRecruitments()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+            <option value="">Tous</option>
+            <template x-for="d in departments" :key="d.id">
+              <option :value="String(d.id)" x-text="d.name"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- Poste -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Poste</label>
+          <select
+            x-model="filters.position"
+            @change="page=1; fetchRecruitments()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+            <option value="">Tous</option>
+            <template x-for="p in positions" :key="p.id">
+              <option :value="String(p.id)" x-text="p.title"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- Date publication de -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Publiée à partir du</label>
+          <input
+            type="date"
+            x-model="filters.publication_date_from"
+            @change="page=1; fetchRecruitments()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+        </div>
+
+        <!-- Date publication jusqu’au -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Publiée jusqu’au</label>
+          <input
+            type="date"
+            x-model="filters.publication_date_to"
+            @change="page=1; fetchRecruitments()"
+            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+        </div>
+      </div>
+
+      <!-- Bouton reset -->
+      <div class="flex items-center justify-end gap-2">
+        <button type="button" @click="resetFilters()"
+          class="px-3 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50 inline-flex items-center gap-1.5">
+          <i class="fas fa-rotate-left text-[11px]"></i>
+          <span>Réinitialiser</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Carte liste -->

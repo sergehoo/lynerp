@@ -1283,9 +1283,13 @@ class Recruitment(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='recruitments')
 
     # Description et exigences
-    job_description = models.TextField(help_text="Description détaillée du poste")
+    job_description = models.TextField(
+        help_text="Description détaillée du poste",
+        blank=True      # <- pour coller au front (non requis)
+    )
     requirements = models.JSONField(
         default=dict,
+        blank=True,      # <- optionnel
         help_text="Exigences et compétences requises (structurées pour l'IA)"
     )
 
@@ -1310,7 +1314,9 @@ class Recruitment(models.Model):
     hiring_manager = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
-        related_name='managed_recruitments'
+        related_name='managed_recruitments',
+        null=True,       # <- pour qu'on puisse le remplir automatiquement
+        blank=True,
     )
     recruiters = models.ManyToManyField(
         Employee,
@@ -1341,6 +1347,7 @@ class Recruitment(models.Model):
     ai_scoring_enabled = models.BooleanField(default=True)
     ai_scoring_criteria = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Critères de scoring IA personnalisés"
     )
     minimum_ai_score = models.DecimalField(
@@ -1351,7 +1358,13 @@ class Recruitment(models.Model):
         help_text="Score minimum pour la présélection IA"
     )
 
-    tenant_id = models.CharField(max_length=64, db_index=True)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        db_column='tenant_id',
+        null=True,
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1359,12 +1372,13 @@ class Recruitment(models.Model):
         db_table = 'hr_recruitments'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['tenant_id', 'status']),
-            models.Index(fields=['tenant_id', 'reference']),
+            # ⚠️ ici il vaut mieux utiliser le nom de champ "tenant"
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['tenant', 'reference']),
             models.Index(fields=['position']),
             models.Index(fields=['publication_date']),
         ]
-        unique_together = (('tenant_id', 'reference'),)
+        unique_together = (('tenant', 'reference'),)  # idem : "tenant" et pas "tenant_id"
         constraints = [
             models.CheckConstraint(
                 check=~(
@@ -1384,23 +1398,9 @@ class Recruitment(models.Model):
             ),
         ]
 
-    def __str__(self):
-        return f"{self.title} ({self.reference})"
-
-    @property
-    def is_active(self):
-        return self.status in ['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
-
-    @property
-    def applications_count(self):
-        return self.applications.count()
-
-    @property
-    def applications_pending_review(self):
-        return self.applications.filter(status='APPLIED').count()
-
     def clean(self):
         errors = {}
+        # avec FK "tenant", tenant_id reste accessible, donc ça passe
         if self.position and self.position.tenant_id != self.tenant_id:
             errors['position'] = "Le poste n'appartient pas au même tenant."
         if self.department and self.department.tenant_id != self.tenant_id:
@@ -1410,7 +1410,6 @@ class Recruitment(models.Model):
         if errors:
             from django.core.exceptions import ValidationError
             raise ValidationError(errors)
-
 
 def upload_to_per_tenant(prefix):
     import os

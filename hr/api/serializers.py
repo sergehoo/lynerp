@@ -252,42 +252,68 @@ class PerformanceReviewSerializer(serializers.ModelSerializer):
 
 
 class RecruitmentSerializer(serializers.ModelSerializer):
-    position_title = serializers.CharField(source='position.title', read_only=True)
-    department_name = serializers.CharField(source='department.name', read_only=True)
-    hiring_manager_name = serializers.CharField(source='hiring_manager.full_name', read_only=True)
-    applications_count = serializers.ReadOnlyField()
-    applications_pending_review = serializers.ReadOnlyField()
-    is_active = serializers.ReadOnlyField()
+    applications_count = serializers.IntegerField(read_only=True)
+    applications_pending_review = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Recruitment
-        fields = [
-            "id", "title", "reference", "position", "position_title",
-            "department", "department_name", "job_description", "requirements",
-            "contract_type", "salary_min", "salary_max", "location",
-            "remote_allowed", "hiring_manager", "hiring_manager_name",
-            "recruiters", "status", "publication_date", "closing_date",
-            "target_hiring_date", "number_of_positions", "ai_scoring_enabled",
-            "ai_scoring_criteria", "minimum_ai_score", "tenant_id",
-            "created_at", "updated_at", "applications_count",
-            "applications_pending_review", "is_active"
-        ]
-        read_only_fields = [
-            "id", "created_at", "updated_at", "applications_count",
-            "applications_pending_review", "is_active"
-        ]
+        fields = "__all__"
+        read_only_fields = (
+            "tenant",
+            "status",
+            "created_at",
+            "updated_at",
+            "applications_count",
+            "applications_pending_review",
+        )
 
-    def validate(self, data):
-        if data.get('closing_date') and data.get('publication_date'):
-            if data['closing_date'] <= data['publication_date']:
-                raise serializers.ValidationError("La date de clôture doit être après la date de publication.")
+    # Helpers internes
+    def _get_tenant(self):
+        request = self.context["request"]
 
-        if data.get('target_hiring_date') and data.get('closing_date'):
-            if data['target_hiring_date'] <= data['closing_date']:
-                raise serializers.ValidationError("La date d'embauche cible doit être après la date de clôture.")
+        # Si ton BaseTenantViewSet met déjà request.tenant, on le réutilise
+        tenant = getattr(request, "tenant", None)
+        if tenant:
+            return tenant
 
-        return data
+        # Sinon on tente via le header X-Tenant-Id (utilisé côté JS)
+        tenant_id = request.headers.get("X-Tenant-Id")
+        if tenant_id:
+            try:
+                return Tenant.objects.get(pk=tenant_id)
+            except Tenant.DoesNotExist:
+                raise serializers.ValidationError({"tenant": "Tenant introuvable."})
 
+        raise serializers.ValidationError({"tenant": "Tenant non fourni."})
+
+    def _get_employee(self):
+        request = self.context["request"]
+        employee = getattr(request.user, "employee", None)
+        if not employee:
+            # à adapter : soit tu rends hiring_manager vraiment optionnel,
+            # soit tu imposes qu'un Employee soit lié à l'utilisateur
+            raise serializers.ValidationError({
+                "hiring_manager": "Aucun employé associé à l'utilisateur courant."
+            })
+        return employee
+
+    def create(self, validated_data):
+        # requirements facultatif → dict vide par défaut
+        validated_data.setdefault("requirements", {})
+
+        # manager par défaut = employé lié au user courant si absent du payload
+        if not validated_data.get("hiring_manager"):
+            validated_data["hiring_manager"] = self._get_employee()
+
+        # tenant injecté automatiquement
+        validated_data["tenant"] = self._get_tenant()
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # On ne laisse pas le client changer le tenant
+        validated_data.pop("tenant", None)
+        return super().update(instance, validated_data)
 
 class JobApplicationSerializer(serializers.ModelSerializer):
     recruitment_title = serializers.CharField(source='recruitment.title', read_only=True)
