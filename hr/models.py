@@ -191,12 +191,12 @@ class Employee(models.Model):
     # Système
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    user_account = models.ForeignKey(
-        'auth.User',
+    user_account = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='employee_profile'
+        related_name='employee',  # plus simple: user.employee
     )
 
     class Meta:

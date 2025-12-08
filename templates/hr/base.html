@@ -25,7 +25,7 @@
                     fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui']},
                     colors: {
                         brand: {
-                            50:  '#fff7ed',
+                            50: '#fff7ed',
                             100: '#ffedd5',
                             200: '#fed7aa',
                             300: '#fdba74',
@@ -48,20 +48,29 @@
             }
         }
     </script>
-
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
 
-        [x-cloak] { display: none }
+        [x-cloak] {
+            display: none
+        }
 
         .scroll-slim::-webkit-scrollbar {
             height: 8px;
             width: 8px
         }
+
         .scroll-slim::-webkit-scrollbar-thumb {
             background-color: #cbd5e1;
             border-radius: 9999px
         }
+
         .dark .scroll-slim::-webkit-scrollbar-thumb {
             background-color: #475569
         }
@@ -71,21 +80,31 @@
             background-size: 400% 100%;
             animation: shimmer 1.2s ease-in-out infinite
         }
+
         .dark .skeleton {
             background: linear-gradient(90deg, #334155 25%, #1f2937 37%, #334155 63%)
         }
+
         @keyframes shimmer {
-            0% { background-position: 100% 0 }
-            100% { background-position: -100% 0 }
+            0% {
+                background-position: 100% 0
+            }
+            100% {
+                background-position: -100% 0
+            }
         }
 
-        .tooltip { position: relative }
+        .tooltip {
+            position: relative
+        }
+
         .tooltip .bubble {
             opacity: 0;
             transform: translateY(6px);
             transition: .2s;
             pointer-events: none
         }
+
         .tooltip:hover .bubble {
             opacity: 1;
             transform: translateY(0)
@@ -99,22 +118,26 @@
             padding: .15rem .35rem;
             border-radius: .4rem
         }
-        .dark .kbd { border-color: #334155 }
+
+        .dark .kbd {
+            border-color: #334155
+        }
     </style>
 </head>
 
 <body
-    class="h-full bg-gray-50 text-slate-600 dark:bg-slate-900 dark:text-slate-100 antialiased selection:bg-brand-100 selection:text-brand-700"
-    @keydown.window.prevent.cmd.k="openCmd=true"
-    @keydown.window.prevent.ctrl.k="openCmd=true"
-    @keydown.window.prevent.cmd.j="toggleDark()"
-    @keydown.window.prevent.ctrl.j="toggleDark()">
+        class="h-full bg-gray-50 text-slate-600 dark:bg-slate-900 dark:text-slate-100 antialiased selection:bg-brand-100 selection:text-brand-700"
+        @keydown.window.prevent.cmd.k="openCmd=true"
+        @keydown.window.prevent.ctrl.k="openCmd=true"
+        @keydown.window.prevent.cmd.j="toggleDark()"
+        @keydown.window.prevent.ctrl.j="toggleDark()">
 
 <div class="flex min-h-screen relative">
 
     <!-- Sidebar -->
     <aside
-        class="flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 shadow-sm transition-all duration-300" :class="sidebarCollapsed ? 'w-16' : 'w-72'">
+            class="flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 shadow-sm transition-all duration-300"
+            :class="sidebarCollapsed ? 'w-16' : 'w-72'">
 
         <!-- Logo -->
         <div class="h-16 flex items-center px-6 border-b border-gray-100 dark:border-slate-800">
@@ -128,9 +151,9 @@
                 </div>
             </div>
             <button
-                @click="sidebarCollapsed = !sidebarCollapsed"
-                class="ml-auto p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
-                aria-label="Réduire/étendre la barre latérale">
+                    @click="sidebarCollapsed = !sidebarCollapsed"
+                    class="ml-auto p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                    aria-label="Réduire/étendre la barre latérale">
                 <i class="fa-solid fa-chevron-left transition-transform"
                    :class="sidebarCollapsed ? 'rotate-180' : ''"></i>
             </button>
@@ -182,9 +205,9 @@
                     <span x-text="online ? 'En ligne' : 'Hors ligne'"></span>
                 </span>
                 <button
-                    class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
-                    @click="openSettings = true"
-                    aria-label="Ouvrir la configuration">
+                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                        @click="openSettings = true"
+                        aria-label="Ouvrir la configuration">
                     <i class="fa-solid fa-gear"></i>
                 </button>
             </div>
@@ -244,7 +267,8 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-8 py-2 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-receipt"></i>
-                        <span>Licence <b class="mx-1">RH</b> en cours d’expiration (<span x-text="license.valid_until"></span>).</span>
+                        <span>Licence <b class="mx-1">RH</b> en cours d’expiration (<span
+                                x-text="license.valid_until"></span>).</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button @click="openBillingPortal"
@@ -268,7 +292,7 @@
                 <div x-show="loading" x-cloak
                      class="fixed inset-0 z-30 bg-slate-900/20 backdrop-blur-sm grid place-content-center">
                     <div
-                        class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-4 shadow-2xl flex items-center gap-3">
+                            class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-4 shadow-2xl flex items-center gap-3">
                         <span class="animate-spin h-5 w-5 rounded-full border-2 border-gray-300 border-t-brand-600"></span>
                         <span class="text-sm">Chargement…</span>
                     </div>
@@ -279,7 +303,7 @@
                      x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <template x-for="i in 4" :key="i">
                         <div
-                            class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
+                                class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
                             <div class="skeleton h-3 w-24 mb-3 rounded-full"></div>
                             <div class="skeleton h-7 w-16 rounded-full"></div>
                         </div>
@@ -292,7 +316,8 @@
                     <div x-show="!Object.keys(dashboardStats).length"
                          class="mt-6 rounded-3xl border border-dashed border-gray-300 dark:border-slate-700 p-8 text-center bg-white dark:bg-slate-900">
                         <div class="text-3xl mb-2">🧭</div>
-                        <p class="font-semibold text-slate-900 dark:text-white">Aucune donnée à afficher pour le moment.</p>
+                        <p class="font-semibold text-slate-900 dark:text-white">Aucune donnée à afficher pour le
+                            moment.</p>
                         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
                             Ajoutez des employés, créez des campagnes de recrutement, puis revenez ici.
                         </p>
@@ -318,7 +343,7 @@
                 <!-- Blocage licence -->
                 <div x-show="licenseBlocker.visible" x-cloak class="max-w-xl mx-auto">
                     <div
-                        class="rounded-3xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 p-6 text-center shadow-soft">
+                            class="rounded-3xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 p-6 text-center shadow-soft">
                         <div class="text-4xl mb-2">⛔</div>
                         <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-white">
                             403 — Licence RH invalide ou expirée
@@ -351,7 +376,7 @@
 <div x-show="openCmd" x-cloak class="fixed inset-0 z-40 flex items-start justify-center pt-24 px-4 bg-slate-900/50"
      @keydown.escape.window="openCmd=false" @click.self="openCmd=false">
     <div
-        class="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+            class="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
         <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-slate-800">
             <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
             <input type="text" x-model="cmdQuery" placeholder="Rechercher une page ou une action…"
@@ -378,7 +403,7 @@
 <div x-show="openSettings" x-cloak class="fixed inset-0 z-40 bg-slate-900/40" @click.self="openSettings=false"
      @keydown.escape.window="openSettings=false">
     <div
-        class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl">
+            class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl">
         <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-slate-800">
             <div class="font-semibold text-slate-900 dark:text-white">Configuration</div>
             <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
@@ -471,14 +496,22 @@
         str = str.replace(/-/g, '+').replace(/_/g, '/');
         const pad = str.length % 4;
         if (pad) str += '='.repeat(4 - pad);
-        try { return atob(str); } catch { return ''; }
+        try {
+            return atob(str);
+        } catch {
+            return '';
+        }
     }
 
     function parseJwt(token) {
         if (!token) return null;
         const parts = token.split('.');
         if (parts.length !== 3) return null;
-        try { return JSON.parse(base64UrlDecode(parts[1])); } catch { return null; }
+        try {
+            return JSON.parse(base64UrlDecode(parts[1]));
+        } catch {
+            return null;
+        }
     }
 
     function getStoredAccessToken() {
@@ -512,46 +545,46 @@
         return true;
     }
 
-   function kcLogout() {
-    // On récupère ce qu'on peut avant de tout effacer
-    const storedIdToken =
-        sessionStorage.getItem('kc_id_token') ||
-        localStorage.getItem('kc_id_token') ||
-        '';
+    function kcLogout() {
+        // On récupère ce qu'on peut avant de tout effacer
+        const storedIdToken =
+            sessionStorage.getItem('kc_id_token') ||
+            localStorage.getItem('kc_id_token') ||
+            '';
 
-    const storedAccessToken =
-        localStorage.getItem('kc_access_token') ||
-        sessionStorage.getItem('kc_access_token') ||
-        localStorage.getItem('lyneerp_token') ||
-        sessionStorage.getItem('lyneerp_token') ||
-        '';
+        const storedAccessToken =
+            localStorage.getItem('kc_access_token') ||
+            sessionStorage.getItem('kc_access_token') ||
+            localStorage.getItem('lyneerp_token') ||
+            sessionStorage.getItem('lyneerp_token') ||
+            '';
 
-    // On utilisera en priorité l'ID token, sinon l'access token
-    const hintToken = storedIdToken || storedAccessToken;
+        // On utilisera en priorité l'ID token, sinon l'access token
+        const hintToken = storedIdToken || storedAccessToken;
 
-    // On nettoie le stockage local
-    ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
-        localStorage.removeItem(k);
-        sessionStorage.removeItem(k);
-    });
+        // On nettoie le stockage local
+        ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
+            localStorage.removeItem(k);
+            sessionStorage.removeItem(k);
+        });
 
-    // Si on n’a aucun token à donner à Keycloak, on évite d’appeler son logout
-    // (sinon -> "Missing parameters: id_token_hint")
-    if (!hintToken) {
-        window.location.assign('/oidc/authenticate/');
-        return;
+        // Si on n’a aucun token à donner à Keycloak, on évite d’appeler son logout
+        // (sinon -> "Missing parameters: id_token_hint")
+        if (!hintToken) {
+            window.location.assign('/oidc/authenticate/');
+            return;
+        }
+
+        const redirectUri = window.location.origin + '/oidc/authenticate/';
+
+        const url =
+            `${KC.issuer}/protocol/openid-connect/logout` +
+            `?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}` +
+            `&client_id=${encodeURIComponent(KC.clientId)}` +
+            `&id_token_hint=${encodeURIComponent(hintToken)}`;
+
+        window.location.assign(url);
     }
-
-    const redirectUri = window.location.origin + '/oidc/authenticate/';
-
-    const url =
-        `${KC.issuer}/protocol/openid-connect/logout` +
-        `?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&client_id=${encodeURIComponent(KC.clientId)}` +
-        `&id_token_hint=${encodeURIComponent(hintToken)}`;
-
-    window.location.assign(url);
-}
 
     function deriveTenantFromHost(host) {
         const h = (host || location.hostname).toLowerCase();
@@ -600,12 +633,15 @@
                     return null;
                 }
                 return val;
-            } catch { return null; }
+            } catch {
+                return null;
+            }
         },
         set(key, val, ttlMs = 60000) {
             try {
                 localStorage.setItem('cache:' + key, JSON.stringify({exp: Date.now() + ttlMs, val}));
-            } catch {}
+            } catch {
+            }
         },
         del(key) {
             localStorage.removeItem('cache:' + key);
@@ -712,7 +748,9 @@
                         Conf.save();
                         this.showToast('Authentifié (session)', 'success');
                         return;
-                    } catch (e) { log('Session whoami failed → trying JWT', e?.message); }
+                    } catch (e) {
+                        log('Session whoami failed → trying JWT', e?.message);
+                    }
 
                     if (this.token) {
                         const claims = parseJwt(this.token);
@@ -815,22 +853,30 @@
                         cacheKey: 'dashboard_stats',
                         cacheTtl: 30000
                     });
-                } catch (_) {}
+                } catch (_) {
+                }
             },
             async loadEmployees() {
                 try {
                     const d = await this.apiCall('employees/');
                     this.employees = d?.results || d || [];
-                } catch (_) {}
+                } catch (_) {
+                }
             },
             async loadRecruitments() {
                 try {
                     const d = await this.apiCall('recruitments/');
                     this.recruitments = d?.results || d || [];
-                } catch (_) {}
+                } catch (_) {
+                }
             },
 
             showToast(message, type = 'info') {
+                if (window.hrToast) {
+        window.hrToast(message, type);
+    } else {
+        console.log(`[${type}]`, message);
+    }
                 const t = {message, type, visible: true};
                 this.toasts.push(t);
                 setTimeout(() => {
@@ -838,7 +884,9 @@
                     this.toasts = this.toasts.filter(x => x !== t);
                 }, 3800);
             },
-            removeToast(i) { this.toasts.splice(i, 1); },
+            removeToast(i) {
+                this.toasts.splice(i, 1);
+            },
 
             saveConf() {
                 this.apiBase = normalizeApiBase(this.apiBase);
@@ -870,7 +918,9 @@
                 this.showToast('Vous êtes hors ligne', 'warning');
             },
 
-            logout() { kcLogout(); },
+            logout() {
+                kcLogout();
+            },
 
             async init() {
                 this.tenantId = this.tenantId || FRONT_DEFAULT_TENANT;
@@ -890,13 +940,55 @@
             get cmdResults() {
                 const q = this.cmdQuery.toLowerCase().trim();
                 const items = [
-                    { key: 'v1', label: 'Aller au Tableau de bord', desc: 'Vue synthèse', icon: 'fa-solid fa-chart-pie', action: () => this.switchView('dashboard') },
-                    { key: 'v2', label: 'Aller à Employés', desc: 'Lister et gérer', icon: 'fa-solid fa-users', action: () => this.switchView('employees') },
-                    { key: 'v3', label: 'Aller à Recrutement', desc: 'Offres & candidats', icon: 'fa-solid fa-briefcase', action: () => this.switchView('recruitment') },
-                    { key: 'v4', label: 'Aller à Congés', desc: 'Demandes de congé', icon: 'fa-solid fa-calendar-check', action: () => this.switchView('leaves') },
-                    { key: 'v5', label: 'Aller à Pointage', desc: 'Présences', icon: 'fa-solid fa-clock', action: () => this.switchView('attendance') },
-                    { key: 'cfg', label: 'Ouvrir Configuration', desc: 'API / Tenant / Token', icon: 'fa-solid fa-gear', action: () => this.openSettings = true },
-                    { key: 'dm', label: 'Basculer Mode sombre', desc: 'Raccourci ⌘/Ctrl + J', icon: 'fa-solid fa-moon', action: () => this.toggleDark() },
+                    {
+                        key: 'v1',
+                        label: 'Aller au Tableau de bord',
+                        desc: 'Vue synthèse',
+                        icon: 'fa-solid fa-chart-pie',
+                        action: () => this.switchView('dashboard')
+                    },
+                    {
+                        key: 'v2',
+                        label: 'Aller à Employés',
+                        desc: 'Lister et gérer',
+                        icon: 'fa-solid fa-users',
+                        action: () => this.switchView('employees')
+                    },
+                    {
+                        key: 'v3',
+                        label: 'Aller à Recrutement',
+                        desc: 'Offres & candidats',
+                        icon: 'fa-solid fa-briefcase',
+                        action: () => this.switchView('recruitment')
+                    },
+                    {
+                        key: 'v4',
+                        label: 'Aller à Congés',
+                        desc: 'Demandes de congé',
+                        icon: 'fa-solid fa-calendar-check',
+                        action: () => this.switchView('leaves')
+                    },
+                    {
+                        key: 'v5',
+                        label: 'Aller à Pointage',
+                        desc: 'Présences',
+                        icon: 'fa-solid fa-clock',
+                        action: () => this.switchView('attendance')
+                    },
+                    {
+                        key: 'cfg',
+                        label: 'Ouvrir Configuration',
+                        desc: 'API / Tenant / Token',
+                        icon: 'fa-solid fa-gear',
+                        action: () => this.openSettings = true
+                    },
+                    {
+                        key: 'dm',
+                        label: 'Basculer Mode sombre',
+                        desc: 'Raccourci ⌘/Ctrl + J',
+                        icon: 'fa-solid fa-moon',
+                        action: () => this.toggleDark()
+                    },
                 ];
                 if (!q) return items;
                 return items.filter(it => it.label.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q));
@@ -911,6 +1003,31 @@
 
     window.formatDate = (s) => s ? new Date(s).toLocaleDateString('fr-FR') : '';
     window.formatDateTime = (s) => s ? new Date(s).toLocaleString('fr-FR') : '';
+</script>
+<script>
+    // Helper global pour les toasts RH
+    window.hrToast = function (message, type = 'info') {
+        if (typeof Swal === 'undefined') {
+            // fallback très simple si SweetAlert n'est pas chargé
+            alert(message);
+            return;
+        }
+
+        let icon = 'info';
+        if (type === 'success') icon = 'success';
+        else if (type === 'error') icon = 'error';
+        else if (type === 'warning') icon = 'warning';
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3500,
+            timerProgressBar: true,
+            icon: icon,
+            title: message,
+        });
+    };
 </script>
 </body>
 </html>

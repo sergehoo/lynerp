@@ -1022,12 +1022,14 @@
                 if (!d) return '';
                 return new Date(d).toLocaleDateString('fr-FR');
             },
-            toast(msg, type = 'info') {
-                if (window.dispatchEvent) {
-                    window.dispatchEvent(new CustomEvent('toast', {detail: {msg, type}}));
-                }
-                console.log(`[${type}]`, msg);
-            },
+           toast(msg, type = 'info') {
+    if (window.hrToast) {
+        window.hrToast(msg, type);
+    } else {
+        console.log(`[${type}]`, msg);
+        alert(msg);
+    }
+},
 
             // init
             async init() {

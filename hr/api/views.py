@@ -600,13 +600,12 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     # ─────────── Utilitaires internes ───────────
 
     def _get_tenant_from_user(self):
-        """
-        Récupère le tenant depuis l'utilisateur connecté.
-        Suppose que request.user.tenant (ou tenant_id) existe.
-        """
         user = self.request.user
-        # adapte ici à ton modèle User si besoin
-        return getattr(user, "tenant", None)
+        if not user or user.is_anonymous:
+            return None
+
+        emp = getattr(user, "employee", None)
+        return getattr(emp, "tenant", None)
 
     def _get_or_create_user_for_employee(self, validated_data):
         """
