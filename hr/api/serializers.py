@@ -85,16 +85,18 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "user_account",  # géré côté backend
         ]
         extra_kwargs = {
-            "date_of_birth":      {"required": False, "allow_null": True},
-            "gender":             {"required": False},
-            "phone":              {"required": False},
-            "address":            {"required": False},
-            "emergency_contact":  {"required": False, "allow_null": True},
-            "salary":             {"required": False, "allow_null": True},
-            "termination_date":   {"required": False, "allow_null": True},
+            "date_of_birth": {"required": False, "allow_null": True},
+            "gender": {"required": False},
+            "phone": {"required": False},
+            "address": {"required": False},
+            "emergency_contact": {"required": False, "allow_null": True},
+            "salary": {"required": False, "allow_null": True},
+            "termination_date": {"required": False, "allow_null": True},
             "termination_reason": {"required": False},
-            "extra":              {"required": False, "allow_null": True},
+            "extra": {"required": False, "allow_null": True},
         }
+
+
 class LeaveTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeaveType

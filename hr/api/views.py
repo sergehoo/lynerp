@@ -5,7 +5,8 @@ import uuid
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+# from django.contrib.auth.models import User
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -585,6 +586,9 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 #         serializer = AttendanceSerializer(attendances, many=True)
 #         return Response(serializer.data)
 
+User = get_user_model()
+
+
 class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
@@ -593,51 +597,30 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
-    def _resolve_tenant(self):
+    def _get_tenant_id_from_request(self):
         """
-        Essaie plusieurs sources pour retrouver le tenant :
-        - request.tenant (si déjà posé)
-        - header X-Tenant-Id (id ou slug)
+        Récupère l'id du tenant depuis le header X-Tenant-Id.
+        On évite volontairement de faire un .get() sur Tenant pour
+        ne pas provoquer de 500 en cas d'id invalide.
         """
         request = self.request
-        tenant = getattr(request, "tenant", None)
-
-        if tenant:
-            return tenant
-
-        header_val = (
+        return (
                 request.headers.get("X-Tenant-Id")
                 or request.META.get("HTTP_X_TENANT_ID")
         )
-        if not header_val:
-            raise ValidationError({"tenant": "Tenant non fourni (X-Tenant-Id manquant)."})
 
-        # selon ton modèle : pk ou slug
-        try:
-            tenant = Tenant.objects.get(pk=header_val)
-        except (Tenant.DoesNotExist, ValueError):
-            try:
-                tenant = Tenant.objects.get(slug=header_val)
-            except Tenant.DoesNotExist:
-                raise ValidationError({"tenant": "Tenant invalide pour ce header."})
-
-        return tenant
-
-    def _get_or_create_user_for_employee(self, data):
-        """
-        Créer ou récupérer un User pour le lier à user_account.
-        """
-        email = data.get("email")
-        first_name = data.get("first_name") or ""
-        last_name = data.get("last_name") or ""
+    def _get_or_create_user_for_employee(self, validated_data):
+        email = validated_data.get("email")
+        first_name = validated_data.get("first_name") or ""
+        last_name = validated_data.get("last_name") or ""
 
         if not email:
-            return None  # tu peux décider de rendre ça obligatoire si tu veux
+            return None  # si tu veux rendre ça obligatoire, on peut ajouter une ValidationError
 
         user, _created = User.objects.get_or_create(
             email=email,
             defaults={
-                "username": email,  # ou base sur le matricule
+                "username": email,  # éventuellement matricule si tu préfères
                 "first_name": first_name,
                 "last_name": last_name,
                 "is_active": True,
@@ -646,13 +629,23 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         return user
 
     def perform_create(self, serializer):
-        tenant = self._resolve_tenant()
-        user = self._get_or_create_user_for_employee(serializer.validated_data)
+        """
+        Fixe automatiquement :
+        - tenant (via header X-Tenant-Id → tenant_id)
+        - user_account (création auto User si email présent)
+        """
+        tenant_id = self._get_tenant_id_from_request()
+        extra_kwargs = {}
 
-        serializer.save(
-            tenant=tenant,
-            user_account=user,
-        )
+        if tenant_id:
+            # modèle Employee: tenant = ForeignKey(Tenant, db_column='tenant_id', ...)
+            extra_kwargs["tenant_id"] = tenant_id
+
+        user = self._get_or_create_user_for_employee(serializer.validated_data)
+        if user is not None:
+            extra_kwargs["user_account"] = user
+
+        serializer.save(**extra_kwargs)
 
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
