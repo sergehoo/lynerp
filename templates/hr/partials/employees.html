@@ -34,6 +34,7 @@
         </div>
     </div>
 
+
     <!-- Statistiques rapides -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex items-center gap-3">
@@ -41,8 +42,9 @@
                 <i class="fas fa-users text-sm"></i>
             </div>
             <div>
-                <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Total</div>
-                <div class="mt-1 text-2xl font-semibold text-slate-900 tracking-tight" x-text="counts.total"></div>
+                <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Total (tous)</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-900 tracking-tight" x-text="total"></div>
+                <div class="text-[11px] text-slate-400">Selon les filtres et la pagination</div>
             </div>
         </div>
         <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex items-center gap-3">
@@ -50,8 +52,9 @@
                 <i class="fas fa-user-check text-sm"></i>
             </div>
             <div>
-                <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Actifs</div>
+                <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Actifs (page)</div>
                 <div class="mt-1 text-2xl font-semibold text-emerald-600 tracking-tight" x-text="counts.active"></div>
+                <div class="text-[11px] text-slate-400">Visibles sur la page actuelle</div>
             </div>
         </div>
         <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex items-center gap-3">
@@ -59,12 +62,14 @@
                 <i class="fas fa-user-slash text-sm"></i>
             </div>
             <div>
-                <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Inactifs</div>
+                <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Inactifs (page)</div>
                 <div class="mt-1 text-2xl font-semibold text-rose-600 tracking-tight" x-text="counts.inactive"></div>
+                <div class="text-[11px] text-slate-400">Visibles sur la page actuelle</div>
             </div>
         </div>
     </div>
 
+    <!-- Filtres -->
     <!-- Filtres -->
     <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-5">
         <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -88,7 +93,7 @@
                             class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
                         <option value="">Tous les départements</option>
                         <template x-for="d in departments" :key="d.id">
-                            <option :value="d.id" x-text="d.name"></option>
+                            <option :value="String(d.id)" x-text="d.name"></option>
                         </template>
                     </select>
                 </div>
@@ -120,8 +125,15 @@
                 </div>
             </div>
 
-            <!-- Tri & page size -->
-            <div class="flex items-center gap-2 justify-end">
+            <!-- Tri & page size + reset -->
+            <div class="flex items-center gap-3 justify-end">
+                <button
+                        type="button"
+                        @click="resetFilters()"
+                        class="px-3 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50 inline-flex items-center gap-1.5">
+                    <i class="fas fa-rotate-left text-[11px]"></i>
+                    <span>Réinitialiser</span>
+                </button>
                 <select
                         x-model="ordering"
                         @change="page=1; fetchEmployees()"
@@ -686,6 +698,15 @@
                 return this.selectedIds.length && this.selectedIds.length === this.employees.length;
             },
 
+            resetFilters() {
+                this.search = '';
+                this.filters = {department: '', contract_type: '', is_active: ''};
+                this.page = 1;
+                this.ordering = 'last_name';
+                this.pageSize = 10;
+                this.fetchEmployees();
+            },
+
             // refs
             departments: [],
             positions: [],
@@ -789,22 +810,37 @@
                     params.set('page', this.page);
                     params.set('page_size', this.pageSize);
                     params.set('ordering', this.ordering);
+
                     if (this.search) params.set('search', this.search);
                     if (this.filters.department) params.set('department', this.filters.department);
                     if (this.filters.contract_type) params.set('contract_type', this.filters.contract_type);
-                    if (this.filters.is_active) params.set('is_active', this.filters.is_active);
+                    if (this.filters.is_active !== '') {
+                        // on force un bool pour DRF (true/false)
+                        const boolVal = this.filters.is_active === 'true';
+                        params.set('is_active', boolVal);
+                    }
 
                     const data = await this.apiCall(`/employees/?${params.toString()}`);
-                    this.employees = data.results || data;
-                    this.total = data.count ?? (Array.isArray(data) ? data.length : 0);
-                    this.maxPage = data.count ? Math.max(1, Math.ceil(data.count / this.pageSize)) : 1;
+                    const list = data.results || data;
 
-                    // counts rapides
+                    this.employees = list;
+                    this.total = data.count ?? (Array.isArray(list) ? list.length : 0);
+                    this.maxPage = data.count
+                        ? Math.max(1, Math.ceil(data.count / this.pageSize))
+                        : 1;
+
+                    // counts sur la page courante
                     let active = 0, inactive = 0;
-                    for (const e of (data.results || data)) e.is_active ? active++ : inactive++;
-                    this.counts = {total: data.count ?? this.total, active, inactive};
+                    for (const e of list) {
+                        if (e.is_active) active++;
+                        else inactive++;
+                    }
+                    this.counts = {total: this.total, active, inactive};
 
-                    this.selectedIds = this.selectedIds.filter(id => this.employees.find(e => e.id === id));
+                    // on garde seulement les IDs encore visibles
+                    this.selectedIds = this.selectedIds.filter(
+                        id => this.employees.find(e => e.id === id)
+                    );
                 } catch (e) {
                     console.error(e);
                     this.toast('Chargement des employés impossible', 'error');
@@ -984,6 +1020,12 @@
 
             // export
             openExport() {
+                // on pré-remplit l'export avec les filtres déjà appliqués
+                this.exportFilters = {
+                    department: this.filters.department || '',
+                    contract_type: this.filters.contract_type || '',
+                    is_active: this.filters.is_active || '',
+                };
                 this.showExport = true;
             },
             async doExport() {
@@ -1022,14 +1064,14 @@
                 if (!d) return '';
                 return new Date(d).toLocaleDateString('fr-FR');
             },
-           toast(msg, type = 'info') {
-    if (window.hrToast) {
-        window.hrToast(msg, type);
-    } else {
-        console.log(`[${type}]`, msg);
-        alert(msg);
-    }
-},
+            toast(msg, type = 'info') {
+                if (window.hrToast) {
+                    window.hrToast(msg, type);
+                } else {
+                    console.log(`[${type}]`, msg);
+                    alert(msg);
+                }
+            },
 
             // init
             async init() {
