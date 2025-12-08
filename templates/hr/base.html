@@ -114,8 +114,7 @@
 
     <!-- Sidebar -->
     <aside
-        class="flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 shadow-sm transition-all duration-300"
-        :class="sidebarCollapsed ? 'w-16' : 'w-72'">
+        class="flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 shadow-sm transition-all duration-300" :class="sidebarCollapsed ? 'w-16' : 'w-72'">
 
         <!-- Logo -->
         <div class="h-16 flex items-center px-6 border-b border-gray-100 dark:border-slate-800">
@@ -513,16 +512,46 @@
         return true;
     }
 
-    function kcLogout() {
-        const idt = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
-        ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
-            localStorage.removeItem(k);
-            sessionStorage.removeItem(k);
-        });
-        const url = `${KC.issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent('/login/')}`
-            + (idt ? `&id_token_hint=${encodeURIComponent(idt)}` : '');
-        window.location.assign(url);
+   function kcLogout() {
+    // On récupère ce qu'on peut avant de tout effacer
+    const storedIdToken =
+        sessionStorage.getItem('kc_id_token') ||
+        localStorage.getItem('kc_id_token') ||
+        '';
+
+    const storedAccessToken =
+        localStorage.getItem('kc_access_token') ||
+        sessionStorage.getItem('kc_access_token') ||
+        localStorage.getItem('lyneerp_token') ||
+        sessionStorage.getItem('lyneerp_token') ||
+        '';
+
+    // On utilisera en priorité l'ID token, sinon l'access token
+    const hintToken = storedIdToken || storedAccessToken;
+
+    // On nettoie le stockage local
+    ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+    });
+
+    // Si on n’a aucun token à donner à Keycloak, on évite d’appeler son logout
+    // (sinon -> "Missing parameters: id_token_hint")
+    if (!hintToken) {
+        window.location.assign('/login/');
+        return;
     }
+
+    const redirectUri = window.location.origin + '/login/';
+
+    const url =
+        `${KC.issuer}/protocol/openid-connect/logout` +
+        `?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&client_id=${encodeURIComponent(KC.clientId)}` +
+        `&id_token_hint=${encodeURIComponent(hintToken)}`;
+
+    window.location.assign(url);
+}
 
     function deriveTenantFromHost(host) {
         const h = (host || location.hostname).toLowerCase();
