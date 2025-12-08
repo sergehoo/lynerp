@@ -685,41 +685,53 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         return user
 
     # ─────────── Hooks DRF ───────────
+    def _resolve_tenant(self):
+        request = self.request
+
+        # 1) Middleware
+        req_tenant = getattr(request, "tenant", None)
+        if req_tenant is not None:
+            return req_tenant
+
+        # 2) Header X-Tenant-Id (slug ou UUID)
+        raw = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
+        if raw:
+            raw = str(raw).strip()
+            tenant = None
+            try:
+                uuid.UUID(raw)
+                tenant = Tenant.objects.filter(id=raw, is_active=True).first()
+            except ValueError:
+                tenant = Tenant.objects.filter(slug=raw, is_active=True).first()
+
+            if tenant is None:
+                raise serializers.ValidationError(
+                    {"tenant": f"Tenant introuvable pour « {raw} »."}
+                )
+            return tenant
+
+        # 3) fallback user.employee
+        user = request.user
+        if user and not user.is_anonymous:
+            emp = getattr(user, "employee", None)
+            if emp and emp.tenant_id:
+                return emp.tenant
+
+        raise serializers.ValidationError(
+            {"tenant": "Impossible de déterminer le tenant pour cette requête."}
+        )
 
     def perform_create(self, serializer):
-        """
-        Fixe automatiquement :
-        - tenant = tenant de l'utilisateur connecté / header / middleware
-        - user_account = User créé / récupéré via email
-        """
-        tenant = self._get_tenant_kwargs()
+        tenant = self._resolve_tenant()  # ⬅️ objet Tenant
         user = self._get_or_create_user_for_employee(serializer.validated_data)
-
-        if tenant is None:
-            # on log clairement au lieu de laisser partir un 500 chelou
-            log.error("[EmployeeViewSet] Impossible de déterminer le tenant (perform_create)")
-            raise serializers.ValidationError(
-                {"tenant": "Impossible de déterminer le tenant pour cette requête."}
-            )
 
         extra_kwargs = {"tenant": tenant}
         if user is not None:
             extra_kwargs["user_account"] = user
 
-        log.debug(
-            "[EmployeeViewSet] perform_create tenant=%s, user_account=%s, data=%s",
-            tenant, user, serializer.validated_data
-        )
+        with transaction.atomic():
+            serializer.save(**extra_kwargs)
 
-        try:
-            with transaction.atomic():
-                serializer.save(**extra_kwargs)
-        except IntegrityError as e:
-            # typiquement : doublon OneToOne user_account, doublon unique_together, etc.
-            log.exception("[EmployeeViewSet] IntegrityError à la création de l'employé")
-            raise serializers.ValidationError(
-                {"non_field_errors": [f"Contrainte d'intégrité : {str(e)}"]}
-            )
 
 class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
