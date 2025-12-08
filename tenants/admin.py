@@ -59,6 +59,7 @@ def license_available_seats(lic: License) -> int:
 @admin.register(Tenant)
 class TenantAdmin(admin.ModelAdmin):
     list_display = (
+        "id",
         "name",
         "slug",
         "domain",

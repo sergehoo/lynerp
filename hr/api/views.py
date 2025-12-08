@@ -603,43 +603,46 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 
     # ─────────── Utilitaires internes ───────────
 
-    def _get_tenant_from_user(self):
-        """
-        1. request.tenant (middleware / BaseTenantViewSet)
-        2. header X-Tenant-Id
-        3. user.employee.tenant (si user déjà lié à un employé)
-        """
-        req = self.request
+    def _get_tenant_kwargs(self):
+        request = self.request
 
-        # 1) Middleware / BaseTenantViewSet
-        req_tenant = getattr(req, "tenant", None)
+        # 1) Si un middleware pose déjà request.tenant
+        req_tenant = getattr(request, "tenant", None)
         if req_tenant is not None:
-            log.debug("[EmployeeViewSet] tenant depuis request.tenant = %s", req_tenant)
-            return req_tenant
+            return {"tenant": req_tenant}
 
-        # 2) Header
-        tenant_id = (
-            req.headers.get("X-Tenant-Id") or
-            req.META.get("HTTP_X_TENANT_ID")
-        )
-        if tenant_id:
+        # 2) Header X-Tenant-Id (slug OU UUID)
+        raw = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
+        if raw:
+            raw = str(raw).strip()
+            tenant = None
+
+            # a) Essayer comme UUID (id)
             try:
-                t = Tenant.objects.get(pk=tenant_id)
-                log.debug("[EmployeeViewSet] tenant depuis X-Tenant-Id = %s", t)
-                return t
-            except Tenant.DoesNotExist:
-                log.warning("[EmployeeViewSet] X-Tenant-Id=%s introuvable", tenant_id)
+                uuid.UUID(raw)
+                tenant = Tenant.objects.filter(id=raw, is_active=True).first()
+            except ValueError:
+                # b) Sinon, on considère que c’est un slug
+                tenant = Tenant.objects.filter(slug=raw, is_active=True).first()
 
-        # 3) user.employee.tenant
-        user = req.user
-        if not user or user.is_anonymous:
-            log.warning("[EmployeeViewSet] utilisateur anonyme, pas de tenant")
-            return None
+            if tenant is None:
+                raise serializers.ValidationError(
+                    {"tenant": f"Tenant introuvable pour « {raw} »."}
+                )
 
-        emp = getattr(user, "employee", None)
-        tenant = getattr(emp, "tenant", None) if emp else None
-        log.debug("[EmployeeViewSet] tenant depuis user.employee = %s", tenant)
-        return tenant
+            return {"tenant": tenant}
+
+        # 3) Fallback: tenant lié à l'utilisateur (user.employee)
+        user = request.user
+        if user and not user.is_anonymous:
+            emp = getattr(user, "employee", None)
+            if emp and emp.tenant_id:
+                return {"tenant_id": emp.tenant_id}
+
+        # 4) Rien trouvé → 400 propre
+        raise serializers.ValidationError(
+            {"tenant": "Impossible de déterminer le tenant pour cette requête."}
+        )
 
     def _get_or_create_user_for_employee(self, validated_data):
         """
