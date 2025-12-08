@@ -1398,6 +1398,19 @@ class Recruitment(models.Model):
             ),
         ]
 
+    @property
+    def is_active(self):
+        return self.status in ['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
+
+    @property
+    def applications_count(self):
+        # utilisé partout (API, admin, front éventuel)
+        return self.applications.count()
+
+    @property
+    def applications_pending_review(self):
+        return self.applications.filter(status='APPLIED').count()
+
     def clean(self):
         errors = {}
         # avec FK "tenant", tenant_id reste accessible, donc ça passe
