@@ -41,6 +41,25 @@ class PositionSerializer(serializers.ModelSerializer):
         return obj.employees.filter(is_active=True).count()
 
 
+# class EmployeeSerializer(serializers.ModelSerializer):
+#     department_name = serializers.CharField(source='department.name', read_only=True)
+#     position_title = serializers.CharField(source='position.title', read_only=True)
+#     full_name = serializers.ReadOnlyField()
+#     seniority = serializers.ReadOnlyField()
+#     is_on_leave = serializers.ReadOnlyField()
+#
+#     class Meta:
+#         model = Employee
+#         fields = [
+#             "id", "matricule", "first_name", "last_name", "full_name", "email",
+#             "department", "department_name", "position", "position_title",
+#             "hire_date", "contract_type", "date_of_birth", "gender", "phone",
+#             "address", "emergency_contact", "salary", "work_schedule",
+#             "is_active", "termination_date", "termination_reason",
+#             "user_account", "extra", "tenant_id", "created_at", "updated_at",
+#             "seniority", "is_on_leave"
+#         ]
+#         read_only_fields = ["id", "created_at", "updated_at", "full_name", "seniority", "is_on_leave"]
 class EmployeeSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='department.name', read_only=True)
     position_title = serializers.CharField(source='position.title', read_only=True)
@@ -57,10 +76,43 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "address", "emergency_contact", "salary", "work_schedule",
             "is_active", "termination_date", "termination_reason",
             "user_account", "extra", "tenant_id", "created_at", "updated_at",
-            "seniority", "is_on_leave"
+            "seniority", "is_on_leave",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "full_name", "seniority", "is_on_leave"]
+        read_only_fields = [
+            "id", "created_at", "updated_at",
+            "full_name", "seniority", "is_on_leave",
+            # ⚠️ Ces 2 champs NE doivent pas être fournis par le front
+            "tenant_id", "user_account",
+        ]
+        extra_kwargs = {
+            # tous facultatifs au create côté API
+            "date_of_birth": {"required": False, "allow_null": True},
+            "gender": {"required": False, "allow_null": True, "allow_blank": True},
+            "phone": {"required": False, "allow_null": True, "allow_blank": True},
+            "address": {"required": False, "allow_null": True, "allow_blank": True},
+            "emergency_contact": {"required": False, "allow_null": True, "allow_blank": True},
+            "salary": {"required": False, "allow_null": True},
+            "work_schedule": {"required": False, "allow_null": True, "allow_blank": True},
+            "termination_date": {"required": False, "allow_null": True},
+            "termination_reason": {"required": False, "allow_null": True, "allow_blank": True},
+            "extra": {"required": False, "allow_null": True},
+        }
 
+    def create(self, validated_data):
+        """
+        On fixe automatiquement le tenant (et éventuellement d’autres champs
+        système) au lieu de les attendre du front.
+        """
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None)  # selon ton BaseTenantViewSet
+
+        # si ton modèle a `tenant = ForeignKey(Tenant, ...)`
+        if tenant is not None:
+            validated_data["tenant"] = tenant
+
+        # user_account : si tu crées un User lié, c’est ici que tu le fais
+        # sinon, tu laisses null (le champ modèle doit autoriser null / blank)
+        return super().create(validated_data)
 
 class LeaveTypeSerializer(serializers.ModelSerializer):
     class Meta:
