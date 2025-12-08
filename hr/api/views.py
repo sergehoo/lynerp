@@ -588,6 +588,7 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
+    # authentication_classes = [JWTAuthentication]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']

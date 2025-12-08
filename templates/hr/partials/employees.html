@@ -730,6 +730,14 @@
             // API helper
             async apiCall(path, options = {}, expectBlob = false) {
                 const headers = {'X-Tenant-Id': Conf.tenantId};
+                // CSRF pour les requêtes non-GET / non-HEAD
+                const method = (options.method || 'GET').toUpperCase();
+                if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+                    const csrftoken = getCookie('csrftoken');
+                    if (csrftoken) {
+                        headers['X-CSRFToken'] = csrftoken;   // 👈 important
+                    }
+                }
                 if (!(options.body instanceof FormData)) {
                     headers['Content-Type'] = 'application/json';
                 }
