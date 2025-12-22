@@ -63,7 +63,7 @@ from hr.api.serializers import (
     EmployeeStatsSerializer,
     RecruitmentSerializer,
     RecruitmentFilterSerializer,
-    AIProcessingResult,
+    AIProcessingResult, TenantLiteSerializer,
 )
 from tenants.models import Tenant, TenantDomain
 
@@ -174,6 +174,15 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
 
         # 3) Modèle non-tenantisable
         return qs.none()
+
+
+
+
+
+class TenantViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Tenant.objects.filter(is_active=True).order_by("name")
+    serializer_class = TenantLiteSerializer
+    permission_classes = [IsAuthenticated]
 
 
 # -----------------------------
@@ -602,6 +611,36 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
     # ─────────── Utilitaires internes ───────────
+    def get_queryset(self):
+        qs = Employee.objects.select_related("tenant", "department", "position")
+
+        # ✅ IMPORTANT : si BaseTenantViewSet filtre déjà, garde son comportement.
+        # Sinon, applique ton filtre tenant ici (à adapter à ton BaseTenantViewSet)
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is not None:
+            qs = qs.filter(tenant=tenant)
+
+        # --- filtres UI ---
+        tenant = self.request.query_params.get("tenant")
+        department = self.request.query_params.get("department")
+        contract_type = self.request.query_params.get("contract_type")
+        is_active = self.request.query_params.get("is_active")
+
+        if department:
+            qs = qs.filter(department_id=department)
+
+        if contract_type:
+            qs = qs.filter(contract_type=contract_type)
+
+        if is_active not in (None, "",):
+            # accepte true/false/1/0
+            val = str(is_active).lower()
+            if val in ("true", "1", "yes"):
+                qs = qs.filter(is_active=True)
+            elif val in ("false", "0", "no"):
+                qs = qs.filter(is_active=False)
+
+        return qs
 
     def _get_tenant_kwargs(self):
         request = self.request

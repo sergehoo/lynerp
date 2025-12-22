@@ -70,7 +70,6 @@
     </div>
 
     <!-- Filtres -->
-    <!-- Filtres -->
     <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-5">
         <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -85,6 +84,18 @@
                     <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                 </div>
 
+                <!-- Entreprise / Tenant -->
+                <div>
+                    <select
+                            x-model="filters.tenant"
+                            @change="page=1; fetchEmployees()"
+                            class="w-full rounded-full border border-gray-200 px-3 py-2.5 text-sm text-slate-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+                        <option value="">Toutes les entreprises</option>
+                        <template x-for="t in tenants" :key="t.id">
+                            <option :value="String(t.id)" x-text="t.name"></option>
+                        </template>
+                    </select>
+                </div>
                 <!-- Département -->
                 <div>
                     <select
@@ -210,7 +221,7 @@
                 <template x-if="loading">
                     <template x-for="i in 6" :key="i">
                         <tr>
-                          
+
                             <td class="px-4 py-4">
                                 <div class="h-4 w-4 skeleton rounded-full"></div>
                             </td>
@@ -251,10 +262,10 @@
                                     :checked="selectedIds.includes(emp.id)"
                                     class="rounded border-slate-300">
                         </td>
-                         <td class="px-6 py-4 text-sm text-slate-700">
-  <div class="font-medium text-slate-900" x-text="emp.tenant_name || '—'"></div>
-  <div class="text-[11px] text-slate-400" x-text="emp.tenant_slug || ''"></div>
-</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">
+                            <div class="font-medium text-slate-900" x-text="emp.tenant_name || '—'"></div>
+                            <div class="text-[11px] text-slate-400" x-text="emp.tenant_slug || ''"></div>
+                        </td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full bg-slate-900/90 text-white flex items-center justify-center text-xs font-semibold uppercase">
@@ -698,7 +709,7 @@
             maxPage: 1,
             ordering: 'last_name',
             search: '',
-            filters: {department: '', contract_type: '', is_active: ''},
+            filters: {tenant: '', department: '', contract_type: '', is_active: ''},
             selectedIds: [],
             get allChecked() {
                 return this.selectedIds.length && this.selectedIds.length === this.employees.length;
@@ -805,6 +816,11 @@
                 try {
                     const p = await this.apiCall('/positions/');
                     this.positions = p.results || p;
+                } catch {
+                }
+                try {
+                    const t = await this.apiCall('/tenants/'); // adapte l'URL si besoin
+                    this.tenants = t.results || t;
                 } catch {
                 }
             },

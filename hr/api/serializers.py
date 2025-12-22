@@ -9,6 +9,8 @@ from hr.models import (
 )
 from django.utils import timezone
 
+from tenants.models import Tenant
+
 
 class DepartmentSerializer(serializers.ModelSerializer):
     employees_count = serializers.ReadOnlyField()
@@ -61,6 +63,13 @@ class PositionSerializer(serializers.ModelSerializer):
 #             "seniority", "is_on_leave"
 #         ]
 #         read_only_fields = ["id", "created_at", "updated_at", "full_name", "seniority", "is_on_leave"]
+
+class TenantLiteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tenant
+        fields = ["id", "name", "slug"]
+
+
 class EmployeeSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='department.name', read_only=True)
     position_title = serializers.CharField(source='position.title', read_only=True)
@@ -69,6 +78,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     is_on_leave = serializers.ReadOnlyField()
     tenant_name = serializers.CharField(source="tenant.name", read_only=True)
     tenant_slug = serializers.CharField(source="tenant.slug", read_only=True)
+
     def validate_email(self, value):
         existing_user = User.objects.filter(email=value).first()
         if not existing_user:
@@ -85,6 +95,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
                 "Un employé est déjà lié à cet utilisateur."
             )
         return value
+
     class Meta:
         model = Employee
         fields = [
@@ -94,7 +105,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "address", "emergency_contact", "salary", "work_schedule",
             "is_active", "termination_date", "termination_reason",
             "user_account", "extra", "created_at", "updated_at",
-            "tenant","tenant_name", "tenant_slug",  "seniority", "is_on_leave",
+            "tenant", "tenant_name", "tenant_slug", "seniority", "is_on_leave",
         ]
         read_only_fields = [
             "id", "created_at", "updated_at",
@@ -285,8 +296,8 @@ class RecruitmentSerializer(serializers.ModelSerializer):
 
         # Header envoyé par ton front
         tenant_id = (
-            request.headers.get("X-Tenant-Id")
-            or request.META.get("HTTP_X_TENANT_ID")
+                request.headers.get("X-Tenant-Id")
+                or request.META.get("HTTP_X_TENANT_ID")
         )
         if tenant_id:
             try:
@@ -330,6 +341,8 @@ class RecruitmentSerializer(serializers.ModelSerializer):
         # On ne laisse pas le client changer le tenant
         validated_data.pop("tenant", None)
         return super().update(instance, validated_data)
+
+
 class JobApplicationSerializer(serializers.ModelSerializer):
     recruitment_title = serializers.CharField(source='recruitment.title', read_only=True)
     full_name = serializers.ReadOnlyField()

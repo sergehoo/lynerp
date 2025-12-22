@@ -12,7 +12,7 @@ from .views import (
     RecruitmentViewSet,
     JobApplicationViewSet,
     InterviewViewSet,
-    PerformanceReviewViewSet,
+    PerformanceReviewViewSet, TenantViewSet,
 )
 
 router = DefaultRouter(trailing_slash=True)
@@ -22,6 +22,7 @@ router.register(r'dashboard', HRDashboardViewSet, basename='hr-dashboard')
 router.register(r'bulk', BulkActionsViewSet, basename='hr-bulk')
 
 # Ressources RH
+router.register(r"tenants", TenantViewSet, basename="tenants")
 router.register(r'departments', DepartmentViewSet, basename='hr-departments')
 router.register(r'employees', EmployeeViewSet, basename='hr-employees')
 router.register(r'leave-requests', LeaveRequestViewSet, basename='hr-leave-requests')
