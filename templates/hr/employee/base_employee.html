@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full" x-data="hrApp()" :class="{'dark': dark}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>LyneERP - Plateforme RH Intelligente</title>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui']},
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12'
+                        }
+                    },
+                    boxShadow: {
+                        card: '0 18px 45px rgba(15,23,42,0.08)',
+                        soft: '0 10px 30px rgba(15,23,42,0.06)'
+                    },
+                    borderRadius: {
+                        '3xl': '1.5rem'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        [x-cloak] {
+            display: none
+        }
+
+        .scroll-slim::-webkit-scrollbar {
+            height: 8px;
+            width: 8px
+        }
+
+        .scroll-slim::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px
+        }
+
+        .dark .scroll-slim::-webkit-scrollbar-thumb {
+            background-color: #475569
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+            background-size: 400% 100%;
+            animation: shimmer 1.2s ease-in-out infinite
+        }
+
+        .dark .skeleton {
+            background: linear-gradient(90deg, #334155 25%, #1f2937 37%, #334155 63%)
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 100% 0
+            }
+            100% {
+                background-position: -100% 0
+            }
+        }
+
+        .tooltip {
+            position: relative
+        }
+
+        .tooltip .bubble {
+            opacity: 0;
+            transform: translateY(6px);
+            transition: .2s;
+            pointer-events: none
+        }
+
+        .tooltip:hover .bubble {
+            opacity: 1;
+            transform: translateY(0)
+        }
+
+        .kbd {
+            font-variant: all-small-caps;
+            font-size: 10px;
+            border: 1px solid #e2e8f0;
+            border-bottom-width: 2px;
+            padding: .15rem .35rem;
+            border-radius: .4rem
+        }
+
+        .dark .kbd {
+            border-color: #334155
+        }
+    </style>
+</head>
+
+<body
+        class="h-full bg-gray-50 text-slate-600 dark:bg-slate-900 dark:text-slate-100 antialiased selection:bg-brand-100 selection:text-brand-700"
+        @keydown.window.prevent.cmd.k="openCmd=true"
+        @keydown.window.prevent.ctrl.k="openCmd=true"
+        @keydown.window.prevent.cmd.j="toggleDark()"
+        @keydown.window.prevent.ctrl.j="toggleDark()">
+
+<div class="flex min-h-screen relative">
+
+    <!-- Sidebar -->
+    <aside
+            class="flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 shadow-sm transition-all duration-300"
+            :class="sidebarCollapsed ? 'w-16' : 'w-72'">
+
+        <!-- Logo -->
+        <div class="h-16 flex items-center px-6 border-b border-gray-100 dark:border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="bg-brand-600 text-white p-2 rounded-xl shadow-md shadow-brand-200">
+                    <i class="fa-solid fa-users-gear"></i>
+                </div>
+                <div x-show="!sidebarCollapsed" x-cloak>
+                    <div class="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">LyneERP</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-500 -mt-0.5">Plateforme RH</div>
+                </div>
+            </div>
+            <button
+                    @click="sidebarCollapsed = !sidebarCollapsed"
+                    class="ml-auto p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                    aria-label="Réduire/étendre la barre latérale">
+                <i class="fa-solid fa-chevron-left transition-transform"
+                   :class="sidebarCollapsed ? 'rotate-180' : ''"></i>
+            </button>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex-1 overflow-auto scroll-slim px-3 py-4 space-y-1">
+            <p x-show="!sidebarCollapsed" x-cloak
+               class="px-3 text-[11px] font-medium text-slate-400 uppercase tracking-[.18em] mb-2">
+                Navigation
+            </p>
+
+            <template x-for="item in navigation" :key="item.id">
+                <div class="tooltip">
+                    <a href="#"
+                       @click.prevent="switchView(item.id)"
+                       class="flex items-center gap-3 rounded-xl px-3 py-2.5 mb-1 text-sm font-medium transition-colors group"
+                       :class="activeNav===item.id
+                            ? 'bg-gray-900 text-white shadow-soft'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800'">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center"
+                             :class="activeNav===item.id
+                                ? 'bg-gray-800 text-white'
+                                : 'bg-gray-100 text-slate-500 group-hover:bg-gray-900 group-hover:text-white dark:bg-slate-800'">
+                            <i :class="item.icon + ' text-sm'"></i>
+                        </div>
+                        <span x-show="!sidebarCollapsed" x-cloak x-text="item.name"></span>
+                        <span x-show="!sidebarCollapsed && item.badge" x-cloak
+                              class="ml-auto text-[10px] rounded-full px-2 py-0.5 bg-brand-100 text-brand-700"
+                              x-text="item.badge"></span>
+                    </a>
+                    <div x-show="sidebarCollapsed" x-cloak
+                         class="bubble absolute left-14 top-1/2 -translate-y-1/2 text-xs bg-slate-900 text-white rounded px-2 py-1 shadow-md">
+                        <span x-text="item.name"></span>
+                    </div>
+                </div>
+            </template>
+        </nav>
+
+        <!-- Bottom status -->
+        <div class="p-4 border-t border-gray-100 dark:border-slate-800">
+            <div class="flex items-center justify-between text-xs">
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full"
+                      :class="online
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200'">
+                    <span class="w-2 h-2 rounded-full"
+                          :class="online ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                    <span x-text="online ? 'En ligne' : 'Hors ligne'"></span>
+                </span>
+                <button
+                        class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                        @click="openSettings = true"
+                        aria-label="Ouvrir la configuration">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <section class="flex-1 flex flex-col min-w-0">
+
+        <!-- Topbar -->
+        <header class="sticky top-0 z-20 bg-gray-50/90 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-8">
+                <div class="h-20 flex items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <h1 class="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate"
+                            x-text="viewTitle"></h1>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="viewDesc"></p>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="hidden md:flex items-center gap-2 text-xs bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-700 shadow-sm">
+                            <i class="fa-solid fa-building text-slate-400"></i>
+                            <span class="text-slate-600 dark:text-slate-200" x-text="tenantId || '-'"></span>
+                        </div>
+                        <div class="hidden md:flex items-center gap-2 text-xs bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-700 shadow-sm">
+                            <i class="fa-solid fa-user text-slate-400"></i>
+                            <span class="text-slate-600 dark:text-slate-200"
+                                  x-text="user?.username || user?.preferred_username || 'Utilisateur'"></span>
+                        </div>
+
+                        <button @click="toggleDark()"
+                                class="p-2.5 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-500 hover:bg-gray-50 dark:hover:bg-slate-700 shadow-sm">
+                            <i class="fa-solid" :class="dark?'fa-moon':'fa-sun'"></i>
+                        </button>
+
+                        <button @click="logout()"
+                                class="h-10 px-4 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+                            <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                            <span>Quitter</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hint 401/403 -->
+            <div x-show="authHint && !licenseBlocker.visible" x-cloak
+                 class="border-t border-amber-200/60 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+                <div class="max-w-7xl mx-auto px-4 sm:px-8 py-2 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>Accès non authentifié/autorisé. Redirection vers la page de connexion…</div>
+                </div>
+            </div>
+
+            <!-- Bandeau licence -->
+            <div x-show="license.status==='expiring' && !licenseBlocker.visible" x-cloak
+                 class="border-t border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                <div class="max-w-7xl mx-auto px-4 sm:px-8 py-2 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Licence <b class="mx-1">RH</b> en cours d’expiration (<span
+                                x-text="license.valid_until"></span>).</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="openBillingPortal"
+                                class="px-3 py-1.5 rounded-full bg-amber-600 text-white text-xs font-medium hover:bg-amber-700">
+                            Gérer la facturation
+                        </button>
+                        <button @click="refreshLicense"
+                                class="px-3 py-1.5 rounded-full border border-amber-300 text-amber-800 text-xs hover:bg-amber-100">
+                            Rafraîchir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <main class="flex-1 overflow-auto scroll-slim">
+            <div class="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-6">
+
+                <!-- Global overlay loader -->
+                <div x-show="loading" x-cloak
+                     class="fixed inset-0 z-30 bg-slate-900/20 backdrop-blur-sm grid place-content-center">
+                    <div
+                            class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-4 shadow-2xl flex items-center gap-3">
+                        <span class="animate-spin h-5 w-5 rounded-full border-2 border-gray-300 border-t-brand-600"></span>
+                        <span class="text-sm">Chargement…</span>
+                    </div>
+                </div>
+
+                <!-- Skeleton header KPIs -->
+                <div x-show="currentView==='dashboard' && !Object.keys(dashboardStats).length && !authHint && !licenseBlocker.visible"
+                     x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <template x-for="i in 4" :key="i">
+                        <div
+                                class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
+                            <div class="skeleton h-3 w-24 mb-3 rounded-full"></div>
+                            <div class="skeleton h-7 w-16 rounded-full"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Views -->
+                <div x-show="currentView === 'dashboard' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/dashboard.html" %}
+                    <div x-show="!Object.keys(dashboardStats).length"
+                         class="mt-6 rounded-3xl border border-dashed border-gray-300 dark:border-slate-700 p-8 text-center bg-white dark:bg-slate-900">
+                        <div class="text-3xl mb-2">🧭</div>
+                        <p class="font-semibold text-slate-900 dark:text-white">Aucune donnée à afficher pour le
+                            moment.</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            Ajoutez des employés, créez des campagnes de recrutement, puis revenez ici.
+                        </p>
+                    </div>
+                </div>
+
+                <div x-show="currentView === 'employees' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/employees.html" %}
+                </div>
+
+                <div x-show="currentView === 'recruitment' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/recruitment.html" %}
+                </div>
+
+                <div x-show="currentView === 'leaves' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/leaves.html" %}
+                </div>
+
+                <div x-show="currentView === 'attendance' && !authHint && !licenseBlocker.visible" x-cloak>
+                    {% include "hr/partials/attendance.html" %}
+                </div>
+
+                <!-- Blocage licence -->
+                <div x-show="licenseBlocker.visible" x-cloak class="max-w-xl mx-auto">
+                    <div
+                            class="rounded-3xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 p-6 text-center shadow-soft">
+                        <div class="text-4xl mb-2">⛔</div>
+                        <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-white">
+                            403 — Licence RH invalide ou expirée
+                        </h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400"
+                           x-text="licenseBlocker.detail || 'Votre abonnement RH ne permet pas d’accéder à cette ressource.'"></p>
+                        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+                            <button @click="refreshLicense"
+                                    class="px-4 py-2 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium">
+                                Rafraîchir la licence
+                            </button>
+                            <button @click="openBillingPortal"
+                                    class="px-4 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-sm">
+                                Gérer la facturation
+                            </button>
+                            <button @click="openSettings=true"
+                                    class="px-4 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-sm">
+                                Changer de tenant
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </section>
+</div>
+
+<!-- Command Palette -->
+<div x-show="openCmd" x-cloak class="fixed inset-0 z-40 flex items-start justify-center pt-24 px-4 bg-slate-900/50"
+     @keydown.escape.window="openCmd=false" @click.self="openCmd=false">
+    <div
+            class="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-slate-800">
+            <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+            <input type="text" x-model="cmdQuery" placeholder="Rechercher une page ou une action…"
+                   class="w-full bg-transparent outline-none placeholder-slate-400 text-sm"/>
+            <kbd class="kbd">ESC</kbd>
+        </div>
+        <div class="max-h-80 overflow-auto scroll-slim divide-y divide-gray-100 dark:divide-slate-800">
+            <template x-for="it in cmdResults" :key="it.key">
+                <button @click="it.action(); openCmd=false"
+                        class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-3 text-sm">
+                    <i :class="it.icon + ' text-slate-400'"></i>
+                    <div>
+                        <div class="font-medium text-slate-900 dark:text-white" x-text="it.label"></div>
+                        <div class="text-xs text-slate-500" x-text="it.desc"></div>
+                    </div>
+                </button>
+            </template>
+            <div x-show="cmdResults.length===0" class="px-4 py-6 text-sm text-slate-500">Aucun résultat.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Drawer -->
+<div x-show="openSettings" x-cloak class="fixed inset-0 z-40 bg-slate-900/40" @click.self="openSettings=false"
+     @keydown.escape.window="openSettings=false">
+    <div
+            class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl">
+        <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-slate-800">
+            <div class="font-semibold text-slate-900 dark:text-white">Configuration</div>
+            <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                    @click="openSettings=false">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="p-5 space-y-5 text-sm">
+            <div>
+                <label class="text-xs font-medium text-slate-500">API Base</label>
+                <input type="text" x-model="apiBase"
+                       class="mt-1 w-full rounded-xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                <p class="text-xs text-slate-400 mt-1">Ex: /api/rh ou https://rh.lyneerp.com/api/rh</p>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-slate-500">Tenant ID</label>
+                <input type="text" x-model="tenantId"
+                       class="mt-1 w-full rounded-xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-slate-500">Bearer Token</label>
+                <textarea x-model="token" rows="4"
+                          class="mt-1 w-full rounded-xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"></textarea>
+                <p class="text-xs text-slate-400 mt-1">Collez le JWT Keycloak ici si nécessaire.</p>
+            </div>
+            <div class="flex items-center justify-between pt-2">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-200">
+                    <input type="checkbox" class="rounded border-gray-300 dark:border-slate-600" x-model="dark">
+                    <span>Mode sombre</span>
+                </label>
+                <div class="space-x-2">
+                    <button @click="applyTenant()"
+                            class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
+                        Appliquer tenant
+                    </button>
+                    <button @click="saveConf()"
+                            class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full text-xs font-medium shadow-soft">
+                        Enregistrer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toasts -->
+<div class="fixed bottom-4 right-4 z-50 space-y-2">
+    <template x-for="(toast, i) in toasts" :key="i">
+        <div x-show="toast.visible" x-transition
+             class="rounded-2xl shadow-2xl px-4 py-3 text-white text-sm flex items-center gap-3"
+             :class="{
+                 'bg-emerald-600': toast.type==='success',
+                 'bg-rose-600': toast.type==='error',
+                 'bg-slate-800': toast.type==='info',
+                 'bg-amber-600': toast.type==='warning'
+             }">
+            <i class="fa-solid"
+               :class="{
+                   'fa-circle-check': toast.type==='success',
+                   'fa-circle-exclamation': toast.type==='error',
+                   'fa-circle-info': toast.type==='info',
+                   'fa-triangle-exclamation': toast.type==='warning'
+               }"></i>
+            <div class="flex-1" x-text="toast.message"></div>
+            <button class="ml-2 opacity-80 hover:opacity-100" @click="removeToast(i)">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </template>
+</div>
+
+
+<script>
+    // Helper global pour les toasts RH
+    window.hrToast = function (message, type = 'info') {
+        if (typeof Swal === 'undefined') {
+            // fallback très simple si SweetAlert n'est pas chargé
+            alert(message);
+            return;
+        }
+
+        let icon = 'info';
+        if (type === 'success') icon = 'success';
+        else if (type === 'error') icon = 'error';
+        else if (type === 'warning') icon = 'warning';
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3500,
+            timerProgressBar: true,
+            icon: icon,
+            title: message,
+        });
+    };
+</script>
+</body>
+</html>
