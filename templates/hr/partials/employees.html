@@ -268,8 +268,15 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full bg-slate-900/90 text-white flex items-center justify-center text-xs font-semibold uppercase">
-                                    <a href="{% url 'employee_detail' emp.pk %}"> <span x-text="(emp.first_name?.[0] || '') + (emp.last_name?.[0] || '')"></span></a>
-                                </div>
+<a
+  :href="`{% url 'employee_detail' pk=0 %}`.replace('/0/', '/' + emp.id + '/')"
+  class="inline-flex items-center justify-center w-9 h-9 rounded-full
+         bg-slate-900 text-white text-xs font-semibold
+         hover:bg-slate-700 transition"
+  :title="`${emp.first_name || ''} ${emp.last_name || ''}`.trim()"
+>
+  <span x-text="(emp.first_name?.[0] || '') + (emp.last_name?.[0] || '')"></span>
+</a>                                </div>
                                 <div class="min-w-0">
                                     <div class="text-sm font-semibold text-slate-900 truncate"
                                          x-text="`${emp.first_name} ${emp.last_name}`"></div>
