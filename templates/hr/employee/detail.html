@@ -1,0 +1,271 @@
+{% extends "./hr/base.html" %}
+{% block title %}Dossier Employé — {{ employee.full_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 space-y-6" x-data="{tab:'overview'}">
+
+  <!-- Header -->
+  <div class="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-bold">
+          {{ employee.first_name|first }}{{ employee.last_name|first }}
+        </div>
+        <div>
+          <div class="text-xs text-slate-400">Matricule • {{ employee.matricule }}</div>
+          <div class="text-2xl font-semibold text-slate-900">{{ employee.full_name }}</div>
+          <div class="text-sm text-slate-500">
+            {{ employee.position.title|default:"—" }} • {{ employee.department.name|default:"—" }}
+            • <span class="font-medium">{{ tenant.name }}</span> ({{ tenant.slug }})
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold
+          {% if employee.is_active %} bg-emerald-50 text-emerald-700 {% else %} bg-rose-50 text-rose-700 {% endif %}">
+          {% if employee.is_active %}Actif{% else %}Inactif{% endif %}
+        </span>
+
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold
+          {% if employee.is_on_leave %} bg-amber-50 text-amber-700 {% else %} bg-slate-50 text-slate-600 {% endif %}">
+          {% if employee.is_on_leave %}En congé{% else %}Disponible{% endif %}
+        </span>
+
+        <a href="mailto:{{ employee.email }}"
+           class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold">Email</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="bg-white border border-gray-100 rounded-3xl shadow-sm">
+    <div class="px-4 pt-4">
+      <div class="flex flex-wrap gap-2">
+        <button @click="tab='overview'" :class="tab==='overview' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Aperçu</button>
+        <button @click="tab='contracts'" :class="tab==='contracts' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Contrats</button>
+        <button @click="tab='leaves'" :class="tab==='leaves' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Congés</button>
+        <button @click="tab='attendance'" :class="tab==='attendance' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Absences / Pointage</button>
+        <button @click="tab='payroll'" :class="tab==='payroll' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Paie</button>
+        <button @click="tab='docs'" :class="tab==='docs' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Documents</button>
+        <button @click="tab='history'" :class="tab==='history' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Historique</button>
+
+        {% if can_view_medical %}
+        <button @click="tab='medical'" :class="tab==='medical' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700'"
+                class="px-4 py-2 rounded-full text-xs font-semibold">Médical</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="p-6">
+
+      <!-- OVERVIEW -->
+      <div x-show="tab==='overview'" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="text-xs text-slate-400">Ancienneté</div>
+            <div class="text-2xl font-semibold text-slate-900">{{ employee.seniority }} an(s)</div>
+            <div class="text-xs text-slate-500 mt-1">Embauché le {{ employee.hire_date }}</div>
+          </div>
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="text-xs text-slate-400">Contrat actuel</div>
+            <div class="text-sm font-semibold text-slate-900">
+              {{ current_contract.contract_type.name|default:"Aucun" }}
+            </div>
+            <div class="text-xs text-slate-500 mt-1">
+              {% if current_contract %}Depuis {{ current_contract.start_date }}{% endif %}
+            </div>
+          </div>
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="text-xs text-slate-400">Contact</div>
+            <div class="text-sm text-slate-900 font-medium">{{ employee.phone|default:"—" }}</div>
+            <div class="text-xs text-slate-500">{{ employee.address|default:"—" }}</div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-gray-100 p-5">
+          <div class="text-sm font-semibold text-slate-900 mb-3">Soldes de congés</div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {% for b in leave_balances|slice:":6" %}
+              <div class="rounded-2xl bg-slate-50 p-4">
+                <div class="text-xs text-slate-500">{{ b.leave_type.name }} • {{ b.year }}</div>
+                <div class="text-lg font-semibold text-slate-900">{{ b.remaining_days }} j restants</div>
+                <div class="text-xs text-slate-400">Utilisation: {{ b.utilization_rate|floatformat:0 }}%</div>
+              </div>
+            {% empty %}
+              <div class="text-sm text-slate-500">Aucun solde.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTRACTS -->
+      <div x-show="tab==='contracts'" class="space-y-4">
+        {% for c in contracts %}
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">{{ c.contract_number }} — {{ c.contract_type.name }}</div>
+                <div class="text-xs text-slate-500">
+                  {{ c.start_date }} → {{ c.end_date|default:"(sans fin)" }} • {{ c.status }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1">
+                  Dept: {{ c.department.name }} • Poste: {{ c.position.title|default:"—" }}
+                </div>
+              </div>
+              <div class="text-right text-xs text-slate-500">
+                Salaire: {{ c.base_salary }} {{ c.salary_currency }}
+              </div>
+            </div>
+
+            {% if c.amendments.all %}
+              <div class="mt-4">
+                <div class="text-xs font-semibold text-slate-900 mb-2">Avenants</div>
+                <ul class="text-xs text-slate-600 space-y-1">
+                  {% for a in c.amendments.all|slice:":5" %}
+                    <li>• {{ a.amendment_number }} — {{ a.get_amendment_type_display }} ({{ a.effective_date }})</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="text-sm text-slate-500">Aucun contrat.</div>
+        {% endfor %}
+      </div>
+
+      <!-- LEAVES -->
+      <div x-show="tab==='leaves'" class="space-y-4">
+        {% for l in leaves %}
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">{{ l.leave_type.name }}</div>
+                <div class="text-xs text-slate-500">{{ l.start_date }} → {{ l.end_date }} • {{ l.number_of_days }} j</div>
+              </div>
+              <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-50 text-slate-700">{{ l.status }}</span>
+            </div>
+            {% if l.reason %}<div class="text-xs text-slate-600 mt-2">{{ l.reason }}</div>{% endif %}
+          </div>
+        {% empty %}
+          <div class="text-sm text-slate-500">Aucune demande de congé.</div>
+        {% endfor %}
+      </div>
+
+      <!-- ATTENDANCE -->
+      <div x-show="tab==='attendance'" class="space-y-3">
+        {% for a in attendances %}
+          <div class="rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">{{ a.date }}</div>
+              <div class="text-xs text-slate-500">Entrée: {{ a.check_in|default:"—" }} • Sortie: {{ a.check_out|default:"—" }}</div>
+            </div>
+            <div class="text-xs text-slate-600">
+              {{ a.status }} • {{ a.worked_hours|default:"—" }}h • OT {{ a.overtime_hours|default:"0" }}h
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-sm text-slate-500">Aucun pointage.</div>
+        {% endfor %}
+      </div>
+
+      <!-- PAYROLL -->
+      <div x-show="tab==='payroll'" class="space-y-3">
+        {% for p in payrolls %}
+          <div class="rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">{{ p.payroll_number }}</div>
+              <div class="text-xs text-slate-500">{{ p.period_start }} → {{ p.period_end }} • Paiement: {{ p.pay_date }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-semibold text-slate-900">Net: {{ p.net_salary }}</div>
+              <div class="text-xs text-slate-500">Brut: {{ p.gross_salary }} • {{ p.status }}</div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-sm text-slate-500">Aucune fiche de paie.</div>
+        {% endfor %}
+      </div>
+
+      <!-- DOCS -->
+      <div x-show="tab==='docs'" class="space-y-3">
+        {% for d in documents %}
+          <div class="rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">{{ d.title|default:d.category }}</div>
+              <div class="text-xs text-slate-500">{{ d.category }} • {{ d.uploaded_at }}</div>
+            </div>
+            <a href="{{ d.file.url }}" class="text-xs font-semibold text-slate-900 underline">Télécharger</a>
+          </div>
+        {% empty %}
+          <div class="text-sm text-slate-500">Aucun document.</div>
+        {% endfor %}
+      </div>
+
+      <!-- HISTORY -->
+      <div x-show="tab==='history'" class="space-y-3">
+        {% for h in contract_history %}
+          <div class="rounded-2xl border border-gray-100 p-4">
+            <div class="text-xs text-slate-500">{{ h.performed_at }} — {{ h.action }}</div>
+            <div class="text-sm font-semibold text-slate-900">{{ h.contract.contract_number }}</div>
+            <div class="text-xs text-slate-600 mt-1">{{ h.description }}</div>
+          </div>
+        {% empty %}
+          <div class="text-sm text-slate-500">Aucun historique.</div>
+        {% endfor %}
+      </div>
+
+      <!-- MEDICAL -->
+      {% if can_view_medical %}
+      <div x-show="tab==='medical'" class="space-y-4">
+        <div class="rounded-3xl border border-rose-100 bg-rose-50/30 p-5">
+          <div class="text-sm font-semibold text-rose-700 mb-2">Dossier médical (confidentiel)</div>
+          {% if medical_record %}
+            <div class="text-xs text-slate-700">Groupe sanguin: {{ medical_record.blood_type|default:"—" }}</div>
+            <div class="text-xs text-slate-700 mt-1">Allergies: {{ medical_record.allergies|default:"—" }}</div>
+            <div class="text-xs text-slate-700 mt-1">Pathologies: {{ medical_record.chronic_conditions|default:"—" }}</div>
+            <div class="text-xs text-slate-700 mt-2">{{ medical_record.emergency_notes|default:"" }}</div>
+          {% else %}
+            <div class="text-sm text-slate-600">Aucun dossier médical.</div>
+          {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="text-sm font-semibold text-slate-900 mb-3">Visites</div>
+            {% for v in medical_visits %}
+              <div class="py-2 border-b border-gray-100 last:border-0">
+                <div class="text-xs text-slate-500">{{ v.visit_date }} • {{ v.provider|default:"—" }}</div>
+                <div class="text-xs text-slate-700">{{ v.diagnosis|default:"" }}</div>
+              </div>
+            {% empty %}
+              <div class="text-sm text-slate-500">Aucune visite.</div>
+            {% endfor %}
+          </div>
+
+          <div class="rounded-3xl border border-gray-100 p-5">
+            <div class="text-sm font-semibold text-slate-900 mb-3">Restrictions</div>
+            {% for r in medical_restrictions %}
+              <div class="py-2 border-b border-gray-100 last:border-0">
+                <div class="text-xs text-slate-500">{{ r.start_date }} → {{ r.end_date|default:"—" }}</div>
+                <div class="text-xs text-slate-700">{{ r.restriction }}</div>
+              </div>
+            {% empty %}
+              <div class="text-sm text-slate-500">Aucune restriction.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

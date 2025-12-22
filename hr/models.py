@@ -222,6 +222,53 @@ class Employee(models.Model):
 
     @property
     def seniority(self):
+        if self.hire_date:
+            delta = timezone.now().date() - self.hire_date
+            return delta.days // 365
+        return 0
+
+    @property
+    def is_on_leave(self):
+        today = timezone.now().date()
+        return self.leaverequest_set.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).exists()
+
+    @property
+    def current_contract(self):
+        today = timezone.now().date()
+        return (
+                self.contracts.filter(start_date__lte=today, end_date__gte=today, status='ACTIVE').first()
+                or self.contracts.filter(start_date__lte=today, end_date__isnull=True, status='ACTIVE').first()
+        )
+
+    @property
+    def contract_history(self):
+        return self.contracts.all().order_by('-start_date')
+
+    @property
+    def has_active_contract(self):
+        return self.current_contract is not None
+
+    @property
+    def contract_status(self):
+        contract = self.current_contract
+        if not contract:
+            return "Aucun contrat"
+        if contract.is_probation_period:
+            return "Période d'essai"
+        if contract.status == 'ACTIVE':
+            return "Actif"
+        return contract.get_status_display()
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def seniority(self):
         """Ancienneté en années"""
         if self.hire_date:
             delta = timezone.now().date() - self.hire_date
@@ -1039,6 +1086,55 @@ class LeaveApprovalStep(models.Model):
         indexes = [models.Index(fields=['tenant_id', 'status'])]
 
 
+class MedicalRecord(models.Model):
+    """Dossier médical de l'employé (confidentiel)"""
+    employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='medical_record')
+    blood_type = models.CharField(max_length=3, blank=True)  # O+, A-, ...
+    allergies = models.JSONField(default=list, blank=True)
+    chronic_conditions = models.JSONField(default=list, blank=True)
+    emergency_notes = models.TextField(blank=True)
+
+    tenant_id = models.CharField(max_length=64, db_index=True)  # string uuid
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hr_medical_records"
+        indexes = [models.Index(fields=["tenant_id"])]
+
+
+class MedicalVisit(models.Model):
+    """Consultations / visites médicales"""
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='medical_visits')
+    visit_date = models.DateField(default=timezone.now)
+    provider = models.CharField(max_length=120, blank=True)  # centre, médecin
+    diagnosis = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    attachments = models.JSONField(default=list, blank=True)  # liens/documents
+
+    tenant_id = models.CharField(max_length=64, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "hr_medical_visits"
+        indexes = [models.Index(fields=["tenant_id", "visit_date"])]
+
+
+class MedicalRestriction(models.Model):
+    """Restrictions / aménagements de poste"""
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='medical_restrictions')
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    restriction = models.TextField()
+    is_active = models.BooleanField(default=True)
+
+    tenant_id = models.CharField(max_length=64, db_index=True)
+
+    class Meta:
+        db_table = "hr_medical_restrictions"
+        indexes = [models.Index(fields=["tenant_id", "is_active"])]
+
+
 class Attendance(models.Model):
     """Pointage des employés"""
 
@@ -1362,7 +1458,7 @@ class Recruitment(models.Model):
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.PROTECT,
-        db_column='tenant_id',   # on garde la colonne existante
+        db_column='tenant_id',  # on garde la colonne existante
         null=True,
         db_index=True,
     )
@@ -1383,17 +1479,17 @@ class Recruitment(models.Model):
         constraints = [
             models.CheckConstraint(
                 check=~(
-                    models.Q(salary_min__isnull=False) &
-                    models.Q(salary_max__isnull=False) &
-                    models.Q(salary_min__gt=models.F('salary_max'))
+                        models.Q(salary_min__isnull=False) &
+                        models.Q(salary_max__isnull=False) &
+                        models.Q(salary_min__gt=models.F('salary_max'))
                 ),
                 name='recruit_salary_min_le_max'
             ),
             models.CheckConstraint(
                 check=~(
-                    models.Q(publication_date__isnull=False) &
-                    models.Q(closing_date__isnull=False) &
-                    models.Q(closing_date__lt=models.F('publication_date'))
+                        models.Q(publication_date__isnull=False) &
+                        models.Q(closing_date__isnull=False) &
+                        models.Q(closing_date__lt=models.F('publication_date'))
                 ),
                 name='recruit_close_ge_publish'
             ),
@@ -1426,6 +1522,8 @@ class Recruitment(models.Model):
         if errors:
             from django.core.exceptions import ValidationError
             raise ValidationError(errors)
+
+
 def upload_to_per_tenant(prefix):
     import os
     def _path(instance, filename):

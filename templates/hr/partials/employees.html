@@ -221,7 +221,6 @@
                 <template x-if="loading">
                     <template x-for="i in 6" :key="i">
                         <tr>
-
                             <td class="px-4 py-4">
                                 <div class="h-4 w-4 skeleton rounded-full"></div>
                             </td>
@@ -269,7 +268,7 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full bg-slate-900/90 text-white flex items-center justify-center text-xs font-semibold uppercase">
-                                    <span x-text="(emp.first_name?.[0] || '') + (emp.last_name?.[0] || '')"></span>
+                                    <a href="{% url 'employee_detail' emp.pk %}"> <span x-text="(emp.first_name?.[0] || '') + (emp.last_name?.[0] || '')"></span></a>
                                 </div>
                                 <div class="min-w-0">
                                     <div class="text-sm font-semibold text-slate-900 truncate"
@@ -1047,7 +1046,7 @@
             openExport() {
                 // on pré-remplit l'export avec les filtres déjà appliqués
                 this.exportFilters = {
-                      tenant: this.filters.tenant || '',
+                    tenant: this.filters.tenant || '',
                     department: this.filters.department || '',
                     contract_type: this.filters.contract_type || '',
                     is_active: this.filters.is_active || '',
@@ -1060,7 +1059,7 @@
                         format: this.exportFormat,
                         fields: this.exportFields,
                         filters: {
-                              ...(this.exportFilters.tenant ? {tenant: this.exportFilters.tenant} : {}),
+                            ...(this.exportFilters.tenant ? {tenant: this.exportFilters.tenant} : {}),
                             ...(this.exportFilters.department ? {department: this.exportFilters.department} : {}),
                             ...(this.exportFilters.contract_type ? {contract_type: this.exportFilters.contract_type} : {}),
                             ...(this.exportFilters.is_active ? {is_active: this.exportFilters.is_active} : {})
