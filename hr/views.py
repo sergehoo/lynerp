@@ -58,7 +58,7 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        employee = self.get_object()
+        employee = self.object
         tenant_uuid = str(employee.tenant_id)  # UUID (FK Tenant)
 
         # --- Contrats & parcours ---
