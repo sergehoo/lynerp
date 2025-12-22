@@ -315,7 +315,7 @@
 
                 <!-- empty -->
                 <tr x-show="!loading && employees.length===0">
-                    <td colspan="8" class="py-16 text-center">
+                    <td colspan="9" class="py-16 text-center">
                         <div class="inline-flex flex-col items-center justify-center px-6 py-5 rounded-3xl border border-dashed border-gray-300 bg-gray-50/60">
                             <i class="fas fa-users text-gray-300 text-4xl mb-2"></i>
                             <div class="text-sm font-medium text-slate-900">Aucun employé</div>
@@ -701,6 +701,7 @@
     function employeeView() {
         return {
             // state
+            tenants: [],
             employees: [],
             loading: false,
             page: 1,
@@ -717,10 +718,11 @@
 
             resetFilters() {
                 this.search = '';
-                this.filters = {department: '', contract_type: '', is_active: ''};
+                this.filters = {tenant: '', department: '', contract_type: '', is_active: ''};
                 this.page = 1;
                 this.ordering = 'last_name';
                 this.pageSize = 10;
+                this.selectedIds = [];
                 this.fetchEmployees();
             },
 
@@ -834,6 +836,7 @@
                     params.set('ordering', this.ordering);
 
                     if (this.search) params.set('search', this.search);
+                    if (this.filters.tenant) params.set('tenant', this.filters.tenant);
                     if (this.filters.department) params.set('department', this.filters.department);
                     if (this.filters.contract_type) params.set('contract_type', this.filters.contract_type);
                     if (this.filters.is_active !== '') {
@@ -1044,6 +1047,7 @@
             openExport() {
                 // on pré-remplit l'export avec les filtres déjà appliqués
                 this.exportFilters = {
+                      tenant: this.filters.tenant || '',
                     department: this.filters.department || '',
                     contract_type: this.filters.contract_type || '',
                     is_active: this.filters.is_active || '',
@@ -1056,6 +1060,7 @@
                         format: this.exportFormat,
                         fields: this.exportFields,
                         filters: {
+                              ...(this.exportFilters.tenant ? {tenant: this.exportFilters.tenant} : {}),
                             ...(this.exportFilters.department ? {department: this.exportFilters.department} : {}),
                             ...(this.exportFilters.contract_type ? {contract_type: this.exportFilters.contract_type} : {}),
                             ...(this.exportFilters.is_active ? {is_active: this.exportFilters.is_active} : {})
