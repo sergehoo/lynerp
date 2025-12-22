@@ -56,6 +56,16 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
             )
         )
 
+    def can_view_medical(self):
+        """
+        À adapter à ta politique:
+        - superuser / staff
+        - ou permission dédiée
+        - ou rôle RH/Médecin
+        """
+        u = self.request.user
+        return u.is_superuser or u.has_perm("hr.view_medical_record")
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         employee = self.object
@@ -129,8 +139,10 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         medical_restrictions = []
         if self.can_view_medical():
             medical = MedicalRecord.objects.filter(employee=employee, tenant_id=tenant_uuid).first()
-            medical_visits = MedicalVisit.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by("-visit_date")[:30]
-            medical_restrictions = MedicalRestriction.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by("-start_date")[:30]
+            medical_visits = MedicalVisit.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by(
+                "-visit_date")[:30]
+            medical_restrictions = MedicalRestriction.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by(
+                "-start_date")[:30]
 
         ctx.update({
             "tenant": employee.tenant,
