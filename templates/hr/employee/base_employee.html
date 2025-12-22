@@ -474,7 +474,535 @@
     </template>
 </div>
 
+<script>
+    /********************
+     * CONFIG & FLAGS
+     ********************/
+    const LICENSE_UI = false;
+    const FRONT_DEFAULT_TENANT = "demo";
+    const KC = {issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core"};
+    const DEV_MODE = (localStorage.getItem('lyneerp_dev') === '1')
+        || ['localhost', '127.0.0.1'].includes(location.hostname)
+        || location.hostname.endsWith('.local');
 
+    /********************
+     * HELPERS GÉNÉRAUX
+     ********************/
+    const log = (...a) => console.debug('[HR]', ...a);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function base64UrlDecode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = str.length % 4;
+        if (pad) str += '='.repeat(4 - pad);
+        try {
+            return atob(str);
+        } catch {
+            return '';
+        }
+    }
+
+    function parseJwt(token) {
+        if (!token) return null;
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        try {
+            return JSON.parse(base64UrlDecode(parts[1]));
+        } catch {
+            return null;
+        }
+    }
+
+    function getStoredAccessToken() {
+        return localStorage.getItem('lyneerp_token')
+            || sessionStorage.getItem('lyneerp_token')
+            || localStorage.getItem('kc_access_token')
+            || sessionStorage.getItem('kc_access_token')
+            || '';
+    }
+
+    function getStoredRefreshToken() {
+        return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
+    }
+
+    async function refreshTokenIfNeeded(exp) {
+        const now = Math.floor(Date.now() / 1000);
+        if (!exp || exp - now > 30) return false;
+        const refresh = getStoredRefreshToken();
+        if (!refresh) return false;
+        const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh})
+        });
+        if (!res.ok) return false;
+        const p = await res.json();
+        const remember = !!localStorage.getItem('kc_access_token');
+        const storage = remember ? localStorage : sessionStorage;
+        if (p.access_token) storage.setItem("kc_access_token", p.access_token);
+        if (p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
+        return true;
+    }
+
+    function kcLogout() {
+        // On récupère ce qu'on peut avant de tout effacer
+        const storedIdToken =
+            sessionStorage.getItem('kc_id_token') ||
+            localStorage.getItem('kc_id_token') ||
+            '';
+
+        const storedAccessToken =
+            localStorage.getItem('kc_access_token') ||
+            sessionStorage.getItem('kc_access_token') ||
+            localStorage.getItem('lyneerp_token') ||
+            sessionStorage.getItem('lyneerp_token') ||
+            '';
+
+        // On utilisera en priorité l'ID token, sinon l'access token
+        const hintToken = storedIdToken || storedAccessToken;
+
+        // On nettoie le stockage local
+        ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
+            localStorage.removeItem(k);
+            sessionStorage.removeItem(k);
+        });
+
+        // Si on n’a aucun token à donner à Keycloak, on évite d’appeler son logout
+        // (sinon -> "Missing parameters: id_token_hint")
+        if (!hintToken) {
+            window.location.assign('/oidc/authenticate/');
+            return;
+        }
+
+        const redirectUri = window.location.origin + '/oidc/authenticate/';
+
+        const url =
+            `${KC.issuer}/protocol/openid-connect/logout` +
+            `?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}` +
+            `&client_id=${encodeURIComponent(KC.clientId)}` +
+            `&id_token_hint=${encodeURIComponent(hintToken)}`;
+
+        window.location.assign(url);
+    }
+
+    function deriveTenantFromHost(host) {
+        const h = (host || location.hostname).toLowerCase();
+        const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);
+        if (m) return m[1];
+        const parts = h.split('.');
+        if (parts.length >= 3) return parts[0];
+        return '';
+    }
+
+    function buildUrl(apiBase, path) {
+        if (/^https?:\/\//i.test(path)) return path;
+        if (path.startsWith('/')) return path;
+        return `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
+    }
+
+    function normalizeApiBase(val) {
+        if (!val) return '/api/rh';
+        let v = val.trim();
+        if (/^https?:\/\//i.test(v) && !/\/api\/rh\/?$/i.test(v)) {
+            v = v.replace(/\/+$/, '') + '/api/rh';
+        }
+        return v.replace(/\/+$/, '');
+    }
+
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        if (match) return decodeURIComponent(match[2]);
+        return null;
+    }
+
+    function shouldSendCsrf(url, method) {
+        const sameOrigin = !/^https?:\/\//i.test(url) || url.startsWith(location.origin);
+        const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes((method || 'GET').toUpperCase());
+        return sameOrigin && unsafe;
+    }
+
+    const cache = {
+        get(key) {
+            try {
+                const raw = localStorage.getItem('cache:' + key);
+                if (!raw) return null;
+                const {exp, val} = JSON.parse(raw);
+                if (exp && Date.now() > exp) {
+                    localStorage.removeItem('cache:' + key);
+                    return null;
+                }
+                return val;
+            } catch {
+                return null;
+            }
+        },
+        set(key, val, ttlMs = 60000) {
+            try {
+                localStorage.setItem('cache:' + key, JSON.stringify({exp: Date.now() + ttlMs, val}));
+            } catch {
+            }
+        },
+        del(key) {
+            localStorage.removeItem('cache:' + key);
+        }
+    };
+
+    async function fetchWithBackoff(url, options = {}, {retries = 2, baseDelay = 300} = {}) {
+        let attempt = 0, lastErr;
+        while (attempt <= retries) {
+            try {
+                const res = await fetch(url, options);
+                if (res.status >= 500 || res.status === 429) throw new Error('server/backpressure');
+                return res;
+            } catch (e) {
+                lastErr = e;
+                if (attempt === retries) break;
+                await sleep(baseDelay * Math.pow(2, attempt));
+                attempt++;
+            }
+        }
+        throw lastErr || new Error('fetch failed');
+    }
+
+    const Conf = {
+        apiBase: normalizeApiBase(localStorage.getItem('lyneerp_api') || '/api/rh'),
+        tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
+        token: getStoredAccessToken(),
+        dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
+        save() {
+            localStorage.setItem('lyneerp_api', this.apiBase);
+            localStorage.setItem('lyneerp_tenant', this.tenantId || '');
+            if (this.token) localStorage.setItem('lyneerp_token', this.token);
+            localStorage.setItem('lyneerp_dark', this.dark ? '1' : '0');
+        }
+    };
+
+    function resolveInitialTenant(current) {
+        return current || deriveTenantFromHost(location.hostname)
+            || localStorage.getItem('lyneerp_tenant') || FRONT_DEFAULT_TENANT;
+    }
+
+    function hrApp() {
+        return {
+            sidebarCollapsed: false, openCmd: false, openSettings: false, cmdQuery: '',
+            loading: false, toasts: [], dark: Conf.dark, online: navigator.onLine,
+
+            authHint: false,
+            license: {status: 'active', plan: 'FREE', valid_until: null},
+            licenseBlocker: {visible: false, detail: ''},
+
+            apiBase: normalizeApiBase(Conf.apiBase),
+            tenantId: resolveInitialTenant(Conf.tenantId) || FRONT_DEFAULT_TENANT,
+            token: Conf.token,
+            user: null,
+
+            currentView: 'dashboard',
+            activeNav: 'dashboard',
+            dashboardStats: {},
+            employees: [],
+            recruitments: [],
+
+            navigation: [
+                {id: 'dashboard', name: 'Tableau de bord', icon: 'fa-solid fa-chart-pie'},
+                {id: 'employees', name: 'Employés', icon: 'fa-solid fa-users'},
+                {id: 'recruitment', name: 'Recrutement', icon: 'fa-solid fa-briefcase'},
+                {id: 'leaves', name: 'Congés', icon: 'fa-solid fa-calendar-check'},
+                {id: 'attendance', name: 'Pointage', icon: 'fa-solid fa-clock'},
+            ],
+
+            get viewTitle() {
+                const i = this.navigation.find(n => n.id === this.currentView);
+                return i ? i.name : 'LyneERP RH';
+            },
+            get viewDesc() {
+                return ({
+                    dashboard: 'Vue d’ensemble de votre activité RH',
+                    employees: 'Gérez votre effectif et les informations employés',
+                    recruitment: 'Recrutez avec l’aide de l’IA',
+                    leaves: 'Suivez et approuvez les demandes de congés',
+                    attendance: 'Surveillez la présence et les heures'
+                })[this.currentView] || 'Plateforme RH intelligente';
+            },
+
+            toggleDark() {
+                this.dark = !this.dark;
+                Conf.dark = this.dark;
+                Conf.save();
+            },
+            switchView(key) {
+                this.currentView = key;
+                this.activeNav = key;
+                this.prefetch(key);
+            },
+
+            async ensureAuthenticated() {
+                try {
+                    if (!this.token) this.token = getStoredAccessToken();
+
+                    try {
+                        const who = await this.apiCall('/api/auth/whoami/', {noAuth: true, noTenant: true});
+                        this.user = who?.user || {};
+                        this.tenantId = resolveInitialTenant(this.tenantId || who?.tenant);
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        this.showToast('Authentifié (session)', 'success');
+                        return;
+                    } catch (e) {
+                        log('Session whoami failed → trying JWT', e?.message);
+                    }
+
+                    if (this.token) {
+                        const claims = parseJwt(this.token);
+                        await refreshTokenIfNeeded(claims?.exp);
+                        this.token = getStoredAccessToken();
+
+                        const who = await this.apiCall('/api/auth/whoami/', {noTenant: true});
+                        this.user = who?.user || {
+                            preferred_username: claims?.preferred_username,
+                            username: claims?.preferred_username
+                        };
+                        this.tenantId = resolveInitialTenant(this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id);
+                        Conf.token = this.token;
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        this.showToast('Authentifié (JWT)', 'success');
+                        return;
+                    }
+
+                    if (DEV_MODE) {
+                        this.user = {username: 'dev', preferred_username: 'dev'};
+                        this.tenantId = resolveInitialTenant(this.tenantId);
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        this.showToast('Mode DEV: utilisateur simulé', 'info');
+                        return;
+                    }
+
+                    throw new Error("Aucune méthode d'authentification valide");
+                } catch (e) {
+                    console.error('Authentication error:', e);
+                    this.authHint = true;
+                    if (!DEV_MODE) {
+                        setTimeout(() => {
+                            const loginUrl = '/auth/keycloak/login/';
+                            if (window.location.pathname !== loginUrl) {
+                                window.location.assign(loginUrl);
+                            }
+                        }, 1500);
+                    } else {
+                        this.showToast("DEV: login Keycloak ignoré", "info");
+                    }
+                    throw e;
+                }
+            },
+
+            async apiCall(path, options = {}) {
+                this.authHint = false;
+                const {noAuth = false, noTenant = false, cacheKey = null, cacheTtl = 0, ...fetchOptions} = options;
+
+                const url = buildUrl(this.apiBase, path);
+                const method = (fetchOptions.method || 'GET').toUpperCase();
+
+                if (cacheKey && cacheTtl > 0) {
+                    const hit = cache.get(cacheKey);
+                    if (hit != null) return hit;
+                }
+
+                const headers = {'Content-Type': 'application/json'};
+                const effectiveTenant = noTenant ? null : (this.tenantId || resolveInitialTenant() || FRONT_DEFAULT_TENANT);
+                if (effectiveTenant) headers['X-Tenant-Id'] = effectiveTenant;
+                if (!noAuth && this.token) headers['Authorization'] = `Bearer ${this.token}`;
+                if (shouldSendCsrf(url, method)) {
+                    const csrf = getCookie('csrftoken');
+                    if (csrf) headers['X-CSRFToken'] = csrf;
+                }
+
+                try {
+                    this.loading = true;
+                    const res = await fetchWithBackoff(url, {...fetchOptions, headers}, {retries: 2, baseDelay: 300});
+                    const isJson = (res.headers.get('content-type') || '').includes('application/json');
+                    const payload = res.status === 204 ? null : (isJson ? await res.json().catch(() => null) : null);
+
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) this.authHint = true;
+                        const detail = payload?.detail || payload?.message || '';
+                        throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);
+                    }
+
+                    if (cacheKey && cacheTtl > 0) cache.set(cacheKey, payload, cacheTtl);
+                    return payload;
+                } catch (e) {
+                    console.error(e);
+                    this.showToast(e.message || 'Erreur API', 'error');
+                    throw e;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            prefetch(k) {
+                if (k === 'dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
+                if (k === 'employees' && !this.employees.length) this.loadEmployees();
+                if (k === 'recruitment' && !this.recruitments.length) this.loadRecruitments();
+            },
+
+            async loadDashboardStats() {
+                try {
+                    this.dashboardStats = await this.apiCall('dashboard/stats/', {
+                        cacheKey: 'dashboard_stats',
+                        cacheTtl: 30000
+                    });
+                } catch (_) {
+                }
+            },
+            async loadEmployees() {
+                try {
+                    const d = await this.apiCall('employees/');
+                    this.employees = d?.results || d || [];
+                } catch (_) {
+                }
+            },
+            async loadRecruitments() {
+                try {
+                    const d = await this.apiCall('recruitments/');
+                    this.recruitments = d?.results || d || [];
+                } catch (_) {
+                }
+            },
+
+            showToast(message, type = 'info') {
+                if (window.hrToast) {
+        window.hrToast(message, type);
+    } else {
+        console.log(`[${type}]`, message);
+    }
+                const t = {message, type, visible: true};
+                this.toasts.push(t);
+                setTimeout(() => {
+                    t.visible = false;
+                    this.toasts = this.toasts.filter(x => x !== t);
+                }, 3800);
+            },
+            removeToast(i) {
+                this.toasts.splice(i, 1);
+            },
+
+            saveConf() {
+                this.apiBase = normalizeApiBase(this.apiBase);
+                Conf.apiBase = this.apiBase;
+                Conf.tenantId = this.tenantId;
+                Conf.token = this.token;
+                Conf.dark = this.dark;
+                Conf.save();
+                this.showToast('Configuration enregistrée', 'success');
+            },
+            applyTenant() {
+                this.tenantId = this.tenantId || FRONT_DEFAULT_TENANT;
+                Conf.tenantId = this.tenantId;
+                Conf.save();
+                cache.del('dashboard_stats');
+                this.loadDashboardStats();
+                this.loadEmployees();
+                this.loadRecruitments();
+                this.showToast('Tenant appliqué', 'success');
+                this.openSettings = false;
+            },
+
+            handleOnline() {
+                this.online = true;
+                this.showToast('Connexion rétablie', 'success');
+            },
+            handleOffline() {
+                this.online = false;
+                this.showToast('Vous êtes hors ligne', 'warning');
+            },
+
+            logout() {
+                kcLogout();
+            },
+
+            async init() {
+                this.tenantId = this.tenantId || FRONT_DEFAULT_TENANT;
+                this.apiBase = normalizeApiBase(localStorage.getItem('lyneerp_api') || this.apiBase);
+                this.tenantId = resolveInitialTenant(localStorage.getItem('lyneerp_tenant') || this.tenantId);
+                this.token = getStoredAccessToken() || this.token;
+
+                await this.ensureAuthenticated();
+
+                this.loadDashboardStats();
+                this.loadEmployees();
+                this.loadRecruitments();
+                window.addEventListener('online', () => this.handleOnline());
+                window.addEventListener('offline', () => this.handleOffline());
+            },
+
+            get cmdResults() {
+                const q = this.cmdQuery.toLowerCase().trim();
+                const items = [
+                    {
+                        key: 'v1',
+                        label: 'Aller au Tableau de bord',
+                        desc: 'Vue synthèse',
+                        icon: 'fa-solid fa-chart-pie',
+                        action: () => this.switchView('dashboard')
+                    },
+                    {
+                        key: 'v2',
+                        label: 'Aller à Employés',
+                        desc: 'Lister et gérer',
+                        icon: 'fa-solid fa-users',
+                        action: () => this.switchView('employees')
+                    },
+                    {
+                        key: 'v3',
+                        label: 'Aller à Recrutement',
+                        desc: 'Offres & candidats',
+                        icon: 'fa-solid fa-briefcase',
+                        action: () => this.switchView('recruitment')
+                    },
+                    {
+                        key: 'v4',
+                        label: 'Aller à Congés',
+                        desc: 'Demandes de congé',
+                        icon: 'fa-solid fa-calendar-check',
+                        action: () => this.switchView('leaves')
+                    },
+                    {
+                        key: 'v5',
+                        label: 'Aller à Pointage',
+                        desc: 'Présences',
+                        icon: 'fa-solid fa-clock',
+                        action: () => this.switchView('attendance')
+                    },
+                    {
+                        key: 'cfg',
+                        label: 'Ouvrir Configuration',
+                        desc: 'API / Tenant / Token',
+                        icon: 'fa-solid fa-gear',
+                        action: () => this.openSettings = true
+                    },
+                    {
+                        key: 'dm',
+                        label: 'Basculer Mode sombre',
+                        desc: 'Raccourci ⌘/Ctrl + J',
+                        icon: 'fa-solid fa-moon',
+                        action: () => this.toggleDark()
+                    },
+                ];
+                if (!q) return items;
+                return items.filter(it => it.label.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q));
+            },
+        }
+    }
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
+        Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
+    });
+
+    window.formatDate = (s) => s ? new Date(s).toLocaleDateString('fr-FR') : '';
+    window.formatDateTime = (s) => s ? new Date(s).toLocaleString('fr-FR') : '';
+</script>
 <script>
     // Helper global pour les toasts RH
     window.hrToast = function (message, type = 'info') {
