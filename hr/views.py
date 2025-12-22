@@ -31,7 +31,7 @@ class EmployeeManagementView(HRTemplateView):
     template_name = "hr/base.html"
 
 
-class EmployeeDetailView(LoginRequiredMixin, DetailView):
+class EmployeeDetailView(DetailView):
     model = Employee
     template_name = "hr/employee/detail.html"
     context_object_name = "employee"
