@@ -6,7 +6,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from hr.models import Employee
+from hr.models import Employee, EmploymentContract, LeaveRequest, LeaveBalance, Attendance, Payroll, HRDocument, \
+    SalaryHistory, PerformanceReview, ContractHistory, MedicalRecord, MedicalVisit, MedicalRestriction
 
 
 class HRTemplateView(LoginRequiredMixin, TemplateView):
@@ -57,7 +58,7 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        employee = self.get_employee()
+        employee = self.object()
         tenant_uuid = str(employee.tenant_id)  # UUID (FK Tenant)
 
         # --- Contrats & parcours ---
