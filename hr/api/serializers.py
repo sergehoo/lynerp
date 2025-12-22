@@ -93,8 +93,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "address", "emergency_contact", "salary", "work_schedule",
             "is_active", "termination_date", "termination_reason",
             "user_account", "extra", "created_at", "updated_at",
-            "tenant", "tenant_name", "tenant_slug",
-            "seniority", "is_on_leave",
+            "tenant", "seniority", "is_on_leave",
         ]
         read_only_fields = [
             "id", "created_at", "updated_at",
