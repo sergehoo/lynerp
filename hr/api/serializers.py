@@ -67,7 +67,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
     seniority = serializers.ReadOnlyField()
     is_on_leave = serializers.ReadOnlyField()
-
+    tenant_name = serializers.CharField(source="tenant.name", read_only=True)
+    tenant_slug = serializers.CharField(source="tenant.slug", read_only=True)
     def validate_email(self, value):
         existing_user = User.objects.filter(email=value).first()
         if not existing_user:
@@ -93,12 +94,13 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "address", "emergency_contact", "salary", "work_schedule",
             "is_active", "termination_date", "termination_reason",
             "user_account", "extra", "created_at", "updated_at",
-            "tenant", "seniority", "is_on_leave",
+            "tenant","tenant_name", "tenant_slug",  "seniority", "is_on_leave",
         ]
         read_only_fields = [
             "id", "created_at", "updated_at",
             "full_name", "seniority", "is_on_leave",
             "user_account",  # géré côté backend
+            "tenant_name", "tenant_slug",
         ]
         extra_kwargs = {
             "date_of_birth": {"required": False, "allow_null": True},
