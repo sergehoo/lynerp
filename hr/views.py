@@ -1,9 +1,12 @@
 # Lyneerp/hr/views.py (Ajout des vues templates)
 from django.shortcuts import render
-from django.views.generic import TemplateView
+from django.urls import reverse_lazy
+from django.views.generic import TemplateView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
+
+from hr.models import Employee
 
 
 class HRTemplateView(LoginRequiredMixin, TemplateView):
@@ -25,6 +28,34 @@ class HRDashboardView(HRTemplateView):
 
 class EmployeeManagementView(HRTemplateView):
     template_name = "hr/base.html"
+
+
+class EmployeeDetailView(LoginRequiredMixin, DetailView):
+    model = Employee
+    template_name = "hr/employee/detail.html"
+    context_object_name = "employee"
+
+
+class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
+    model = Employee
+    template_name = "hr/employee/form.html"
+    success_url = reverse_lazy("hr:employee_list")
+
+    fields = [
+        "matricule", "first_name", "last_name", "email",
+        "department", "position", "hire_date", "contract_type",
+        "date_of_birth", "gender", "phone", "address",
+        "salary", "work_schedule",
+        "termination_date", "termination_reason",
+        "emergency_contact", "extra",
+        "is_active",
+    ]
+
+
+class EmployeeDeleteView(LoginRequiredMixin, DeleteView):
+    model = Employee
+    template_name = "hr/employee/confirm_delete.html"
+    success_url = reverse_lazy("hr:employee_list")
 
 
 class RecruitmentView(HRTemplateView):

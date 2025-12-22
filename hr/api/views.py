@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from django.conf import settings
@@ -11,7 +12,7 @@ from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
-from django.db import transaction, IntegrityError
+from django.db import transaction, IntegrityError, models
 from rest_framework import viewsets, status, filters, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -588,7 +589,6 @@ class DepartmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 
 User = get_user_model()
 
-
 log = logging.getLogger(__name__)
 User = get_user_model()
 
@@ -843,44 +843,133 @@ class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 # -----------------------------
 # Recrutement
 # -----------------------------
+
 class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
-    queryset = Recruitment.objects.all()
     serializer_class = RecruitmentSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'reference']
     ordering_fields = ['created_at', 'publication_date', 'title']
 
-    # def get_queryset(self):
-    #     queryset = super().get_queryset()
-    #
-    #     filter_serializer = RecruitmentFilterSerializer(data=self.request.query_params)
-    #     if filter_serializer.is_valid():
-    #         data = filter_serializer.validated_data
-    #         filt: Dict[str, Any] = {}
-    #
-    #         if data.get('status'):
-    #             filt['status'] = data['status']
-    #
-    #         if data.get('department'):
-    #             filt['department_id'] = data['department']
-    #
-    #         if data.get('position'):
-    #             filt['position_id'] = data['position']
-    #
-    #         if data.get('hiring_manager'):
-    #             filt['hiring_manager_id'] = data['hiring_manager']
-    #
-    #         if data.get('publication_date_from'):
-    #             filt['publication_date__gte'] = data['publication_date_from']
-    #
-    #         if data.get('publication_date_to'):
-    #             filt['publication_date__lte'] = data['publication_date_to']
-    #
-    #         queryset = queryset.filter(**filt)
-    #
-    #     return queryset
-    #
+    # ---------- Helpers internes ----------
+
+    def _get_tenant(self, request):
+        tenant = getattr(request, "tenant", None)
+        if tenant:
+            return tenant
+
+        tenant_id = (
+                request.headers.get("X-Tenant-Id")
+                or request.META.get("HTTP_X_TENANT_ID")
+        )
+        if not tenant_id:
+            return None
+        try:
+            return Tenant.objects.get(pk=tenant_id)
+        except Tenant.DoesNotExist:
+            return None
+
+    # ---------- Queryset multi-tenant + filtres ----------
+
+    def get_queryset(self):
+        request = self.request
+
+        qs = Recruitment.objects.select_related(
+            "department", "position", "hiring_manager", "tenant"
+        )
+
+        # Filtre tenant
+        tenant = self._get_tenant(request)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        else:
+            # Par sécurité : aucun tenant => aucun résultat au lieu de 500
+            return Recruitment.objects.none()
+
+        # Filtres customs (status, department, position, dates)
+        status = request.query_params.get("status")
+        department = request.query_params.get("department")
+        position = request.query_params.get("position")
+        pub_from = request.query_params.get("publication_date_from")
+        pub_to = request.query_params.get("publication_date_to")
+
+        if status and status != "all":
+            qs = qs.filter(status=status)
+
+        if department:
+            qs = qs.filter(department_id=department)
+
+        if position:
+            qs = qs.filter(position_id=position)
+
+        if pub_from:
+            try:
+                d = datetime.fromisoformat(pub_from).date()
+                qs = qs.filter(publication_date__gte=d)
+            except ValueError:
+                pass
+
+        if pub_to:
+            try:
+                d = datetime.fromisoformat(pub_to).date()
+                qs = qs.filter(publication_date__lte=d)
+            except ValueError:
+                pass
+
+        return qs
+
+
+class RecruitmentStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_tenant(self, request):
+        tenant = getattr(request, "tenant", None)
+        if tenant:
+            return tenant
+
+        tenant_id = (
+                request.headers.get("X-Tenant-Id")
+                or request.META.get("HTTP_X_TENANT_ID")
+        )
+        if not tenant_id:
+            return None
+        try:
+            return Tenant.objects.get(pk=tenant_id)
+        except Tenant.DoesNotExist:
+            return None
+
+    def get(self, request, *args, **kwargs):
+        tenant = self._get_tenant(request)
+        if not tenant:
+            # pas de tenant = pas de data, mais pas 500
+            return Response(
+                {
+                    "total_recruitments": 0,
+                    "applications_by_status": {},
+                }
+            )
+
+        recr_qs = Recruitment.objects.filter(tenant=tenant)
+
+        total_recruitments = recr_qs.count()
+
+        # agrégation par statut de candidatures
+        apps_qs = JobApplication.objects.filter(recruitment__in=recr_qs)
+        by_status = (
+            apps_qs.values("status")
+            .annotate(total=models.Count("id"))
+            .order_by()
+        )
+        applications_by_status = {
+            row["status"]: row["total"] for row in by_status
+        }
+
+        return Response(
+            {
+                "total_recruitments": total_recruitments,
+                "applications_by_status": applications_by_status,
+            }
+        )
 
 
 # -----------------------------

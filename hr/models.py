@@ -1285,11 +1285,11 @@ class Recruitment(models.Model):
     # Description et exigences
     job_description = models.TextField(
         help_text="Description détaillée du poste",
-        blank=True      # <- pour coller au front (non requis)
+        blank=True
     )
     requirements = models.JSONField(
         default=dict,
-        blank=True,      # <- optionnel
+        blank=True,
         help_text="Exigences et compétences requises (structurées pour l'IA)"
     )
 
@@ -1315,7 +1315,7 @@ class Recruitment(models.Model):
         Employee,
         on_delete=models.CASCADE,
         related_name='managed_recruitments',
-        null=True,       # <- pour qu'on puisse le remplir automatiquement
+        null=True,
         blank=True,
     )
     recruiters = models.ManyToManyField(
@@ -1358,13 +1358,15 @@ class Recruitment(models.Model):
         help_text="Score minimum pour la présélection IA"
     )
 
+    # Multi-tenant
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.PROTECT,
-        db_column='tenant_id',
+        db_column='tenant_id',   # on garde la colonne existante
         null=True,
         db_index=True,
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1372,31 +1374,33 @@ class Recruitment(models.Model):
         db_table = 'hr_recruitments'
         ordering = ['-created_at']
         indexes = [
-            # ⚠️ ici il vaut mieux utiliser le nom de champ "tenant"
             models.Index(fields=['tenant', 'status']),
             models.Index(fields=['tenant', 'reference']),
             models.Index(fields=['position']),
             models.Index(fields=['publication_date']),
         ]
-        unique_together = (('tenant', 'reference'),)  # idem : "tenant" et pas "tenant_id"
+        unique_together = (('tenant', 'reference'),)
         constraints = [
             models.CheckConstraint(
                 check=~(
-                        models.Q(salary_min__isnull=False) &
-                        models.Q(salary_max__isnull=False) &
-                        models.Q(salary_min__gt=models.F('salary_max'))
+                    models.Q(salary_min__isnull=False) &
+                    models.Q(salary_max__isnull=False) &
+                    models.Q(salary_min__gt=models.F('salary_max'))
                 ),
                 name='recruit_salary_min_le_max'
             ),
             models.CheckConstraint(
                 check=~(
-                        models.Q(publication_date__isnull=False) &
-                        models.Q(closing_date__isnull=False) &
-                        models.Q(closing_date__lt=models.F('publication_date'))
+                    models.Q(publication_date__isnull=False) &
+                    models.Q(closing_date__isnull=False) &
+                    models.Q(closing_date__lt=models.F('publication_date'))
                 ),
                 name='recruit_close_ge_publish'
             ),
         ]
+
+    def __str__(self):
+        return f"{self.title} ({self.reference})"
 
     @property
     def is_active(self):
@@ -1404,7 +1408,7 @@ class Recruitment(models.Model):
 
     @property
     def applications_count(self):
-        # utilisé partout (API, admin, front éventuel)
+        # reverse FK: JobApplication(recruitment, related_name='applications')
         return self.applications.count()
 
     @property
@@ -1413,7 +1417,6 @@ class Recruitment(models.Model):
 
     def clean(self):
         errors = {}
-        # avec FK "tenant", tenant_id reste accessible, donc ça passe
         if self.position and self.position.tenant_id != self.tenant_id:
             errors['position'] = "Le poste n'appartient pas au même tenant."
         if self.department and self.department.tenant_id != self.tenant_id:
@@ -1423,7 +1426,6 @@ class Recruitment(models.Model):
         if errors:
             from django.core.exceptions import ValidationError
             raise ValidationError(errors)
-
 def upload_to_per_tenant(prefix):
     import os
     def _path(instance, filename):

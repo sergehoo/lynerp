@@ -93,6 +93,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "address", "emergency_contact", "salary", "work_schedule",
             "is_active", "termination_date", "termination_reason",
             "user_account", "extra", "created_at", "updated_at",
+            "tenant", "tenant_name", "tenant_slug",
             "seniority", "is_on_leave",
         ]
         read_only_fields = [
@@ -252,8 +253,12 @@ class PerformanceReviewSerializer(serializers.ModelSerializer):
 
 
 class RecruitmentSerializer(serializers.ModelSerializer):
-    applications_count = serializers.IntegerField(read_only=True)
-    applications_pending_review = serializers.IntegerField(read_only=True)
+    # Champs dérivés pour le front
+    department_name = serializers.CharField(source="department.name", read_only=True)
+    position_title = serializers.CharField(source="position.title", read_only=True)
+
+    applications_count = serializers.SerializerMethodField()
+    applications_pending_review = serializers.SerializerMethodField()
 
     class Meta:
         model = Recruitment
@@ -269,15 +274,19 @@ class RecruitmentSerializer(serializers.ModelSerializer):
 
     # Helpers internes
     def _get_tenant(self):
-        request = self.context["request"]
+        request = self.context.get("request")
+        if not request:
+            raise serializers.ValidationError({"tenant": "Contexte requête manquant."})
 
-        # Si ton BaseTenantViewSet met déjà request.tenant, on le réutilise
         tenant = getattr(request, "tenant", None)
         if tenant:
             return tenant
 
-        # Sinon on tente via le header X-Tenant-Id (utilisé côté JS)
-        tenant_id = request.headers.get("X-Tenant-Id")
+        # Header envoyé par ton front
+        tenant_id = (
+            request.headers.get("X-Tenant-Id")
+            or request.META.get("HTTP_X_TENANT_ID")
+        )
         if tenant_id:
             try:
                 return Tenant.objects.get(pk=tenant_id)
@@ -287,26 +296,32 @@ class RecruitmentSerializer(serializers.ModelSerializer):
         raise serializers.ValidationError({"tenant": "Tenant non fourni."})
 
     def _get_employee(self):
-        request = self.context["request"]
+        request = self.context.get("request")
+        if not request:
+            return None
         employee = getattr(request.user, "employee", None)
-        if not employee:
-            # à adapter : soit tu rends hiring_manager vraiment optionnel,
-            # soit tu imposes qu'un Employee soit lié à l'utilisateur
-            raise serializers.ValidationError({
-                "hiring_manager": "Aucun employé associé à l'utilisateur courant."
-            })
         return employee
 
-    def create(self, validated_data):
-        # requirements facultatif → dict vide par défaut
-        validated_data.setdefault("requirements", {})
+    # Exposition des propriétés
+    def get_applications_count(self, obj):
+        # propriété du modèle => jamais d'AttributeError
+        return obj.applications_count
 
-        # manager par défaut = employé lié au user courant si absent du payload
-        if not validated_data.get("hiring_manager"):
-            validated_data["hiring_manager"] = self._get_employee()
+    def get_applications_pending_review(self, obj):
+        return obj.applications_pending_review
+
+    def create(self, validated_data):
+        # facultatif → dict vide par défaut
+        validated_data.setdefault("requirements", {})
 
         # tenant injecté automatiquement
         validated_data["tenant"] = self._get_tenant()
+
+        # manager par défaut = employee du user courant si non fourni
+        if not validated_data.get("hiring_manager"):
+            employee = self._get_employee()
+            if employee:
+                validated_data["hiring_manager"] = employee
 
         return super().create(validated_data)
 
@@ -314,7 +329,6 @@ class RecruitmentSerializer(serializers.ModelSerializer):
         # On ne laisse pas le client changer le tenant
         validated_data.pop("tenant", None)
         return super().update(instance, validated_data)
-
 class JobApplicationSerializer(serializers.ModelSerializer):
     recruitment_title = serializers.CharField(source='recruitment.title', read_only=True)
     full_name = serializers.ReadOnlyField()
