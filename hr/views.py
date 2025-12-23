@@ -214,8 +214,8 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         # Retards ce mois
         late_arrivals = Attendance.objects.filter(
             employee=employee,
-            date__gte=month_start,
-            is_late=True
+            date__gte=month_start
+            # is_late=True
         ).count()
 
         # Absences cette année
