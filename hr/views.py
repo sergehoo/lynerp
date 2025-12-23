@@ -186,7 +186,7 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
                 "contracts__history",
                 "leavebalance_set" if hasattr(Employee, "leavebalance_set") else "leave_balances",
                 "performance_reviews",
-                "skills",
+                # "skills",
             )
         )
 
