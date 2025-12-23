@@ -258,12 +258,12 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         today = date.today()
 
         # Vérifier la fin de période d'essai
-        if employee.probation_end_date and employee.probation_end_date > today:
-            days_left = (employee.probation_end_date - today).days
+        if employee.contracts.probation_end_date and employee.contracts.probation_end_date > today:
+            days_left = (employee.contracts.probation_end_date - today).days
             if days_left <= 30:  # Moins de 30 jours
                 deadlines.append({
                     'type': 'Fin période essai',
-                    'date': employee.probation_end_date,
+                    'date': employee.contracts.probation_end_date,
                     'description': f'Fin de période d\'essai dans {days_left} jours',
                     'priority': 'high' if days_left <= 7 else 'medium'
                 })
