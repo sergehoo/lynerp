@@ -174,8 +174,10 @@ class Command(BaseCommand):
 
         # --- Parents (tenant FK) ---
         Employee.objects.filter(tenant=tenant).delete()
-        Position.objects.filter(tenant=tenant).delete()
-        Department.objects.filter(tenant=tenant).delete()
+
+        # ✅ AJOUTE ÇA
+        Position.objects.filter(tenant_id=tenant.id).delete()  # Position.tenant est FK
+        Department.objects.filter(tenant_id=tenant.id).delete()  # Department.tenant est FK
 
         self.stdout.write(self.style.SUCCESS("✅ Purge terminée."))
 
