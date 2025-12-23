@@ -236,7 +236,7 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         # Congés utilisés cette année
         total_leave_used = LeaveRequest.objects.filter(
             employee=employee,
-            year=today.year,
+            start_date=today.year,
             status='APPROVED'
         ).aggregate(
             total_days=models.Sum('number_of_days')
