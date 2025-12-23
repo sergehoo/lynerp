@@ -64,3 +64,4 @@ gunicorn
 whitenoise
 mozilla_django_oidc
 redis
+faker
