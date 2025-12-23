@@ -250,6 +250,43 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
             'total_leave_used': total_leave_used,
         }
 
+    # def get_upcoming_deadlines(self, employee, tenant_uuid):
+    #     """Récupère les échéances à venir"""
+    #     from datetime import date, timedelta
+    #
+    #     deadlines = []
+    #     today = date.today()
+    #
+    #     # Vérifier la fin de période d'essai
+    #     if employee.contracts.probation_end_date and employee.contracts.probation_end_date > today:
+    #         days_left = (employee.contracts.probation_end_date - today).days
+    #         if days_left <= 30:  # Moins de 30 jours
+    #             deadlines.append({
+    #                 'type': 'Fin période essai',
+    #                 'date': employee.contracts.probation_end_date,
+    #                 'description': f'Fin de période d\'essai dans {days_left} jours',
+    #                 'priority': 'high' if days_left <= 7 else 'medium'
+    #             })
+    #
+    #     # Vérifier les contrats qui se terminent
+    #     ending_contracts = EmploymentContract.objects.filter(
+    #         employee=employee,
+    #         end_date__gte=today,
+    #         end_date__lte=today + timedelta(days=90)
+    #     )
+    #
+    #     for contract in ending_contracts:
+    #         days_left = (contract.end_date - today).days
+    #         deadlines.append({
+    #             'type': 'Fin de contrat',
+    #             'date': contract.end_date,
+    #             'description': f'Contrat {contract.contract_number} se termine dans {days_left} jours',
+    #             'priority': 'high' if days_left <= 30 else 'medium'
+    #         })
+    #
+    #     # Trier par date
+    #     deadlines.sort(key=lambda x: x['date'])
+    #     return deadlines[:5]  # Retourner les 5 plus proches
     def get_upcoming_deadlines(self, employee, tenant_uuid):
         """Récupère les échéances à venir"""
         from datetime import date, timedelta
@@ -257,23 +294,30 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         deadlines = []
         today = date.today()
 
-        # Vérifier la fin de période d'essai
-        if employee.contracts.probation_end_date and employee.contracts.probation_end_date > today:
-            days_left = (employee.contracts.probation_end_date - today).days
-            if days_left <= 30:  # Moins de 30 jours
-                deadlines.append({
-                    'type': 'Fin période essai',
-                    'date': employee.contracts.probation_end_date,
-                    'description': f'Fin de période d\'essai dans {days_left} jours',
-                    'priority': 'high' if days_left <= 7 else 'medium'
-                })
+        # ✅ Contrat à considérer pour la période d'essai
+        current = employee.current_contract
+        contract_for_probation = current or employee.contracts.order_by('-start_date').first()
 
-        # Vérifier les contrats qui se terminent
+        # Fin période d'essai (si existe)
+        if contract_for_probation and contract_for_probation.probation_end_date:
+            pe = contract_for_probation.probation_end_date
+            if pe > today:
+                days_left = (pe - today).days
+                if days_left <= 30:
+                    deadlines.append({
+                        'type': 'Fin période essai',
+                        'date': pe,
+                        'description': f"Fin de période d'essai dans {days_left} jours",
+                        'priority': 'high' if days_left <= 7 else 'medium',
+                    })
+
+        # Contrats qui se terminent
         ending_contracts = EmploymentContract.objects.filter(
             employee=employee,
+            end_date__isnull=False,
             end_date__gte=today,
             end_date__lte=today + timedelta(days=90)
-        )
+        ).order_by('end_date')
 
         for contract in ending_contracts:
             days_left = (contract.end_date - today).days
@@ -284,10 +328,8 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
                 'priority': 'high' if days_left <= 30 else 'medium'
             })
 
-        # Trier par date
         deadlines.sort(key=lambda x: x['date'])
-        return deadlines[:5]  # Retourner les 5 plus proches
-
+        return deadlines[:5]
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         employee = self.object
@@ -397,6 +439,8 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
             "current_year": current_year,
         })
         return ctx
+
+
 class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
     model = Employee
     template_name = "hr/employee/form.html"
