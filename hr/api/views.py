@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core import cache
 # from django.contrib.auth.models import User
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
@@ -176,9 +177,6 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
         return qs.none()
 
 
-
-
-
 class TenantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tenant.objects.filter(is_active=True).order_by("name")
     serializer_class = TenantLiteSerializer
@@ -192,186 +190,280 @@ class HRDashboardViewSet(viewsets.ViewSet):
     """Vues pour le tableau de bord RH"""
     permission_classes = [IsAuthenticated, HasRHAccess]
 
-    def get_tenant(self, request) -> Tenant:
+    # -----------------------------
+    # Tenant helpers
+    # -----------------------------
+    def get_tenant(self, request) -> Optional[Tenant]:
         return get_current_tenant_from_request(request)
 
-    @action(detail=False, methods=['get'])
+    def _tenant_filter_q(self, tenant: Tenant) -> Q:
+        """
+        Pour les modèles qui stockent tenant_id en CharField:
+        on accepte à la fois slug et uuid-string (pour compatibilité base).
+        """
+        q = Q(tenant_id=tenant.slug)
+        q |= Q(tenant_id=str(tenant.id))
+        return q
+
+    # -----------------------------
+    # Dashboard: Stats principales
+    # -----------------------------
+    @action(detail=False, methods=["get"])
     def stats(self, request):
-        """Récupérer les statistiques du tableau de bord"""
+        """
+        Statistiques globales dashboard.
+        Optimisé pour gros volume (counts + index).
+        """
         tenant = self.get_tenant(request)
-        tenant_slug = tenant.slug
         if not tenant:
             return Response(
                 {"detail": "Tenant introuvable pour cette requête"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        tenant_slug = tenant.slug
+        cache_key = f"hr:dash:stats:{tenant.id}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        today = timezone.localdate()
 
         # Models avec tenant = FK(Tenant)
-        total_employees = Employee.objects.filter(tenant=tenant).count()
-        active_employees = Employee.objects.filter(tenant=tenant, is_active=True).count()
+        emp_qs = Employee.objects.filter(tenant=tenant)
+        total_employees = emp_qs.count()
+        active_employees = emp_qs.filter(is_active=True).count()
 
-        # Employés en congé aujourd'hui
-        today = timezone.now().date()
-        employees_on_leave = Employee.objects.filter(
-            tenant=tenant,
-            is_active=True,
-            leaverequest__status='approved',
-            leaverequest__start_date__lte=today,
-            leaverequest__end_date__gte=today
-        ).distinct().count()
+        employees_on_leave = (
+            emp_qs.filter(
+                is_active=True,
+                leaverequest__status="approved",
+                leaverequest__start_date__lte=today,
+                leaverequest__end_date__gte=today,
+            )
+            .distinct()
+            .count()
+        )
 
-        # Nouvelles embauches ce mois-ci
-        current_month = today.month
-        current_year = today.year
-        new_hires_this_month = Employee.objects.filter(
-            tenant=tenant,
-            hire_date__month=current_month,
-            hire_date__year=current_year
+        new_hires_this_month = emp_qs.filter(
+            hire_date__year=today.year,
+            hire_date__month=today.month,
         ).count()
 
-        # Models avec tenant_id = CharField
+        # Models avec tenant_id (CharField)
+        t_q = self._tenant_filter_q(tenant)
+
         pending_leave_requests = LeaveRequest.objects.filter(
-            tenant_id=tenant_slug,
-            status='pending'
+            t_q,
+            status="pending",
         ).count()
 
         active_recruitments = Recruitment.objects.filter(
-            tenant_id=tenant_slug,
-            status__in=['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
+            t_q,
+            status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"],
         ).count()
 
         upcoming_reviews = PerformanceReview.objects.filter(
-            tenant_id=tenant_slug,
+            t_q,
             review_date__gte=today,
-            status='DRAFT'
+            status="DRAFT",
         ).count()
 
         stats_data = {
-            'total_employees': total_employees,
-            'active_employees': active_employees,
-            'employees_on_leave': employees_on_leave,
-            'new_hires_this_month': new_hires_this_month,
-            'pending_leave_requests': pending_leave_requests,
-            'active_recruitments': active_recruitments,
-            'upcoming_reviews': upcoming_reviews,
+            "total_employees": total_employees,
+            "active_employees": active_employees,
+            "employees_on_leave": employees_on_leave,
+            "new_hires_this_month": new_hires_this_month,
+            "pending_leave_requests": pending_leave_requests,
+            "active_recruitments": active_recruitments,
+            "upcoming_reviews": upcoming_reviews,
         }
 
         serializer = HRDashboardSerializer(stats_data)
-        return Response(serializer.data)
+        data = serializer.data
 
-    @action(detail=False, methods=['get'])
+        cache.set(cache_key, data, 30)  # 30s
+        return Response(data)
+
+    # -----------------------------
+    # Dashboard: listes légères
+    # -----------------------------
+    @action(detail=False, methods=["get"])
+    def latest_hires(self, request):
+        """Top N dernières embauches (léger)"""
+        tenant = self.get_tenant(request)
+        if not tenant:
+            return Response([], status=200)
+
+        try:
+            limit = min(int(request.query_params.get("limit", 5)), 50)
+        except Exception:
+            limit = 5
+
+        qs = (
+            Employee.objects
+            .filter(tenant=tenant)
+            .select_related("department", "position")
+            .only("id", "first_name", "last_name", "hire_date", "department__name", "position__title")
+            .order_by("-hire_date")[:limit]
+        )
+
+        data = [{
+            "id": str(e.id),
+            "first_name": e.first_name,
+            "last_name": e.last_name,
+            "hire_date": e.hire_date,
+            "department_name": getattr(e.department, "name", None),
+            "position_title": getattr(e.position, "title", None),
+        } for e in qs]
+
+        return Response(data)
+
+    @action(detail=False, methods=["get"])
+    def active_recruitments_list(self, request):
+        """Top N recrutements actifs (léger)"""
+        tenant = self.get_tenant(request)
+        if not tenant:
+            return Response([], status=200)
+
+        try:
+            limit = min(int(request.query_params.get("limit", 3)), 50)
+        except Exception:
+            limit = 3
+
+        t_q = self._tenant_filter_q(tenant)
+
+        qs = (
+            Recruitment.objects
+            .filter(t_q, status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"])
+            .select_related("department", "position")
+            .only(
+                "id", "title", "status", "publication_date", "number_of_positions",
+                "department__name", "position__title"
+            )
+            .order_by("-publication_date", "-created_at")[:limit]
+        )
+
+        data = [{
+            "id": r.id,
+            "title": r.title,
+            "status": r.status,
+            "publication_date": r.publication_date,
+            "number_of_positions": r.number_of_positions,
+            "department_name": getattr(r.department, "name", None),
+            "position_title": getattr(r.position, "title", None),
+        } for r in qs]
+
+        return Response(data)
+
+    # -----------------------------
+    # Statistiques Recrutement
+    # -----------------------------
+    @action(detail=False, methods=["get"])
     def recruitment_stats(self, request):
-        """Statistiques de recrutement"""
         tenant = self.get_tenant(request)
         if not tenant:
             return Response({"detail": "Tenant introuvable"}, status=400)
 
-        tenant_slug = tenant.slug
+        cache_key = f"hr:dash:recruitment_stats:{tenant.id}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
 
-        total_recruitments = Recruitment.objects.filter(
-            tenant_id=tenant_slug
-        ).count()
+        t_q = self._tenant_filter_q(tenant)
 
+        total_recruitments = Recruitment.objects.filter(t_q).count()
         active_recruitments = Recruitment.objects.filter(
-            tenant_id=tenant_slug,
-            status__in=['OPEN', 'IN_REVIEW', 'INTERVIEW', 'OFFER']
+            t_q, status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"]
         ).count()
 
-        total_applications = JobApplication.objects.filter(
-            tenant_id=tenant_slug
-        ).count()
+        total_applications = JobApplication.objects.filter(t_q).count()
 
         applications_this_week = JobApplication.objects.filter(
-            tenant_id=tenant_slug,
+            t_q,
             applied_at__gte=timezone.now() - timezone.timedelta(days=7)
         ).count()
 
-        avg_ai_score = JobApplication.objects.filter(
-            tenant_id=tenant_slug,
-            ai_score__isnull=False
-        ).aggregate(avg_score=Avg('ai_score'))['avg_score'] or 0
+        avg_ai_score = (
+                JobApplication.objects.filter(t_q, ai_score__isnull=False)
+                .aggregate(avg_score=Avg("ai_score"))["avg_score"]
+                or 0
+        )
 
         apps_by_status = dict(
             JobApplication.objects
-            .filter(tenant_id=tenant_slug)
-            .values('status')
-            .annotate(count=Count('id'))
-            .values_list('status', 'count')
+            .filter(t_q)
+            .values("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
         )
 
-        # Conversion : candidatures HIRED / total candidatures
-        hires = JobApplication.objects.filter(
-            tenant_id=tenant_slug,
-            status='HIRED'
-        ).count()
+        hires = JobApplication.objects.filter(t_q, status="HIRED").count()
         hire_conversion_rate = (hires / total_applications * 100.0) if total_applications > 0 else 0.0
 
-        # Stats IA
-        ai_qs = AIProcessingResult.objects.filter(tenant_id=tenant_slug)
-        ai_completed = ai_qs.filter(status='COMPLETED').count()
-        ai_failed = ai_qs.filter(status='FAILED').count()
-        ai_avg_overall = ai_qs.aggregate(a=Avg('overall_match_score'))['a'] or 0.0
-
-        ai_processing_stats = {
-            "completed": ai_completed,
-            "failed": ai_failed,
-            "avg_overall_match_score": round(ai_avg_overall, 2),
-        }
-
-        # TODO plus tard : calcul réel du time-to-hire
-        average_time_to_hire = 0.0
+        ai_qs = AIProcessingResult.objects.filter(t_q)
+        ai_completed = ai_qs.filter(status="COMPLETED").count()
+        ai_failed = ai_qs.filter(status="FAILED").count()
+        ai_avg_overall = ai_qs.aggregate(a=Avg("overall_match_score"))["a"] or 0.0
 
         stats_data = {
-            'total_recruitments': total_recruitments,
-            'active_recruitments': active_recruitments,
-            'total_applications': total_applications,
-            'applications_this_week': applications_this_week,
-            'average_ai_score': round(avg_ai_score, 2),
-            'hire_conversion_rate': round(hire_conversion_rate, 2),
-            'average_time_to_hire': average_time_to_hire,
-            'applications_by_status': apps_by_status,
-            'ai_processing_stats': ai_processing_stats,
+            "total_recruitments": total_recruitments,
+            "active_recruitments": active_recruitments,
+            "total_applications": total_applications,
+            "applications_this_week": applications_this_week,
+            "average_ai_score": round(avg_ai_score, 2),
+            "hire_conversion_rate": round(hire_conversion_rate, 2),
+            "average_time_to_hire": 0.0,  # TODO
+            "applications_by_status": apps_by_status,
+            "ai_processing_stats": {
+                "completed": ai_completed,
+                "failed": ai_failed,
+                "avg_overall_match_score": round(ai_avg_overall, 2),
+            },
         }
 
         serializer = RecruitmentStatsSerializer(stats_data)
-        return Response(serializer.data)
+        data = serializer.data
+        cache.set(cache_key, data, 30)
+        return Response(data)
 
-    @action(detail=False, methods=['get'])
+    # -----------------------------
+    # Stats Employés
+    # -----------------------------
+    @action(detail=False, methods=["get"])
     def employee_stats(self, request):
-        """Statistiques détaillées des employés"""
         tenant = self.get_tenant(request)
+        if not tenant:
+            return Response({"detail": "Tenant introuvable"}, status=400)
 
         by_department = dict(
             Employee.objects
             .filter(tenant=tenant, is_active=True)
-            .values('department__name')
-            .annotate(count=Count('id'))
-            .values_list('department__name', 'count')
+            .values("department__name")
+            .annotate(count=Count("id"))
+            .values_list("department__name", "count")
         )
 
         by_contract = dict(
             Employee.objects
             .filter(tenant=tenant, is_active=True)
-            .values('contract_type')
-            .annotate(count=Count('id'))
-            .values_list('contract_type', 'count')
+            .values("contract_type")
+            .annotate(count=Count("id"))
+            .values_list("contract_type", "count")
         )
 
         gender_dist = dict(
             Employee.objects
             .filter(tenant=tenant, is_active=True)
-            .exclude(gender='')
-            .values('gender')
-            .annotate(count=Count('id'))
-            .values_list('gender', 'count')
+            .exclude(gender="")
+            .values("gender")
+            .annotate(count=Count("id"))
+            .values_list("gender", "count")
         )
 
         stats_data = {
-            'total_by_department': by_department,
-            'total_by_contract_type': by_contract,
-            'gender_distribution': gender_dist,
+            "total_by_department": by_department,
+            "total_by_contract_type": by_contract,
+            "gender_distribution": gender_dist,
         }
 
         serializer = EmployeeStatsSerializer(stats_data)
