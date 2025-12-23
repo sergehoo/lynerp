@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-
+import uuid
 from faker import Faker
 
 from tenants.models import Tenant
@@ -19,7 +19,6 @@ from hr.models import (
     Recruitment, JobApplication, AIProcessingResult, Interview, InterviewFeedback,
     RecruitmentAnalytics, JobOffer, RecruitmentWorkflow
 )
-
 
 fake = Faker("fr_FR")
 
@@ -37,7 +36,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--tenant", type=str, default=None, help="Tenant UUID/id (optional)")
         parser.add_argument("--n", type=int, default=100, help="Number of employees to create (default 100)")
-        parser.add_argument("--purge", action="store_true", help="Delete existing HR data for this tenant_id before seeding")
+        parser.add_argument("--purge", action="store_true",
+                            help="Delete existing HR data for this tenant_id before seeding")
 
     @transaction.atomic
     def handle(self, *args, **opts):
@@ -128,15 +128,19 @@ class Command(BaseCommand):
     def _purge(self, tenant, tenant_id_str: str):
         self.stdout.write(self.style.WARNING("⚠️ Purge des données existantes (tenant scope)..."))
 
-        # Attention: certaines tables ont FK tenant, d'autres tenant_id (string)
-        # Supprimer dans l’ordre (du plus dépendant au parent)
+        tenant_uuid = None
+        try:
+            tenant_uuid = uuid.UUID(str(tenant_id_str))
+        except Exception:
+            pass
+
+        # --- Tables avec tenant_id en CharField ---
         InterviewFeedback.objects.filter(tenant_id=tenant_id_str).delete()
         Interview.objects.filter(tenant_id=tenant_id_str).delete()
         AIProcessingResult.objects.filter(tenant_id=tenant_id_str).delete()
         JobOffer.objects.filter(tenant_id=tenant_id_str).delete()
         RecruitmentAnalytics.objects.filter(tenant_id=tenant_id_str).delete()
         JobApplication.objects.filter(tenant_id=tenant_id_str).delete()
-        Recruitment.objects.filter(tenant=tenant).delete()
         RecruitmentWorkflow.objects.filter(tenant_id=tenant_id_str).delete()
 
         Payroll.objects.filter(tenant_id=tenant_id_str).delete()
@@ -161,7 +165,14 @@ class Command(BaseCommand):
         EmploymentContract.objects.filter(tenant_id=tenant_id_str).delete()
         ContractType.objects.filter(tenant_id=tenant_id_str).delete()
 
-        # Employees / positions / departments (tenant FK)
+        # --- Recruitment: en base, tenant_id semble être UUID -> filtrer en UUID ---
+        if tenant_uuid:
+            Recruitment.objects.filter(tenant_id=tenant_uuid).delete()
+        else:
+            # fallback si DB est finalement varchar
+            Recruitment.objects.filter(tenant_id=tenant_id_str).delete()
+
+        # --- Parents (tenant FK) ---
         Employee.objects.filter(tenant=tenant).delete()
         Position.objects.filter(tenant=tenant).delete()
         Department.objects.filter(tenant=tenant).delete()
@@ -175,7 +186,7 @@ class Command(BaseCommand):
         workflows = []
         for i in range(2):
             workflows.append(RecruitmentWorkflow(
-                name=f"Workflow Standard {i+1}",
+                name=f"Workflow Standard {i + 1}",
                 description="Processus standard de recrutement",
                 stages=[
                     {"code": "APPLIED", "label": "Postulé"},
@@ -319,7 +330,8 @@ class Command(BaseCommand):
             pos = random.choice([p for p in positions if p.department_id == dept.id] or positions)
 
             hire = rand_date_between(start_hire_min, date.today() - timedelta(days=30))
-            dob = rand_date_between(date.today().replace(year=date.today().year - 55), date.today().replace(year=date.today().year - 20))
+            dob = rand_date_between(date.today().replace(year=date.today().year - 55),
+                                    date.today().replace(year=date.today().year - 20))
 
             employees.append(Employee(
                 tenant=tenant,
@@ -406,7 +418,8 @@ class Command(BaseCommand):
                     work_location=random.choice(["Abidjan", "Bouaké", "San-Pédro", "Yamoussoukro"]),
                     remote_allowed=random.random() < 0.2,
                     remote_days_per_week=random.randint(0, 3),
-                    status="ACTIVE" if (start <= today and (end is None or end >= today)) else random.choice(["EXPIRED", "TERMINATED", "SUSPENDED"]),
+                    status="ACTIVE" if (start <= today and (end is None or end >= today)) else random.choice(
+                        ["EXPIRED", "TERMINATED", "SUSPENDED"]),
                     termination_reason="",
                     termination_date=None,
                     termination_type="",
@@ -430,7 +443,7 @@ class Command(BaseCommand):
         alerts = []
         histories = []
 
-        for c in random.sample(contracts, k=min(len(contracts), max(10, len(contracts)//5))):
+        for c in random.sample(contracts, k=min(len(contracts), max(10, len(contracts) // 5))):
             if random.random() < 0.6:
                 amendments.append(ContractAmendment(
                     contract=c,
@@ -503,8 +516,11 @@ class Command(BaseCommand):
             # 2 entrées
             d1 = e.hire_date + timedelta(days=180)
             d2 = e.hire_date + timedelta(days=540)
-            items.append(SalaryHistory(employee=e, effective_date=d1, gross_salary=base, reason="Embauche", tenant_id=tenant_id_str))
-            items.append(SalaryHistory(employee=e, effective_date=d2, gross_salary=base + random.randint(50_000, 400_000), reason="Augmentation", tenant_id=tenant_id_str))
+            items.append(SalaryHistory(employee=e, effective_date=d1, gross_salary=base, reason="Embauche",
+                                       tenant_id=tenant_id_str))
+            items.append(
+                SalaryHistory(employee=e, effective_date=d2, gross_salary=base + random.randint(50_000, 400_000),
+                              reason="Augmentation", tenant_id=tenant_id_str))
         SalaryHistory.objects.bulk_create(items, ignore_conflicts=True)
 
     def _create_documents(self, tenant_id_str, employees):
@@ -643,8 +659,13 @@ class Command(BaseCommand):
                 check_out = None
                 if status in ["PRESENT", "LATE", "HALF_DAY"]:
                     hour_in = 8 if status != "LATE" else 9
-                    check_in = (timezone.datetime.combine(day, timezone.datetime.min.time()).replace(hour=hour_in, minute=random.randint(0, 30))).time()
-                    check_out = (timezone.datetime.combine(day, timezone.datetime.min.time()).replace(hour=17, minute=random.randint(0, 30))).time()
+                    check_in = (timezone.datetime.combine(day, timezone.datetime.min.time()).replace(hour=hour_in,
+                                                                                                     minute=random.randint(
+                                                                                                         0, 30))).time()
+                    check_out = (timezone.datetime.combine(day, timezone.datetime.min.time()).replace(hour=17,
+                                                                                                      minute=random.randint(
+                                                                                                          0,
+                                                                                                          30))).time()
                 items.append(Attendance(
                     employee=e,
                     date=day,
@@ -667,7 +688,7 @@ class Command(BaseCommand):
             for m in range(3):
                 period_end = (today.replace(day=1) - timedelta(days=1)).replace(day=28) + timedelta(days=4)
                 period_end = period_end - timedelta(days=period_end.day)  # dernier jour mois courant
-                period_start = (period_end.replace(day=1) - timedelta(days=30*m)).replace(day=1)
+                period_start = (period_end.replace(day=1) - timedelta(days=30 * m)).replace(day=1)
                 period_end = (period_start.replace(day=28) + timedelta(days=4))
                 period_end = period_end - timedelta(days=period_end.day)
 
@@ -691,7 +712,7 @@ class Command(BaseCommand):
                     social_security=social,
                     other_deductions=0,
                     gross_salary=0,  # recalculé en save()
-                    net_salary=0,    # recalculé en save()
+                    net_salary=0,  # recalculé en save()
                     status=random.choice(["DRAFT", "PROCESSED", "PAID"]),
                     payroll_number=f"PAY-{tenant_id_str[:6].upper()}-{uuid.uuid4().hex[:10].upper()}",
                     tenant_id=tenant_id_str,
@@ -737,7 +758,8 @@ class Command(BaseCommand):
                 position=pos,
                 department=dept,
                 job_description=fake.text(max_nb_chars=200),
-                requirements={"skills": random.sample(["Python", "Django", "SQL", "Excel", "RH", "Compta", "Linux"], k=3)},
+                requirements={
+                    "skills": random.sample(["Python", "Django", "SQL", "Excel", "RH", "Compta", "Linux"], k=3)},
                 contract_type=random.choice(["CDI", "CDD", "STAGE", "ALTERNANCE"]),
                 salary_min=random.randint(200_000, 600_000),
                 salary_max=random.randint(700_000, 2_000_000),
@@ -790,7 +812,7 @@ class Command(BaseCommand):
             applications = list(JobApplication.objects.filter(recruitment=r))
 
             # AIProcessingResult (pour ~50%)
-            for app in random.sample(applications, k=min(len(applications), len(applications)//2)):
+            for app in random.sample(applications, k=min(len(applications), len(applications) // 2)):
                 AIProcessingResult.objects.create(
                     job_application=app,
                     extracted_skills=random.sample(["Python", "Django", "SQL", "Docker", "React", "HR"], k=3),
@@ -838,7 +860,8 @@ class Command(BaseCommand):
                     InterviewFeedback.objects.create(
                         interview=itv,
                         interviewer=interviewer,
-                        criteria={"communication": round(random.uniform(1, 5), 1), "tech": round(random.uniform(1, 5), 1)},
+                        criteria={"communication": round(random.uniform(1, 5), 1),
+                                  "tech": round(random.uniform(1, 5), 1)},
                         summary=fake.sentence(),
                         rating=round(random.uniform(1, 5), 1),
                         tenant_id=tenant_id_str,
