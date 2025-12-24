@@ -1,0 +1,30 @@
+{# Lyneerp/hr/templates/hr/partials/_pager.html #}
+{% if page and page.paginator.num_pages > 1 %}
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+    <div>
+      Page <span class="font-semibold text-slate-700 dark:text-slate-200">{{ page.number }}</span> /
+      <span class="font-semibold text-slate-700 dark:text-slate-200">{{ page.paginator.num_pages }}</span>
+      <span class="text-slate-400 ml-2">({{ page.paginator.count }} éléments)</span>
+    </div>
+
+    <div class="flex items-center gap-2">
+      {% if page.has_previous %}
+        <a class="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+           href="?tab={{ tab }}&page_{{ page_param }}={{ page.previous_page_number }}{% if extra_qs %}&{{ extra_qs }}{% endif %}">
+          ← Précédent
+        </a>
+      {% else %}
+        <span class="px-3 py-1.5 rounded-full border border-slate-100 dark:border-slate-800 text-slate-300 cursor-not-allowed">← Précédent</span>
+      {% endif %}
+
+      {% if page.has_next %}
+        <a class="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+           href="?tab={{ tab }}&page_{{ page_param }}={{ page.next_page_number }}{% if extra_qs %}&{{ extra_qs }}{% endif %}">
+          Suivant →
+        </a>
+      {% else %}
+        <span class="px-3 py-1.5 rounded-full border border-slate-100 dark:border-slate-800 text-slate-300 cursor-not-allowed">Suivant →</span>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
