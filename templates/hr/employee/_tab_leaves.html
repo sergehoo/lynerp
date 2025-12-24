@@ -1,0 +1,53 @@
+{# Lyneerp/hr/templates/hr/employee/_tab_leaves.html #}
+<div x-show="activeTab==='leaves'" x-cloak class="space-y-4">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <div class="text-sm font-semibold text-slate-900 dark:text-white">Congés</div>
+      <div class="text-xs text-slate-500">Toutes les demandes (paginé)</div>
+    </div>
+    <form method="get" class="flex gap-2">
+      <input type="hidden" name="tab" value="leaves">
+      <input name="q_leaves" value="{{ q_leaves }}" placeholder="Type / statut…"
+             class="w-72 max-w-full px-3 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+      <button class="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="overflow-x-auto rounded-3xl border border-slate-100 dark:border-slate-800">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500">
+        <tr>
+          <th class="text-left px-4 py-3">Type</th>
+          <th class="text-left px-4 py-3">Période</th>
+          <th class="text-left px-4 py-3">Jours</th>
+          <th class="text-left px-4 py-3">Statut</th>
+          <th class="text-left px-4 py-3">Demandé</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+      {% for l in leaves_page %}
+        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+          <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ l.leave_type.name|default:"—" }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">
+            {{ l.start_date|date:"d/m/Y" }} → {{ l.end_date|date:"d/m/Y" }}
+          </td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ l.number_of_days|default:"—" }}</td>
+          <td class="px-4 py-3">
+            <span class="text-xs px-2 py-1 rounded-full border
+              {% if l.status == 'APPROVED' %} bg-emerald-50 text-emerald-700 border-emerald-200
+              {% elif l.status == 'PENDING' %} bg-amber-50 text-amber-700 border-amber-200
+              {% else %} bg-slate-50 text-slate-600 border-slate-200 {% endif %}">
+              {{ l.status }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-slate-500">{{ l.requested_at|date:"d/m/Y" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">Aucune demande de congé.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "hr/partials/_pager.html" with page=leaves_page tab="leaves" page_param="leaves" extra_qs="q_leaves="|add:q_leaves %}
+</div>

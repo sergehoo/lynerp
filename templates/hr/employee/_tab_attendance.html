@@ -1,0 +1,44 @@
+{# Lyneerp/hr/templates/hr/employee/_tab_attendance.html #}
+<div x-show="activeTab==='attendance'" x-cloak class="space-y-4">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <div class="text-sm font-semibold text-slate-900 dark:text-white">Pointage</div>
+      <div class="text-xs text-slate-500">Toutes les présences/absences (paginé)</div>
+    </div>
+    <form method="get" class="flex gap-2">
+      <input type="hidden" name="tab" value="attendance">
+      <input name="q_att" value="{{ q_att }}" placeholder="Statut (PRESENT, ABSENT...)"
+             class="w-72 max-w-full px-3 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+      <button class="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="overflow-x-auto rounded-3xl border border-slate-100 dark:border-slate-800">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500">
+        <tr>
+          <th class="text-left px-4 py-3">Date</th>
+          <th class="text-left px-4 py-3">Statut</th>
+          <th class="text-left px-4 py-3">Entrée</th>
+          <th class="text-left px-4 py-3">Sortie</th>
+          <th class="text-right px-4 py-3">Heures supp.</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+      {% for a in attendances_page %}
+        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+          <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ a.date|date:"d/m/Y" }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ a.status }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ a.check_in|default:"—" }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ a.check_out|default:"—" }}</td>
+          <td class="px-4 py-3 text-right text-slate-900 dark:text-white font-semibold">{{ a.overtime_hours|default:0 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">Aucune donnée de pointage.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "hr/partials/_pager.html" with page=attendances_page tab="attendance" page_param="att" extra_qs="q_att="|add:q_att %}
+</div>

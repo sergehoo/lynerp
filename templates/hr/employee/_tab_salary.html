@@ -1,0 +1,44 @@
+{# Lyneerp/hr/templates/hr/employee/_tab_salary.html #}
+<div x-show="activeTab==='salary'" x-cloak class="space-y-4">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <div class="text-sm font-semibold text-slate-900 dark:text-white">Évolution salariale</div>
+      <div class="text-xs text-slate-500">Historique complet (paginé)</div>
+    </div>
+    <form method="get" class="flex gap-2">
+      <input type="hidden" name="tab" value="salary">
+      <input name="q_salary" value="{{ q_salary }}" placeholder="Motif…"
+             class="w-72 max-w-full px-3 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+      <button class="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="overflow-x-auto rounded-3xl border border-slate-100 dark:border-slate-800">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500">
+        <tr>
+          <th class="text-left px-4 py-3">Date</th>
+          <th class="text-left px-4 py-3">Type</th>
+          <th class="text-right px-4 py-3">Ancien</th>
+          <th class="text-right px-4 py-3">Nouveau</th>
+          <th class="text-left px-4 py-3">Motif</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+      {% for sh in salary_history_page %}
+        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ sh.effective_date|date:"d/m/Y" }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ sh.get_change_type_display|default:"—" }}</td>
+          <td class="px-4 py-3 text-right text-slate-700 dark:text-slate-200">{{ sh.previous_salary|default:"—"|intcomma }}</td>
+          <td class="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">{{ sh.new_salary|intcomma }}</td>
+          <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ sh.reason|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">Aucun historique salarial.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "hr/partials/_pager.html" with page=salary_history_page tab="salary" page_param="salary" extra_qs="q_salary="|add:q_salary %}
+</div>

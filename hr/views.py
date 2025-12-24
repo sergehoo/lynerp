@@ -170,6 +170,7 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
     template_name = "hr/employee/detail.html"
     context_object_name = "employee"
 
+    # ⚠️ IMPORTANT : si multi-tenant strict, filtre ici par tenant résolu depuis la requête
     def get_queryset(self):
         return (
             Employee.objects
@@ -184,9 +185,8 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
                 "contracts__amendments",
                 "contracts__alerts",
                 "contracts__history",
-                "leavebalance_set" if hasattr(Employee, "leavebalance_set") else "leave_balances",
-                "performance_reviews",
                 # "skills",
+                "performance_reviews",
             )
         )
 
@@ -194,252 +194,254 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         u = self.request.user
         return u.is_superuser or u.has_perm("hr.view_medical_record")
 
-    def calculate_employee_stats(self, employee, tenant_uuid):
-        """Calcule les statistiques de l'employé"""
-        from django.utils import timezone
-        from datetime import timedelta
-        import calendar
+    # ----------------------------
+    # Helpers
+    # ----------------------------
+    def _paginate(self, qs, page_param: str, per_page: int = 20):
+        p = Paginator(qs, per_page)
+        page_number = self.request.GET.get(page_param, 1)
+        return p.get_page(page_number)
 
-        today = timezone.now().date()
+    def calculate_employee_stats(self, employee, tenant_id_str):
+        today = timezone.localdate()
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
-        # Statistiques de pointage
-        last_30_days = Attendance.objects.filter(
+        last_30_days_worked = Attendance.objects.filter(
             employee=employee,
+            tenant_id=tenant_id_str,
             date__gte=today - timedelta(days=30),
-            status='PRESENT'
+            status="PRESENT",
         ).count()
 
-        # Retards ce mois
-        late_arrivals = Attendance.objects.filter(
+        late_arrivals_month = Attendance.objects.filter(
             employee=employee,
-            date__gte=month_start
-            # is_late=True
+            tenant_id=tenant_id_str,
+            date__gte=month_start,
         ).count()
 
-        # Absences cette année
         absences_year = Attendance.objects.filter(
             employee=employee,
+            tenant_id=tenant_id_str,
             date__gte=year_start,
-            status__in=['ABSENT', 'SICK_LEAVE']
+            status__in=["ABSENT", "SICK_LEAVE"],
         ).count()
 
-        # Heures supplémentaires ce mois
-        overtime = Attendance.objects.filter(
+        overtime_month = Attendance.objects.filter(
             employee=employee,
-            date__gte=month_start
-        ).aggregate(
-            total_overtime=models.Sum('overtime_hours')
-        )['total_overtime'] or 0
+            tenant_id=tenant_id_str,
+            date__gte=month_start,
+        ).aggregate(total=Sum("overtime_hours"))["total"] or 0
 
-        # Congés utilisés cette année
         total_leave_used = LeaveRequest.objects.filter(
             employee=employee,
-            # start_date=today.year,
-            status='APPROVED'
-        ).aggregate(
-            total_days=models.Sum('number_of_days')
-        )['total_days'] or 0
+            tenant_id=tenant_id_str,
+            status="APPROVED",
+            start_date__year=today.year,
+        ).aggregate(total=Sum("number_of_days"))["total"] or 0
 
         return {
-            'last_30_days_worked': last_30_days,
-            'late_arrivals_month': late_arrivals,
-            'absences_year': absences_year,
-            'overtime_month': overtime,
-            'total_leave_used': total_leave_used,
+            "last_30_days_worked": last_30_days_worked,
+            "late_arrivals_month": late_arrivals_month,
+            "absences_year": absences_year,
+            "overtime_month": overtime_month,
+            "total_leave_used": total_leave_used,
         }
 
-    # def get_upcoming_deadlines(self, employee, tenant_uuid):
-    #     """Récupère les échéances à venir"""
-    #     from datetime import date, timedelta
-    #
-    #     deadlines = []
-    #     today = date.today()
-    #
-    #     # Vérifier la fin de période d'essai
-    #     if employee.contracts.probation_end_date and employee.contracts.probation_end_date > today:
-    #         days_left = (employee.contracts.probation_end_date - today).days
-    #         if days_left <= 30:  # Moins de 30 jours
-    #             deadlines.append({
-    #                 'type': 'Fin période essai',
-    #                 'date': employee.contracts.probation_end_date,
-    #                 'description': f'Fin de période d\'essai dans {days_left} jours',
-    #                 'priority': 'high' if days_left <= 7 else 'medium'
-    #             })
-    #
-    #     # Vérifier les contrats qui se terminent
-    #     ending_contracts = EmploymentContract.objects.filter(
-    #         employee=employee,
-    #         end_date__gte=today,
-    #         end_date__lte=today + timedelta(days=90)
-    #     )
-    #
-    #     for contract in ending_contracts:
-    #         days_left = (contract.end_date - today).days
-    #         deadlines.append({
-    #             'type': 'Fin de contrat',
-    #             'date': contract.end_date,
-    #             'description': f'Contrat {contract.contract_number} se termine dans {days_left} jours',
-    #             'priority': 'high' if days_left <= 30 else 'medium'
-    #         })
-    #
-    #     # Trier par date
-    #     deadlines.sort(key=lambda x: x['date'])
-    #     return deadlines[:5]  # Retourner les 5 plus proches
-    def get_upcoming_deadlines(self, employee, tenant_uuid):
-        """Récupère les échéances à venir"""
-        from datetime import date, timedelta
-
+    def get_upcoming_deadlines(self, employee, tenant_id_str):
         deadlines = []
         today = date.today()
 
-        # ✅ Contrat à considérer pour la période d'essai
-        current = employee.current_contract
-        contract_for_probation = current or employee.contracts.order_by('-start_date').first()
+        current = getattr(employee, "current_contract", None)
+        contract_for_probation = current or employee.contracts.order_by("-start_date").first()
 
-        # Fin période d'essai (si existe)
         if contract_for_probation and contract_for_probation.probation_end_date:
             pe = contract_for_probation.probation_end_date
             if pe > today:
                 days_left = (pe - today).days
                 if days_left <= 30:
                     deadlines.append({
-                        'type': 'Fin période essai',
-                        'date': pe,
-                        'description': f"Fin de période d'essai dans {days_left} jours",
-                        'priority': 'high' if days_left <= 7 else 'medium',
+                        "type": "Fin période essai",
+                        "date": pe,
+                        "description": f"Fin de période d'essai dans {days_left} jours",
+                        "priority": "high" if days_left <= 7 else "medium",
                     })
 
-        # Contrats qui se terminent
         ending_contracts = EmploymentContract.objects.filter(
             employee=employee,
+            tenant_id=tenant_id_str,
             end_date__isnull=False,
             end_date__gte=today,
-            end_date__lte=today + timedelta(days=90)
-        ).order_by('end_date')
+            end_date__lte=today + timedelta(days=90),
+        ).order_by("end_date")
 
-        for contract in ending_contracts:
-            days_left = (contract.end_date - today).days
+        for c in ending_contracts:
+            days_left = (c.end_date - today).days
             deadlines.append({
-                'type': 'Fin de contrat',
-                'date': contract.end_date,
-                'description': f'Contrat {contract.contract_number} se termine dans {days_left} jours',
-                'priority': 'high' if days_left <= 30 else 'medium'
+                "type": "Fin de contrat",
+                "date": c.end_date,
+                "description": f"Contrat {c.contract_number} se termine dans {days_left} jours",
+                "priority": "high" if days_left <= 30 else "medium",
             })
 
-        deadlines.sort(key=lambda x: x['date'])
-        return deadlines[:5]
+        deadlines.sort(key=lambda x: x["date"])
+        return deadlines[:8]
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         employee = self.object
-        tenant_uuid = str(employee.tenant_id)
 
-        # Année en cours pour les statistiques
+        # ⚠️ IMPORTANT : selon ton schéma, tenant_id est slug ou uuid. Ici on utilise string.
+        tenant_id_str = str(employee.tenant_id)
         current_year = timezone.now().year
 
-        # --- Contrats & parcours ---
-        contracts = (
+        # --- Query params (recherche légère par onglet) ---
+        q_contracts = (self.request.GET.get("q_contracts") or "").strip()
+        q_leaves = (self.request.GET.get("q_leaves") or "").strip()
+        q_payroll = (self.request.GET.get("q_payroll") or "").strip()
+        q_docs = (self.request.GET.get("q_docs") or "").strip()
+        q_att = (self.request.GET.get("q_att") or "").strip()
+
+        # --- CONTRATS (tout, paginé) ---
+        contracts_qs = (
             EmploymentContract.objects
             .select_related("contract_type", "department", "position")
-            .filter(employee=employee)
+            .filter(employee=employee, tenant_id=tenant_id_str)
             .order_by("-start_date")
         )
+        if q_contracts:
+            contracts_qs = contracts_qs.filter(
+                Q(contract_number__icontains=q_contracts) |
+                Q(contract_type__name__icontains=q_contracts) |
+                Q(position__title__icontains=q_contracts)
+            )
 
-        # --- Congés (demandes) ---
-        leaves = (
+        # --- CONGÉS (tout, paginé) ---
+        leaves_qs = (
             LeaveRequest.objects
             .select_related("leave_type")
-            .filter(employee=employee, tenant_id=tenant_uuid)
-            .order_by("-requested_at")[:50]
+            .filter(employee=employee, tenant_id=tenant_id_str)
+            .order_by("-requested_at")
         )
+        if q_leaves:
+            leaves_qs = leaves_qs.filter(
+                Q(leave_type__name__icontains=q_leaves) |
+                Q(status__icontains=q_leaves)
+            )
 
-        leave_balances = (
+        leave_balances_qs = (
             LeaveBalance.objects
             .select_related("leave_type")
-            .filter(employee=employee, tenant_id=tenant_uuid, year=current_year)
-            .order_by("-year")
+            .filter(employee=employee, tenant_id=tenant_id_str, year=current_year)
+            .order_by("leave_type__name")
         )
 
-        # --- Absences / Pointage ---
-        attendances = (
+        # --- POINTAGE (tout, paginé) ---
+        attendances_qs = (
             Attendance.objects
-            .filter(employee=employee, tenant_id=tenant_uuid)
-            .order_by("-date")[:60]
+            .filter(employee=employee, tenant_id=tenant_id_str)
+            .order_by("-date")
         )
+        if q_att:
+            attendances_qs = attendances_qs.filter(Q(status__icontains=q_att))
 
-        # --- Paies ---
-        payrolls = (
+        # --- PAIE (tout, paginé) ---
+        payrolls_qs = (
             Payroll.objects
-            .filter(employee=employee, tenant_id=tenant_uuid)
-            .order_by("-period_start")[:24]
+            .filter(employee=employee, tenant_id=tenant_id_str)
+            .order_by("-period_start")
         )
+        if q_payroll:
+            payrolls_qs = payrolls_qs.filter(Q(reference__icontains=q_payroll))
 
-        # --- RH docs / salaire / performance ---
-        documents = (
+        # --- DOCUMENTS (tout, paginé) ---
+        documents_qs = (
             HRDocument.objects
-            .filter(employee=employee, tenant_id=tenant_uuid)
-            .order_by("-uploaded_at")[:50]
+            .filter(employee=employee, tenant_id=tenant_id_str)
+            .order_by("-uploaded_at")
         )
+        if q_docs:
+            documents_qs = documents_qs.filter(Q(title__icontains=q_docs) | Q(doc_type__icontains=q_docs))
 
-        salary_history = (
-            SalaryHistory.objects
-            .filter(employee=employee, tenant_id=tenant_uuid)
-            .order_by("-effective_date")[:24]
-        )
+        # --- SALAIRE & PERF (tout, paginé) ---
+        salary_history_qs = SalaryHistory.objects.filter(
+            employee=employee, tenant_id=tenant_id_str
+        ).order_by("-effective_date")
 
-        performance_reviews = (
+        performance_reviews_qs = (
             PerformanceReview.objects
-            .filter(employee=employee, tenant_id=tenant_uuid)
+            .filter(employee=employee, tenant_id=tenant_id_str)
             .select_related("reviewer")
-            .order_by("-review_date")[:20]
+            .order_by("-review_date")
         )
 
-        # --- Historique "global" ---
-        contract_history = (
+        contract_history_qs = (
             ContractHistory.objects
-            .filter(contract__employee=employee, tenant_id=tenant_uuid)
+            .filter(contract__employee=employee, tenant_id=tenant_id_str)
             .select_related("contract", "performed_by")
-            .order_by("-performed_at")[:100]
+            .order_by("-performed_at")
         )
 
-        # --- Médical (protégé) ---
+        # --- MEDICAL (protégé, paginé) ---
         medical = None
-        medical_visits = []
-        medical_restrictions = []
+        medical_visits_qs = MedicalVisit.objects.none()
+        medical_restrictions_qs = MedicalRestriction.objects.none()
         if self.can_view_medical():
-            medical = MedicalRecord.objects.filter(employee=employee, tenant_id=tenant_uuid).first()
-            medical_visits = MedicalVisit.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by(
-                "-visit_date")[:30]
-            medical_restrictions = MedicalRestriction.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by(
-                "-start_date")[:30]
+            medical = MedicalRecord.objects.filter(employee=employee, tenant_id=tenant_id_str).first()
+            medical_visits_qs = MedicalVisit.objects.filter(employee=employee, tenant_id=tenant_id_str).order_by("-visit_date")
+            medical_restrictions_qs = MedicalRestriction.objects.filter(employee=employee, tenant_id=tenant_id_str).order_by("-start_date")
 
-        # --- Statistiques ---
-        stats = self.calculate_employee_stats(employee, tenant_uuid)
-        upcoming_deadlines = self.get_upcoming_deadlines(employee, tenant_uuid)
+        stats = self.calculate_employee_stats(employee, tenant_id_str)
+        upcoming_deadlines = self.get_upcoming_deadlines(employee, tenant_id_str)
+
+        # --- Pagination (par onglet) ---
+        contracts_page = self._paginate(contracts_qs, "page_contracts", per_page=10)
+        leaves_page = self._paginate(leaves_qs, "page_leaves", per_page=10)
+        attendances_page = self._paginate(attendances_qs, "page_att", per_page=15)
+        payrolls_page = self._paginate(payrolls_qs, "page_payroll", per_page=12)
+        documents_page = self._paginate(documents_qs, "page_docs", per_page=12)
+
+        salary_history_page = self._paginate(salary_history_qs, "page_salary", per_page=10)
+        performance_reviews_page = self._paginate(performance_reviews_qs, "page_perf", per_page=10)
+        contract_history_page = self._paginate(contract_history_qs, "page_hist", per_page=15)
+
+        medical_visits_page = self._paginate(medical_visits_qs, "page_med_visits", per_page=10) if self.can_view_medical() else None
+        medical_restrictions_page = self._paginate(medical_restrictions_qs, "page_med_rest", per_page=10) if self.can_view_medical() else None
 
         ctx.update({
             "tenant": employee.tenant,
-            "contracts": contracts,
-            "current_contract": employee.current_contract,
-            "leaves": leaves,
-            "leave_balances": leave_balances,
-            "attendances": attendances,
-            "payrolls": payrolls,
-            "documents": documents,
-            "salary_history": salary_history,
-            "performance_reviews": performance_reviews,
-            "contract_history": contract_history,
-            "medical_record": medical,
-            "medical_visits": medical_visits,
-            "medical_restrictions": medical_restrictions,
-            "can_view_medical": self.can_view_medical(),
+            "current_contract": getattr(employee, "current_contract", None),
+
+            "current_year": current_year,
             "stats": stats,
             "upcoming_deadlines": upcoming_deadlines,
-            "current_year": current_year,
+            "can_view_medical": self.can_view_medical(),
+            "medical_record": medical,
+
+            # pages
+            "contracts_page": contracts_page,
+            "leaves_page": leaves_page,
+            "attendances_page": attendances_page,
+            "payrolls_page": payrolls_page,
+            "documents_page": documents_page,
+
+            "leave_balances": leave_balances_qs,
+
+            "salary_history_page": salary_history_page,
+            "performance_reviews_page": performance_reviews_page,
+            "contract_history_page": contract_history_page,
+
+            "medical_visits_page": medical_visits_page,
+            "medical_restrictions_page": medical_restrictions_page,
+
+            # query strings to keep filters
+            "q_contracts": q_contracts,
+            "q_leaves": q_leaves,
+            "q_payroll": q_payroll,
+            "q_docs": q_docs,
+            "q_att": q_att,
         })
         return ctx
-
 
 class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
     model = Employee

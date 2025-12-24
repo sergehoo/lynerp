@@ -1,0 +1,17 @@
+{# Lyneerp/hr/templates/hr/employee/_tab_btn.html #}
+<button
+  @click="changeTab('{{ key }}')"
+  class="px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 transition-colors border
+    {% if danger %} border-rose-200 {% else %} border-slate-200 dark:border-slate-700 {% endif %}"
+  :class="activeTab==='{{ key }}'
+    ? '{% if danger %}bg-rose-600 text-white{% else %}bg-slate-900 text-white{% endif %}'
+    : '{% if danger %}bg-rose-50 text-rose-700 hover:bg-rose-100{% else %}bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}'">
+  <i class="fa-solid {{ icon }} text-[11px]"></i>
+  <span>{{ label }}</span>
+  {% if badge %}
+    <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/70 text-slate-700"
+          x-show="activeTab==='{{ key }}'">{{ badge }}</span>
+    <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700"
+          x-show="activeTab!=='{{ key }}'">{{ badge }}</span>
+  {% endif %}
+</button>

@@ -1,0 +1,35 @@
+{# Lyneerp/hr/templates/hr/employee/_tab_history.html #}
+<div x-show="activeTab==='history'" x-cloak class="space-y-4">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <div class="text-sm font-semibold text-slate-900 dark:text-white">Historique</div>
+      <div class="text-xs text-slate-500">Actions RH / changements (paginé)</div>
+    </div>
+    <form method="get" class="flex gap-2">
+      <input type="hidden" name="tab" value="history">
+      <input name="q_hist" value="{{ q_hist }}" placeholder="Action / notes…"
+             class="w-72 max-w-full px-3 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+      <button class="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="space-y-3">
+    {% for h in contract_history_page %}
+      <div class="rounded-3xl border border-slate-100 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+        <div class="flex items-center justify-between gap-3">
+          <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ h.action|default:"Action" }}</div>
+          <div class="text-xs text-slate-500">{{ h.performed_at|date:"d/m/Y H:i" }}</div>
+        </div>
+        <div class="mt-1 text-xs text-slate-500">
+          Par: {{ h.performed_by.get_full_name|default:h.performed_by|default:"—" }}
+          {% if h.contract %} • Contrat: <span class="font-semibold">{{ h.contract.contract_number }}</span>{% endif %}
+        </div>
+        <div class="mt-2 text-sm text-slate-700 dark:text-slate-200">{{ h.notes|default:"—" }}</div>
+      </div>
+    {% empty %}
+      <div class="text-center py-10 text-slate-500 text-sm">Aucun historique.</div>
+    {% endfor %}
+  </div>
+
+  {% include "hr/partials/_pager.html" with page=contract_history_page tab="history" page_param="hist" extra_qs="q_hist="|add:q_hist %}
+</div>

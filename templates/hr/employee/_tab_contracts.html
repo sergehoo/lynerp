@@ -1,0 +1,48 @@
+{# Lyneerp/hr/templates/hr/employee/_tab_contracts.html #}
+<div x-show="activeTab==='contracts'" x-cloak class="space-y-4">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <div class="text-sm font-semibold text-slate-900 dark:text-white">Contrats</div>
+      <div class="text-xs text-slate-500">Tout l’historique (paginé)</div>
+    </div>
+    <form method="get" class="flex gap-2">
+      <input type="hidden" name="tab" value="contracts">
+      <input name="q_contracts" value="{{ q_contracts }}" placeholder="Numéro / type / poste…"
+             class="w-72 max-w-full px-3 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+      <button class="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="overflow-x-auto rounded-3xl border border-slate-100 dark:border-slate-800">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500">
+        <tr>
+          <th class="text-left px-4 py-3">Contrat</th>
+          <th class="text-left px-4 py-3">Type</th>
+          <th class="text-left px-4 py-3">Période</th>
+          <th class="text-left px-4 py-3">Poste</th>
+          <th class="text-right px-4 py-3">Salaire</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+      {% for c in contracts_page %}
+        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+          <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ c.contract_number|default:"—" }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ c.contract_type.name|default:"—" }}</td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">
+            {{ c.start_date|date:"d/m/Y" }} → {{ c.end_date|date:"d/m/Y"|default:"(en cours)" }}
+          </td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ c.position.title|default:"—" }}</td>
+          <td class="px-4 py-3 text-right text-slate-900 dark:text-white font-semibold">
+            {{ c.base_salary|floatformat:0|intcomma }} {{ c.salary_currency }}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">Aucun contrat.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "hr/partials/_pager.html" with page=contracts_page tab="contracts" page_param="contracts" extra_qs="q_contracts="|add:q_contracts %}
+</div>
