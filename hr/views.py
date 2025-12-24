@@ -1,5 +1,9 @@
 # Lyneerp/hr/views.py (Ajout des vues templates)
+from datetime import timedelta, date
+
+from django.core.paginator import Paginator
 from django.db import models
+from django.db.models import Q, Sum
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.utils import timezone
