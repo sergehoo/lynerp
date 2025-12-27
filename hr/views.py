@@ -369,7 +369,7 @@ class EmployeeDeleteView(LoginRequiredMixin, DeleteView):
 
 class EmploymentContractDetailView(LoginRequiredMixin, DetailView):
     model = EmploymentContract
-    template_name = "hr/contracts/contract_detail.html"
+    template_name = "hr/contrat/contrat_detail.html"
     context_object_name = "contract"
 
     def get_queryset(self):
