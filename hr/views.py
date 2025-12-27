@@ -4,7 +4,7 @@ from datetime import timedelta, date
 from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Q, Sum
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import TemplateView, DetailView, UpdateView, DeleteView
@@ -36,138 +36,6 @@ class HRDashboardView(HRTemplateView):
 class EmployeeManagementView(HRTemplateView):
     template_name = "hr/base.html"
 
-
-# class EmployeeDetailView(LoginRequiredMixin, DetailView):
-#     model = Employee
-#     template_name = "hr/employee/detail.html"
-#     context_object_name = "employee"
-#
-#     def get_queryset(self):
-#         # employee.tenant est FK : on fait select_related
-#         return (
-#             Employee.objects
-#             .select_related("tenant", "department", "position", "user_account")
-#             .prefetch_related(
-#                 "documents",
-#                 "salary_history",
-#                 "contracts",
-#                 "contracts__contract_type",
-#                 "contracts__department",
-#                 "contracts__position",
-#                 "contracts__amendments",
-#                 "contracts__alerts",
-#                 "contracts__history",
-#                 "leavebalance_set" if hasattr(Employee, "leavebalance_set") else "leave_balances",
-#                 "performance_reviews",
-#             )
-#         )
-#
-#     def can_view_medical(self):
-#         """
-#         À adapter à ta politique:
-#         - superuser / staff
-#         - ou permission dédiée
-#         - ou rôle RH/Médecin
-#         """
-#         u = self.request.user
-#         return u.is_superuser or u.has_perm("hr.view_medical_record")
-#
-#     def get_context_data(self, **kwargs):
-#         ctx = super().get_context_data(**kwargs)
-#         employee = self.object
-#         tenant_uuid = str(employee.tenant_id)  # UUID (FK Tenant)
-#
-#         # --- Contrats & parcours ---
-#         contracts = (
-#             EmploymentContract.objects
-#             .select_related("contract_type", "department", "position")
-#             .filter(employee=employee)
-#             .order_by("-start_date")
-#         )
-#
-#         # --- Congés (demandes) ---
-#         leaves = (
-#             LeaveRequest.objects
-#             .select_related("leave_type")
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .order_by("-requested_at")[:50]
-#         )
-#         leave_balances = (
-#             LeaveBalance.objects
-#             .select_related("leave_type")
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .order_by("-year")
-#         )
-#
-#         # --- Absences / Pointage ---
-#         attendances = (
-#             Attendance.objects
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .order_by("-date")[:60]
-#         )
-#
-#         # --- Paies ---
-#         payrolls = (
-#             Payroll.objects
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .order_by("-period_start")[:24]
-#         )
-#
-#         # --- RH docs / salaire / performance ---
-#         documents = (
-#             HRDocument.objects
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .order_by("-uploaded_at")[:50]
-#         )
-#         salary_history = (
-#             SalaryHistory.objects
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .order_by("-effective_date")[:24]
-#         )
-#         performance_reviews = (
-#             PerformanceReview.objects
-#             .filter(employee=employee, tenant_id=tenant_uuid)
-#             .select_related("reviewer")
-#             .order_by("-review_date")[:20]
-#         )
-#
-#         # --- Historique “global” : contrats + événements RH (simple) ---
-#         contract_history = (
-#             ContractHistory.objects
-#             .filter(contract__employee=employee, tenant_id=tenant_uuid)
-#             .select_related("contract", "performed_by")
-#             .order_by("-performed_at")[:100]
-#         )
-#
-#         # --- Médical (protégé) ---
-#         medical = None
-#         medical_visits = []
-#         medical_restrictions = []
-#         if self.can_view_medical():
-#             medical = MedicalRecord.objects.filter(employee=employee, tenant_id=tenant_uuid).first()
-#             medical_visits = MedicalVisit.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by(
-#                 "-visit_date")[:30]
-#             medical_restrictions = MedicalRestriction.objects.filter(employee=employee, tenant_id=tenant_uuid).order_by(
-#                 "-start_date")[:30]
-#
-#         ctx.update({
-#             "tenant": employee.tenant,
-#             "contracts": contracts,
-#             "current_contract": employee.current_contract,
-#             "leaves": leaves,
-#             "leave_balances": leave_balances,
-#             "attendances": attendances,
-#             "payrolls": payrolls,
-#             "documents": documents,
-#             "salary_history": salary_history,
-#             "performance_reviews": performance_reviews,
-#             "contract_history": contract_history,
-#             "medical_record": medical,
-#             "medical_visits": medical_visits,
-#             "medical_restrictions": medical_restrictions,
-#             "can_view_medical": self.can_view_medical(),
-#         })
-#         return ctx
 
 class EmployeeDetailView(LoginRequiredMixin, DetailView):
     model = Employee
@@ -497,6 +365,52 @@ class EmployeeDeleteView(LoginRequiredMixin, DeleteView):
     model = Employee
     template_name = "hr/employee/confirm_delete.html"
     success_url = reverse_lazy("hr:employee_list")
+
+
+class EmploymentContractDetailView(LoginRequiredMixin, DetailView):
+    model = EmploymentContract
+    template_name = "hr/contracts/contract_detail.html"
+    context_object_name = "contract"
+
+    def get_queryset(self):
+        """
+        Sécurisation multi-tenant + optimisation
+        """
+        qs = (
+            EmploymentContract.objects
+            .select_related(
+                "employee",
+                "department",
+                "position",
+                "contract_type",
+                "approved_by",
+            )
+        )
+
+        user = self.request.user
+
+        # 🔐 Super admin / RH externalisée → tous tenants
+        if getattr(user, "is_superuser", False) or getattr(user, "is_external_hr", False):
+            return qs
+
+        # 🏢 Admin entreprise → uniquement son tenant
+        tenant_id = getattr(self.request, "tenant_id", None)
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        return qs
+
+    def get_object(self, queryset=None):
+        """
+        Force le filtrage tenant même si pk valide
+        """
+        queryset = queryset or self.get_queryset()
+        return get_object_or_404(queryset, pk=self.kwargs["pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["contract_id"] = self.object.id  # pour Alpine / API
+        return context
 
 
 class RecruitmentView(HRTemplateView):

@@ -1,0 +1,460 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="pt-20" x-data="contractDetail({{ contract_id }})" x-init="init()">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900 text-white text-xs font-medium mb-2">
+          <i class="fas fa-file-signature text-[11px]"></i>
+          <span>Contrat • Détail</span>
+        </div>
+
+        <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">
+          <span x-text="c?.contract_number || '—'"></span>
+        </h1>
+
+        <p class="text-sm text-slate-500 mt-1">
+          <span x-text="c?.employee_display || c?.employee_name || '—'"></span>
+          <span class="text-slate-300 mx-2">•</span>
+          <span x-text="c?.contract_type_display || '—'"></span>
+          <span class="text-slate-300 mx-2">•</span>
+          <span x-text="c?.title || '—'"></span>
+        </p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <a href="{% url 'contracts_list' %}" class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-700 bg-white hover:bg-gray-50 inline-flex items-center gap-2">
+          <i class="fas fa-arrow-left text-[11px]"></i> Retour
+        </a>
+
+        <button @click="refresh()" class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-700 bg-white hover:bg-gray-50 inline-flex items-center gap-2">
+          <i class="fas fa-rotate text-[11px]"></i> Actualiser
+        </button>
+
+        <button @click="openActions()" class="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 inline-flex items-center gap-2">
+          <i class="fas fa-bolt text-[11px]"></i> Actions
+        </button>
+      </div>
+    </div>
+
+    <!-- Status + KPI -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Statut</div>
+        <div class="mt-2">
+          <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5"
+                :class="statusPill(c?.status).cls">
+            <i :class="statusPill(c?.status).ico"></i>
+            <span x-text="statusPill(c?.status).label"></span>
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-2" x-text="metaLine()"></div>
+      </div>
+
+      <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Actif</div>
+        <div class="mt-2 text-2xl font-semibold" :class="(c?.is_active ? 'text-emerald-600' : 'text-slate-900')"
+             x-text="c?.is_active ? 'Oui' : 'Non'"></div>
+        <div class="text-[11px] text-slate-400 mt-1">Selon dates + statut</div>
+      </div>
+
+      <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Fin</div>
+        <div class="mt-2 text-2xl font-semibold text-slate-900"
+             x-text="c?.end_date ? formatDate(c.end_date) : '—'"></div>
+        <div class="text-[11px] text-slate-400 mt-1">
+          <template x-if="c?.days_until_end !== null && c?.days_until_end !== undefined">
+            <span x-text="`J-${c.days_until_end}`"></span>
+          </template>
+          <template x-if="c?.days_until_end === null || c?.days_until_end === undefined">
+            <span x-text="c?.contract_type_is_permanent ? 'CDI' : ''"></span>
+          </template>
+        </div>
+      </div>
+
+      <div class="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Essai</div>
+        <div class="mt-2 text-2xl font-semibold"
+             :class="c?.is_probation_period ? 'text-indigo-600' : 'text-slate-900'"
+             x-text="c?.is_probation_period ? 'En cours' : '—'"></div>
+        <div class="text-[11px] text-slate-400 mt-1">
+          <span x-text="(c?.probation_start_date && c?.probation_end_date) ? `${formatDate(c.probation_start_date)} → ${formatDate(c.probation_end_date)}` : ''"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left: infos -->
+      <div class="lg:col-span-2 bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-900">Informations du contrat</h3>
+          <div class="text-[11px] text-slate-400" x-show="loading">Chargement…</div>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div class="space-y-1">
+            <div class="text-xs text-slate-400">Employé</div>
+            <div class="font-medium text-slate-900" x-text="c?.employee_name || '—'"></div>
+            <div class="text-xs text-slate-500" x-text="c?.employee_email || ''"></div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="text-xs text-slate-400">Département / Position</div>
+            <div class="font-medium text-slate-900" x-text="c?.department_name || '—'"></div>
+            <div class="text-xs text-slate-500" x-text="c?.position_title || '—'"></div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="text-xs text-slate-400">Type</div>
+            <div class="font-medium text-slate-900" x-text="c?.contract_type_display || '—'"></div>
+            <div class="text-xs text-slate-500" x-text="c?.contract_type_is_permanent ? 'Durée indéterminée' : 'Durée déterminée'"></div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="text-xs text-slate-400">Période</div>
+            <div class="font-medium text-slate-900">
+              <span x-text="c?.start_date ? formatDate(c.start_date) : '—'"></span>
+              <span class="text-slate-300 mx-1">→</span>
+              <span x-text="c?.end_date ? formatDate(c.end_date) : '—'"></span>
+            </div>
+            <div class="text-xs text-slate-500" x-text="c?.expected_end_date ? `Fin prévisionnelle : ${formatDate(c.expected_end_date)}` : ''"></div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="text-xs text-slate-400">Rémunération</div>
+            <div class="font-semibold text-slate-900" x-text="money(c?.base_salary, c?.salary_currency)"></div>
+            <div class="text-xs text-slate-500" x-text="c?.salary_frequency_label || c?.salary_frequency || ''"></div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="text-xs text-slate-400">Temps de travail</div>
+            <div class="font-medium text-slate-900" x-text="(c?.weekly_hours !== null && c?.weekly_hours !== undefined) ? `${c.weekly_hours} h/sem` : '—'"></div>
+            <div class="text-xs text-slate-500" x-text="c?.work_location || ''"></div>
+          </div>
+
+          <div class="md:col-span-2 border-t border-gray-100 pt-4">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="text-xs text-slate-500">Télétravail :</span>
+              <span class="text-xs font-semibold" :class="c?.remote_allowed ? 'text-emerald-700' : 'text-slate-700'"
+                    x-text="c?.remote_allowed ? `Oui (${c?.remote_days_per_week || 0}j/sem)` : 'Non'"></span>
+
+              <span class="text-slate-300">•</span>
+
+              <span class="text-xs text-slate-500">Renouvellement :</span>
+              <span class="text-xs font-semibold"
+                    :class="c?.can_be_renewed ? 'text-amber-700' : 'text-slate-700'"
+                    x-text="c?.can_be_renewed ? 'Possible' : '—'"></span>
+
+              <span class="text-slate-300">•</span>
+
+              <span class="text-xs text-slate-500">Expire bientôt :</span>
+              <span class="text-xs font-semibold"
+                    :class="c?.requires_renewal ? 'text-rose-700' : 'text-slate-700'"
+                    x-text="c?.requires_renewal ? 'Oui' : 'Non'"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: documents -->
+      <div class="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <h3 class="text-sm font-semibold text-slate-900">Documents</h3>
+          <p class="text-xs text-slate-500 mt-1">Téléchargez le contrat ou les avenants.</p>
+        </div>
+
+        <div class="p-6 space-y-3 text-sm">
+          <div class="flex items-center justify-between p-3 rounded-2xl border border-gray-100 bg-gray-50/60">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+                <i class="fas fa-file-pdf text-[12px]"></i>
+              </div>
+              <div>
+                <div class="font-medium text-slate-900">Contrat signé</div>
+                <div class="text-[11px] text-slate-500" x-text="c?.contract_document ? 'Disponible' : 'Aucun fichier'"></div>
+              </div>
+            </div>
+            <button @click="openFile(c?.contract_document)" :disabled="!c?.contract_document"
+                    class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-slate-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+              Ouvrir
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between p-3 rounded-2xl border border-gray-100 bg-gray-50/60">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
+                <i class="fas fa-file-contract text-[12px]"></i>
+              </div>
+              <div>
+                <div class="font-medium text-slate-900">Avenant</div>
+                <div class="text-[11px] text-slate-500" x-text="c?.amendment_document ? 'Disponible' : 'Aucun fichier'"></div>
+              </div>
+            </div>
+            <button @click="openFile(c?.amendment_document)" :disabled="!c?.amendment_document"
+                    class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-slate-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+              Ouvrir
+            </button>
+          </div>
+
+          <div class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl p-3">
+            Astuce : tu peux ajouter plus tard un endpoint “upload document” si besoin.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Modal -->
+    <div x-show="showActions" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-slate-900">Actions</h4>
+            <p class="text-xs text-slate-500 mt-0.5" x-text="c?.contract_number || ''"></p>
+          </div>
+          <button @click="showActions=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+            <i class="fas fa-times text-sm"></i>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-2 text-sm">
+          <button @click="doAction('submit')"
+                  class="w-full px-4 py-2 rounded-2xl border border-gray-200 hover:bg-gray-50 text-slate-700 inline-flex items-center justify-between">
+            <span class="inline-flex items-center gap-2"><i class="fas fa-paper-plane text-[12px]"></i> Soumettre pour approbation</span>
+            <i class="fas fa-chevron-right text-[11px] text-slate-400"></i>
+          </button>
+
+          <button @click="doAction('approve')"
+                  class="w-full px-4 py-2 rounded-2xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 inline-flex items-center justify-between">
+            <span class="inline-flex items-center gap-2"><i class="fas fa-check text-[12px]"></i> Approuver</span>
+            <i class="fas fa-chevron-right text-[11px]"></i>
+          </button>
+
+          <button @click="doAction('sign')"
+                  class="w-full px-4 py-2 rounded-2xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 inline-flex items-center justify-between">
+            <span class="inline-flex items-center gap-2"><i class="fas fa-pen-fancy text-[12px]"></i> Marquer signé</span>
+            <i class="fas fa-chevron-right text-[11px]"></i>
+          </button>
+
+          <button @click="showTerminate=true; showActions=false"
+                  class="w-full px-4 py-2 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 inline-flex items-center justify-between">
+            <span class="inline-flex items-center gap-2"><i class="fas fa-ban text-[12px]"></i> Résilier</span>
+            <i class="fas fa-chevron-right text-[11px]"></i>
+          </button>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+          <button @click="showActions=false"
+                  class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Terminate Modal -->
+    <div x-show="showTerminate" x-cloak class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h4 class="text-base font-semibold text-slate-900">Résiliation</h4>
+          <button @click="showTerminate=false" class="p-2 hover:bg-gray-50 rounded-full text-slate-400">
+            <i class="fas fa-times text-sm"></i>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4 text-sm">
+          <div>
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Type</label>
+            <select x-model="terminateForm.termination_type"
+                    class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+              <option value="RESIGNATION">Démission</option>
+              <option value="DISMISSAL">Licenciement</option>
+              <option value="MUTUAL_AGREEMENT">Rupture conventionnelle</option>
+              <option value="END_CONTRACT">Fin de contrat</option>
+              <option value="OTHER">Autre</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Date</label>
+            <input type="date" x-model="terminateForm.termination_date"
+                   class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-slate-100 focus:border-slate-300">
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Motif</label>
+            <input type="text" x-model="terminateForm.termination_reason"
+                   class="w-full border border-gray-200 rounded-2xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-slate-100 focus:border-slate-300"
+                   placeholder="Optionnel">
+          </div>
+
+          <div class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl p-3">
+            Cette action met le contrat au statut <span class="font-semibold">TERMINATED</span>.
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+          <button @click="showTerminate=false"
+                  class="px-4 py-2 rounded-full border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50">
+            Annuler
+          </button>
+          <button @click="doTerminate()"
+                  class="px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700"
+                  :disabled="terminating">
+            <i class="fas fa-circle-notch fa-spin text-[11px] mr-2" x-show="terminating"></i>
+            Résilier
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function contractDetail(contractId) {
+  return {
+    c: null,
+    loading: false,
+
+    showActions: false,
+    showTerminate: false,
+    terminating: false,
+
+    terminateForm: {
+      termination_type: 'OTHER',
+      termination_date: new Date().toISOString().slice(0, 10),
+      termination_reason: ''
+    },
+
+    async apiCall(path, options = {}) {
+      const headers = { 'X-Tenant-Id': Conf.tenantId };
+      const method = (options.method || 'GET').toUpperCase();
+      if (!['GET','HEAD','OPTIONS'].includes(method)) {
+        const csrftoken = getCookie('csrftoken');
+        if (csrftoken) headers['X-CSRFToken'] = csrftoken;
+      }
+      if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+      if (Conf.token) headers['Authorization'] = `Bearer ${Conf.token}`;
+
+      const url = `${Conf.apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
+      const res = await fetch(url, { ...options, headers });
+      if (!res.ok) {
+        let detail = '';
+        try { const j = await res.json(); detail = j.detail ? j.detail : JSON.stringify(j); } catch {}
+        throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);
+      }
+      return res.status === 204 ? null : res.json();
+    },
+
+    toast(msg, type='info') {
+      if (window.hrToast) window.hrToast(msg, type);
+      else { console.log(`[${type}]`, msg); alert(msg); }
+    },
+
+    statusPill(st) {
+      const map = {
+        DRAFT: {label:'Brouillon', cls:'bg-slate-100 text-slate-700', ico:'fas fa-pen text-[11px]'},
+        PENDING_APPROVAL: {label:'À approuver', cls:'bg-amber-50 text-amber-700', ico:'fas fa-hourglass-half text-[11px]'},
+        ACTIVE: {label:'Actif', cls:'bg-emerald-50 text-emerald-700', ico:'fas fa-badge-check text-[11px]'},
+        SUSPENDED: {label:'Suspendu', cls:'bg-indigo-50 text-indigo-700', ico:'fas fa-pause text-[11px]'},
+        TERMINATED: {label:'Résilié', cls:'bg-rose-50 text-rose-700', ico:'fas fa-ban text-[11px]'},
+        EXPIRED: {label:'Expiré', cls:'bg-gray-100 text-gray-700', ico:'fas fa-hourglass-end text-[11px]'},
+        RENEWED: {label:'Renouvelé', cls:'bg-sky-50 text-sky-700', ico:'fas fa-rotate text-[11px]'},
+      };
+      return map[st] || {label: st || '—', cls:'bg-gray-100 text-gray-700', ico:'fas fa-circle text-[10px]'};
+    },
+
+    formatDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('fr-FR'); },
+
+    money(v, cur='XOF') {
+      if (v === null || v === undefined || v === '') return '—';
+      try {
+        return new Intl.NumberFormat('fr-FR', { style:'currency', currency: cur || 'XOF', maximumFractionDigits: 0 }).format(Number(v));
+      } catch {
+        return `${v} ${cur || ''}`.trim();
+      }
+    },
+
+    metaLine() {
+      if (!this.c) return '';
+      const created = this.c.created_at ? `Créé le ${new Date(this.c.created_at).toLocaleString('fr-FR')}` : '';
+      const updated = this.c.updated_at ? `• Maj ${new Date(this.c.updated_at).toLocaleString('fr-FR')}` : '';
+      return `${created} ${updated}`.trim();
+    },
+
+    openFile(url) {
+      if (!url) return;
+      window.open(url, '_blank', 'noopener');
+    },
+
+    openActions() { this.showActions = true; },
+
+    async refresh() { await this.fetchContract(); },
+
+    async fetchContract() {
+      this.loading = true;
+      try {
+        this.c = await this.apiCall(`/employment-contracts/${contractId}/`);
+      } catch (e) {
+        console.error(e);
+        this.toast("Impossible de charger le contrat", "error");
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async doAction(action) {
+      if (!this.c) return;
+      try {
+        if (action === 'submit') {
+          await this.apiCall(`/employment-contracts/${this.c.id}/submit_for_approval/`, { method:'POST', body: '{}' });
+          this.toast('Contrat soumis', 'success');
+        } else if (action === 'approve') {
+          await this.apiCall(`/employment-contracts/${this.c.id}/approve/`, { method:'POST', body: '{}' });
+          this.toast('Contrat approuvé', 'success');
+        } else if (action === 'sign') {
+          await this.apiCall(`/employment-contracts/${this.c.id}/mark_signed/`, {
+            method:'POST',
+            body: JSON.stringify({ signed_by_employee:true, signed_by_employer:true })
+          });
+          this.toast('Contrat marqué signé', 'success');
+        }
+        this.showActions = false;
+        await this.fetchContract();
+      } catch (e) {
+        console.error(e);
+        this.toast('Action impossible : ' + (e.message || ''), 'error');
+      }
+    },
+
+    async doTerminate() {
+      if (!this.c) return;
+      this.terminating = true;
+      try {
+        await this.apiCall(`/employment-contracts/${this.c.id}/terminate/`, {
+          method:'POST',
+          body: JSON.stringify(this.terminateForm)
+        });
+        this.toast('Contrat résilié', 'success');
+        this.showTerminate = false;
+        await this.fetchContract();
+      } catch (e) {
+        console.error(e);
+        this.toast('Résiliation impossible : ' + (e.message || ''), 'error');
+      } finally {
+        this.terminating = false;
+      }
+    },
+
+    async init() {
+      await this.fetchContract();
+    }
+  };
+}
+</script>
+{% endblock %}

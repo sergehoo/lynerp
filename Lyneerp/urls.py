@@ -10,7 +10,7 @@ from hr.api.api_auth import RefreshLicenseView, LicensePortalView, LicenseStatus
 from hr.api.routers import urlpatterns as hr_urls
 from hr.api.views import RecruitmentStatsView
 from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView, \
-    EmployeeDetailView, EmployeeUpdateView, EmployeeDeleteView
+    EmployeeDetailView, EmployeeUpdateView, EmployeeDeleteView, EmploymentContractDetailView
 from django.contrib.auth import views as auth_views
 
 from hr.views_auth import ExchangeTokenView
@@ -45,6 +45,12 @@ urlpatterns = [
                   path("employees/<int:pk>/", EmployeeDetailView.as_view(), name="employee_detail"),
                   path("employees/<int:pk>/edit/", EmployeeUpdateView.as_view(), name="employee_update"),
                   path("employees/<int:pk>/delete/", EmployeeDeleteView.as_view(), name="employee_delete"),
+
+                  path(
+                      "contracts/<int:pk>/",
+                      EmploymentContractDetailView.as_view(),
+                      name="contract_detail",
+                  ),
 
                   path('recruitment/', RecruitmentView.as_view(), name='hr-recruitment'),
                   path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
