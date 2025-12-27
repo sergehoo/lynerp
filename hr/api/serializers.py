@@ -1,6 +1,8 @@
 # Lyneerp/hr/serializers.py
 from django.contrib.auth.models import User
 from rest_framework import serializers
+
+from hr.ai_recruitment_service import AIRecruitmentService
 from hr.models import (
     Department, Employee, LeaveRequest, AIProcessingResult,
     Position, LeaveType, LeaveBalance, Attendance, Payroll,
@@ -45,26 +47,6 @@ class PositionSerializer(serializers.ModelSerializer):
     def get_current_employees_count(self, obj):
         return obj.employees.filter(is_active=True).count()
 
-
-# class EmployeeSerializer(serializers.ModelSerializer):
-#     department_name = serializers.CharField(source='department.name', read_only=True)
-#     position_title = serializers.CharField(source='position.title', read_only=True)
-#     full_name = serializers.ReadOnlyField()
-#     seniority = serializers.ReadOnlyField()
-#     is_on_leave = serializers.ReadOnlyField()
-#
-#     class Meta:
-#         model = Employee
-#         fields = [
-#             "id", "matricule", "first_name", "last_name", "full_name", "email",
-#             "department", "department_name", "position", "position_title",
-#             "hire_date", "contract_type", "date_of_birth", "gender", "phone",
-#             "address", "emergency_contact", "salary", "work_schedule",
-#             "is_active", "termination_date", "termination_reason",
-#             "user_account", "extra", "tenant_id", "created_at", "updated_at",
-#             "seniority", "is_on_leave"
-#         ]
-#         read_only_fields = ["id", "created_at", "updated_at", "full_name", "seniority", "is_on_leave"]
 
 class TenantLiteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -371,7 +353,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
         # Démarrer le traitement IA si activé
         if instance.recruitment.ai_scoring_enabled:
-            from .services.ai_recruitment_service import AIRecruitmentService
+            # from .services.ai_recruitment_service import AIRecruitmentService
             ai_service = AIRecruitmentService()
             ai_service.process_application(instance)
 
@@ -609,10 +591,77 @@ class ContractTypeSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+SALARY_FREQ_LABELS = {
+    "MONTHLY": "Mensuel",
+    "WEEKLY": "Hebdomadaire",
+    "BIWEEKLY": "Bimensuel",
+    "DAILY": "Journalier",
+    "HOURLY": "Horaire",
+}
+
+SALARY_FREQ_LABELS = {
+    "MONTHLY": "Mensuel",
+    "WEEKLY": "Hebdomadaire",
+    "BIWEEKLY": "Bimensuel",
+    "DAILY": "Journalier",
+    "HOURLY": "Horaire",
+}
+
+
 class EmploymentContractSerializer(serializers.ModelSerializer):
+    # --- Display fields ---
+    employee_name = serializers.SerializerMethodField()
+    employee_email = serializers.SerializerMethodField()
+    employee_display = serializers.SerializerMethodField()
+
+    department_name = serializers.CharField(source="department.name", read_only=True)
+    department_display = serializers.CharField(source="department.name", read_only=True)
+
+    position_title = serializers.CharField(source="position.title", read_only=True)
+    position_display = serializers.CharField(source="position.title", read_only=True)
+
+    contract_type_name = serializers.CharField(source="contract_type.name", read_only=True)
+    contract_type_code = serializers.CharField(source="contract_type.code", read_only=True)
+    contract_type_display = serializers.SerializerMethodField()
+    contract_type_is_permanent = serializers.BooleanField(source="contract_type.is_permanent", read_only=True)
+
+    salary_frequency_label = serializers.SerializerMethodField()
+
+    # --- KPI depuis les @property du modèle (read_only) ---
+    is_active = serializers.BooleanField(read_only=True)
+    days_until_end = serializers.IntegerField(read_only=True, allow_null=True)
+    can_be_renewed = serializers.BooleanField(read_only=True)
+    requires_renewal = serializers.BooleanField(read_only=True)
+    is_probation_period = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = EmploymentContract
         fields = "__all__"
+
+    def get_employee_name(self, obj):
+        if not obj.employee:
+            return ""
+        return f"{obj.employee.first_name or ''} {obj.employee.last_name or ''}".strip()
+
+    def get_employee_email(self, obj):
+        return getattr(obj.employee, "email", "") or ""
+
+    def get_employee_display(self, obj):
+        n = self.get_employee_name(obj)
+        e = self.get_employee_email(obj)
+        return f"{n} — {e}".strip(" —") if (n or e) else ""
+
+    def get_contract_type_display(self, obj):
+        ct = getattr(obj, "contract_type", None)
+        if not ct:
+            return ""
+        name = ct.name or ""
+        code = ct.code or ""
+        return f"{name} ({code})" if code else name
+
+    def get_salary_frequency_label(self, obj):
+        key = getattr(obj, "salary_frequency", None)
+        return SALARY_FREQ_LABELS.get(key, key or "")
 
 
 class ContractAmendmentSerializer(serializers.ModelSerializer):
@@ -692,12 +741,25 @@ class HolidaySerializer(serializers.ModelSerializer):
         model = Holiday
         fields = "__all__"
 
+
 class WorkScheduleTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkScheduleTemplate
         fields = "__all__"
 
+
 class InterviewFeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewFeedback
         fields = "__all__"
+
+
+class EmploymentContractExportSerializer(serializers.Serializer):
+    format = serializers.ChoiceField(choices=["xlsx", "csv"], default="xlsx")
+    fields = serializers.ListField(
+        child=serializers.CharField(),
+        allow_empty=False
+    )
+    filters = serializers.DictField(required=False, default=dict)
+    ordering = serializers.CharField(required=False, allow_blank=True, default="")
+    search = serializers.CharField(required=False, allow_blank=True, default="")

@@ -1,5 +1,6 @@
 # Lyneerp/hr/views.py
-
+import csv
+import io
 import logging
 import uuid
 from datetime import datetime
@@ -14,6 +15,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 from django.db import transaction, IntegrityError, models
+from openpyxl.workbook import Workbook
 from rest_framework import viewsets, status, filters, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -71,7 +73,7 @@ from hr.api.serializers import (
     ContractHistorySerializer, SalaryHistorySerializer, HRDocumentSerializer, HolidayCalendarSerializer,
     HolidaySerializer, WorkScheduleTemplateSerializer, MedicalRecordSerializer, MedicalVisitSerializer,
     MedicalRestrictionSerializer, PayrollSerializer, RecruitmentAnalyticsSerializer, JobOfferSerializer,
-    RecruitmentWorkflowSerializer, InterviewFeedbackSerializer,
+    RecruitmentWorkflowSerializer, InterviewFeedbackSerializer, EmploymentContractExportSerializer,
 )
 from tenants.models import Tenant, TenantDomain
 
@@ -1248,6 +1250,46 @@ class ContractTypeViewSet(BaseTenantViewSet):
     ordering_fields = ["name", "created_at"]
 
 
+EXPORT_FIELD_MAP = {
+    # champs simples
+    "contract_number": ("contract_number", "N° Contrat"),
+    "title": ("title", "Poste"),
+    "status": ("status", "Statut"),
+    "start_date": ("start_date", "Début"),
+    "end_date": ("end_date", "Fin"),
+    "base_salary": ("base_salary", "Salaire"),
+    "salary_currency": ("salary_currency", "Devise"),
+    "weekly_hours": ("weekly_hours", "Heures/sem"),
+    "remote_allowed": ("remote_allowed", "Télétravail"),
+    "work_location": ("work_location", "Lieu"),
+
+    # relations (valeurs calculées)
+    "employee": ("employee__id", "Employé (ID)"),
+    "employee_name": (None, "Employé"),
+    "department": ("department__name", "Département"),
+    "position": ("position__title", "Poste (position)"),
+    "contract_type": ("contract_type__name", "Type contrat"),
+    "approved_by": ("approved_by__id", "Approuvé par (ID)"),
+}
+
+
+def _bool_to_fr(v):
+    return "Oui" if v else "Non"
+
+
+def _safe_str(v):
+    if v is None:
+        return ""
+    return str(v)
+
+
+def _format_date(d):
+    if not d:
+        return ""
+    # YYYY-MM-DD (stable pour export)
+    return d.isoformat()
+
+
 class EmploymentContractViewSet(BaseTenantViewSet):
     queryset = EmploymentContract.objects.all()
     serializer_class = EmploymentContractSerializer
@@ -1255,6 +1297,159 @@ class EmploymentContractViewSet(BaseTenantViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["contract_number", "title", "employee__email"]
     ordering_fields = ["start_date", "end_date", "created_at"]
+
+    def _base_queryset_for_export(self, request):
+        qs = EmploymentContract.objects.select_related(
+            "employee", "department", "position", "contract_type", "approved_by"
+        )
+
+        # ✅ Multi-tenant
+        tenant_id = getattr(request, "tenant_id", None) or request.headers.get("X-Tenant-Id")
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        return qs
+
+    def _apply_export_filters(self, qs, filters: dict, search: str, ordering: str):
+        # filters attendus (exemples): status, contract_type, department, employee, active_only, date ranges...
+        if not filters:
+            filters = {}
+
+        # Exemples de filtres
+        if filters.get("status"):
+            qs = qs.filter(status=filters["status"])
+
+        if filters.get("department"):
+            qs = qs.filter(department_id=filters["department"])
+
+        if filters.get("contract_type"):
+            qs = qs.filter(contract_type_id=filters["contract_type"])
+
+        if filters.get("employee"):
+            qs = qs.filter(employee_id=filters["employee"])
+
+        # date range
+        if filters.get("start_date_from"):
+            qs = qs.filter(start_date__gte=filters["start_date_from"])
+        if filters.get("start_date_to"):
+            qs = qs.filter(start_date__lte=filters["start_date_to"])
+
+        # search (simple)
+        if search:
+            s = search.strip()
+            qs = qs.filter(
+                Q(contract_number__icontains=s) |
+                Q(title__icontains=s) |
+                Q(employee__first_name__icontains=s) |
+                Q(employee__last_name__icontains=s)
+            )
+
+        # ordering (si tu veux autoriser)
+        if ordering:
+            qs = qs.order_by(ordering)
+
+        return qs
+
+    def _build_rows(self, qs, fields):
+        rows = []
+        for c in qs:
+            row = []
+            for f in fields:
+                if f not in EXPORT_FIELD_MAP:
+                    row.append("")
+                    continue
+
+                key, _label = EXPORT_FIELD_MAP[f]
+
+                if f == "employee_name":
+                    row.append(_safe_str(f"{c.employee.first_name} {c.employee.last_name}".strip()))
+                elif f == "remote_allowed":
+                    row.append(_bool_to_fr(bool(c.remote_allowed)))
+                elif f in ("start_date", "end_date"):
+                    row.append(_format_date(getattr(c, f)))
+                elif key:
+                    # key de type "department__name" => on lit sur l'objet via relations déjà select_related
+                    # comme on a l'objet complet, on préfère l'accès direct:
+                    if f == "department":
+                        row.append(_safe_str(c.department.name if c.department else ""))
+                    elif f == "position":
+                        row.append(_safe_str(c.position.title if c.position else ""))
+                    elif f == "contract_type":
+                        row.append(_safe_str(c.contract_type.name if c.contract_type else ""))
+                    else:
+                        # champs simples
+                        row.append(_safe_str(getattr(c, key.split("__")[0], "")))
+                else:
+                    row.append("")
+            rows.append(row)
+        return rows
+
+    def _export_xlsx(self, filename, headers, rows):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Contrats"
+
+        ws.append(headers)
+        for r in rows:
+            ws.append(r)
+
+        # autosize basique
+        for col_idx, _ in enumerate(headers, start=1):
+            col_letter = get_column_letter(col_idx)
+            ws.column_dimensions[col_letter].width = max(12, min(45, len(str(headers[col_idx - 1])) + 6))
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        resp = HttpResponse(
+            buf.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        resp["Content-Disposition"] = f'attachment; filename="{filename}.xlsx"'
+        return resp
+
+    def _export_csv(self, filename, headers, rows):
+        buf = io.StringIO()
+        writer = csv.writer(buf, delimiter=";")
+        writer.writerow(headers)
+        writer.writerows(rows)
+
+        resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
+        resp["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
+        return resp
+
+    @action(detail=False, methods=["POST"], url_path="export_contracts")
+    def export_contracts(self, request, *args, **kwargs):
+        ser = EmploymentContractExportSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        fmt = ser.validated_data["format"]
+        fields = ser.validated_data["fields"]
+        filters = ser.validated_data.get("filters") or {}
+        ordering = ser.validated_data.get("ordering") or ""
+        search = ser.validated_data.get("search") or ""
+
+        # headers
+        headers = []
+        for f in fields:
+            if f in EXPORT_FIELD_MAP:
+                headers.append(EXPORT_FIELD_MAP[f][1])
+            else:
+                headers.append(f)
+
+        qs = self._base_queryset_for_export(request)
+        qs = self._apply_export_filters(qs, filters, search, ordering)
+
+        rows = self._build_rows(qs, fields)
+
+        stamp = timezone.now().strftime("%Y%m%d-%H%M")
+        filename = f"contracts_export_{stamp}"
+
+        if fmt == "csv":
+            return self._export_csv(filename, headers, rows)
+
+        return self._export_xlsx(filename, headers, rows)
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
