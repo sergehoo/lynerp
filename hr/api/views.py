@@ -152,6 +152,48 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
 # Mixins multi-tenant
 # -----------------------------
 class BaseTenantViewSet(viewsets.ModelViewSet):
+    TENANT_HEADER = "X-Tenant-Id"
+
+    def get_tenant_id(self):
+        """
+        Renvoie tenant_id depuis:
+        - request.tenant_id (middleware)
+        - request.tenant (middleware)
+        - Header X-Tenant-Id
+        """
+        # 1) middleware qui pose request.tenant_id
+        tenant_id = getattr(self.request, "tenant_id", None)
+        if tenant_id:
+            return str(tenant_id)
+
+        # 2) middleware qui pose request.tenant
+        tenant = getattr(self.request, "tenant", None)
+        if tenant:
+            # slug sinon id
+            return str(getattr(tenant, "slug", None) or tenant.id)
+
+        # 3) header
+        return self.request.headers.get(self.TENANT_HEADER)
+
+    def get_tenant(self):
+        """
+        Retourne l'objet Tenant (ou None).
+        """
+        tenant = getattr(self.request, "tenant", None)
+        if tenant:
+            return tenant
+
+        tenant_id = self.get_tenant_id()
+        if not tenant_id:
+            return None
+
+        # accepte id OU slug
+        return (
+            Tenant.objects
+            .filter(Q(id=tenant_id) | Q(slug=tenant_id))
+            .first()
+        )
+
     def get_queryset(self):
         # 0) Super admin plateforme : accès global
         if self.request.user and self.request.user.is_superuser:
@@ -177,7 +219,6 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
             return qs.filter(filt).distinct()
 
         return qs.none()
-
 
 class HasTenantAccess(BasePermission):
     """
