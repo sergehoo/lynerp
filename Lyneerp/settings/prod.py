@@ -8,7 +8,6 @@ SECURE_SSL_REDIRECT = True
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-
 CSRF_TRUSTED_ORIGINS = [
     "http://www.lynerp.com",
     "https://rh.lynerp.com",
@@ -35,7 +34,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
 }
 AUTHENTICATION_BACKENDS = [
@@ -55,7 +54,6 @@ TENANT_SESSION_KEY = "current_tenant"
 REMEMBER_ME_SESSION_AGE = 60 * 60 * 24 * 30  # 30 jours
 SESSION_COOKIE_AGE = 60 * 60 * 2  # 2h (si pas remember me)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # expir. à la fermeture (par défaut)
-
 
 KEYCLOAK_BASE_URL = os.getenv("KEYCLOAK_BASE_URL", "https://sso.lyneerp.com")
 KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "rh-core")
@@ -84,8 +82,6 @@ SESSION_COOKIE_SAMESITE = "Lax"
 
 # Recommandé si tu utilises des sous-domaines
 SESSION_COOKIE_DOMAIN = ".lyneerp.com"
-
-
 
 # --- OIDC / Keycloak ---
 
@@ -126,8 +122,6 @@ OIDC_STORE_ID_TOKEN = True
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_TIMEOUT = 10
 
-
-
 LICENSE_ENFORCEMENT = False
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 CACHES = {
@@ -136,7 +130,6 @@ CACHES = {
         "LOCATION": "redis://redis:6379/1",
     }
 }
-
 
 # # settings/prod.py
 # import os
