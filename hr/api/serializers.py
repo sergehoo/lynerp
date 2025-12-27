@@ -5,7 +5,9 @@ from hr.models import (
     Department, Employee, LeaveRequest, AIProcessingResult,
     Position, LeaveType, LeaveBalance, Attendance, Payroll,
     PerformanceReview, Recruitment, JobApplication, Interview,
-    RecruitmentAnalytics, RecruitmentWorkflow
+    RecruitmentAnalytics, RecruitmentWorkflow, InterviewFeedback, JobOffer, MedicalRestriction, MedicalVisit,
+    MedicalRecord, WorkScheduleTemplate, Holiday, HolidayCalendar, LeaveApprovalStep, HRDocument, SalaryHistory,
+    ContractHistory, ContractAlert, ContractTemplate, ContractAmendment, EmploymentContract, ContractType
 )
 from django.utils import timezone
 
@@ -599,3 +601,103 @@ class BulkEmployeeActionSerializer(serializers.Serializer):
         'activate', 'deactivate', 'terminate', 'change_department'
     ])
     data = serializers.DictField(required=False)
+
+
+class ContractTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractType
+        fields = "__all__"
+
+
+class EmploymentContractSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmploymentContract
+        fields = "__all__"
+
+
+class ContractAmendmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractAmendment
+        fields = "__all__"
+
+
+class ContractTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractTemplate
+        fields = "__all__"
+
+
+class ContractAlertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractAlert
+        fields = "__all__"
+
+
+class ContractHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractHistory
+        fields = "__all__"
+
+
+class SalaryHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryHistory
+        fields = "__all__"
+
+
+class HRDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HRDocument
+        fields = "__all__"
+
+
+class LeaveApprovalStepSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeaveApprovalStep
+        fields = "__all__"
+
+
+class MedicalRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MedicalRecord
+        fields = "__all__"
+
+
+class MedicalVisitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MedicalVisit
+        fields = "__all__"
+
+
+class MedicalRestrictionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MedicalRestriction
+        fields = "__all__"
+
+
+class JobOfferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOffer
+        fields = "__all__"
+
+
+class HolidayCalendarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HolidayCalendar
+        fields = "__all__"
+
+
+class HolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Holiday
+        fields = "__all__"
+
+class WorkScheduleTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkScheduleTemplate
+        fields = "__all__"
+
+class InterviewFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewFeedback
+        fields = "__all__"

@@ -78,6 +78,7 @@ class TenantUser(models.Model):
 
     # Rôles dans le tenant
     ROLE_CHOICES = [
+        ('HR_BPO', 'RH Externalisée'),
         ('OWNER', 'Propriétaire'),
         ('ADMIN', 'Administrateur'),
         ('MANAGER', 'Manager'),

@@ -17,7 +17,7 @@ from django.db import transaction, IntegrityError, models
 from rest_framework import viewsets, status, filters, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.views import APIView
@@ -36,7 +36,9 @@ from hr.models import (
     PerformanceReview,
     JobApplication,
     Recruitment,
-    Interview,
+    Interview, ContractType, EmploymentContract, ContractAmendment, ContractTemplate, ContractAlert, ContractHistory,
+    SalaryHistory, HRDocument, LeaveApprovalStep, HolidayCalendar, Holiday, WorkScheduleTemplate, MedicalRecord,
+    MedicalVisit, MedicalRestriction, Payroll, RecruitmentAnalytics, JobOffer, RecruitmentWorkflow, InterviewFeedback,
 )
 
 # Serializers
@@ -64,7 +66,12 @@ from hr.api.serializers import (
     EmployeeStatsSerializer,
     RecruitmentSerializer,
     RecruitmentFilterSerializer,
-    AIProcessingResult, TenantLiteSerializer,
+    AIProcessingResult, TenantLiteSerializer, LeaveApprovalStepSerializer, ContractTypeSerializer,
+    EmploymentContractSerializer, ContractAmendmentSerializer, ContractTemplateSerializer, ContractAlertSerializer,
+    ContractHistorySerializer, SalaryHistorySerializer, HRDocumentSerializer, HolidayCalendarSerializer,
+    HolidaySerializer, WorkScheduleTemplateSerializer, MedicalRecordSerializer, MedicalVisitSerializer,
+    MedicalRestrictionSerializer, PayrollSerializer, RecruitmentAnalyticsSerializer, JobOfferSerializer,
+    RecruitmentWorkflowSerializer, InterviewFeedbackSerializer,
 )
 from tenants.models import Tenant, TenantDomain
 
@@ -142,39 +149,60 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
 # Mixins multi-tenant
 # -----------------------------
 class BaseTenantViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet de base multi-tenant :
-    - Résout le Tenant à partir de la requête
-    - Filtre soit sur `tenant` (FK), soit sur `tenant_id` (CharField)
-    """
-
-    def get_tenant(self):
-        return get_current_tenant_from_request(self.request)
-
     def get_queryset(self):
+        # 0) Super admin plateforme : accès global
+        if self.request.user and self.request.user.is_superuser:
+            return super().get_queryset()
+
         tenant = self.get_tenant()
         if not tenant:
             return self.queryset.none()
 
-        qs = super().get_queryset() if hasattr(super(), "get_queryset") else self.queryset
+        qs = super().get_queryset()
         model = qs.model
 
-        # 1) Modèle avec FK Tenant
+        # FK tenant
         if hasattr(model, "tenant"):
             return qs.filter(tenant=tenant)
 
-        # 2) Modèle avec champ tenant_id (CharField)
+        # tenant_id string
         if hasattr(model, "tenant_id"):
-            # Convention : on stocke de préférence tenant.slug,
-            # mais on reste compatible si certains enregistrements contiennent l'UUID.
             slug = getattr(tenant, "slug", None)
             filt = Q(tenant_id=str(tenant.id))
             if slug:
                 filt |= Q(tenant_id=slug)
             return qs.filter(filt).distinct()
 
-        # 3) Modèle non-tenantisable
         return qs.none()
+
+
+class HasTenantAccess(BasePermission):
+    """
+    Autorise:
+    - superuser: tout
+    - tenant ADMIN/OWNER/HR_BPO selon action
+    """
+    allowed_roles_read = {"OWNER", "ADMIN", "MANAGER", "HR_BPO", "VIEWER", "MEMBER"}
+    allowed_roles_write = {"OWNER", "ADMIN", "HR_BPO"}  # RH externalisée peut créer/modifier RH
+
+    def has_permission(self, request, view):
+        if request.user and request.user.is_superuser:
+            return True
+
+        tenant = getattr(view, "get_tenant", lambda: None)()
+        # si ton viewset n'a pas get_tenant, tu peux faire:
+        # tenant = get_current_tenant_from_request(request)
+
+        if not tenant:
+            return False
+
+        membership = get_membership(request.user, tenant)
+        if not membership:
+            return False
+
+        if request.method in SAFE_METHODS:
+            return membership.role in self.allowed_roles_read
+        return membership.role in self.allowed_roles_write
 
 
 class TenantViewSet(viewsets.ReadOnlyModelViewSet):
@@ -956,7 +984,8 @@ class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
             except Exception:
                 return Response({"detail": "format de time invalide (HH:MM)"}, status=400)
 
-        employees = Employee.objects.filter(id__in=employee_ids, tenant_id=tenant_id)
+        tenant = get_current_tenant_from_request(request)
+        employees = Employee.objects.filter(id__in=employee_ids, tenant=tenant)
         updated = 0
         with transaction.atomic():
             for emp in employees:
@@ -1207,3 +1236,160 @@ class PerformanceReviewViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
         review.status = 'FINALIZED'
         review.save()
         return Response({"status": review.status})
+
+
+# ---------- Contrats ----------
+class ContractTypeViewSet(BaseTenantViewSet):
+    queryset = ContractType.objects.all()
+    serializer_class = ContractTypeSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "code"]
+    ordering_fields = ["name", "created_at"]
+
+
+class EmploymentContractViewSet(BaseTenantViewSet):
+    queryset = EmploymentContract.objects.all()
+    serializer_class = EmploymentContractSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["contract_number", "title", "employee__email"]
+    ordering_fields = ["start_date", "end_date", "created_at"]
+
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        obj = self.get_object()
+        obj.status = "ACTIVE"
+        obj.save(update_fields=["status"])
+        return Response({"status": obj.status})
+
+
+class ContractAmendmentViewSet(BaseTenantViewSet):
+    queryset = ContractAmendment.objects.all()
+    serializer_class = ContractAmendmentSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class ContractTemplateViewSet(BaseTenantViewSet):
+    queryset = ContractTemplate.objects.all()
+    serializer_class = ContractTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class ContractAlertViewSet(BaseTenantViewSet):
+    queryset = ContractAlert.objects.all()
+    serializer_class = ContractAlertSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["due_date", "priority", "created_at"]
+
+
+class ContractHistoryViewSet(BaseTenantViewSet):
+    queryset = ContractHistory.objects.all()
+    serializer_class = ContractHistorySerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["performed_at"]
+
+
+# ---------- RH core ----------
+class SalaryHistoryViewSet(BaseTenantViewSet):
+    queryset = SalaryHistory.objects.all()
+    serializer_class = SalaryHistorySerializer
+    permission_classes = [IsAuthenticated]
+
+
+class HRDocumentViewSet(BaseTenantViewSet):
+    queryset = HRDocument.objects.all()
+    serializer_class = HRDocumentSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# ---------- Congés avancé ----------
+class LeaveBalanceViewSet(BaseTenantViewSet):
+    queryset = LeaveBalance.objects.all()
+    serializer_class = LeaveBalanceSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class LeaveApprovalStepViewSet(BaseTenantViewSet):
+    queryset = LeaveApprovalStep.objects.all()
+    serializer_class = LeaveApprovalStepSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# ---------- Calendrier & horaires ----------
+class HolidayCalendarViewSet(BaseTenantViewSet):
+    queryset = HolidayCalendar.objects.all()
+    serializer_class = HolidayCalendarSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class HolidayViewSet(BaseTenantViewSet):
+    queryset = Holiday.objects.all()
+    serializer_class = HolidaySerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["date"]
+
+
+class WorkScheduleTemplateViewSet(BaseTenantViewSet):
+    queryset = WorkScheduleTemplate.objects.all()
+    serializer_class = WorkScheduleTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# ---------- Médical ----------
+class MedicalRecordViewSet(BaseTenantViewSet):
+    queryset = MedicalRecord.objects.all()
+    serializer_class = MedicalRecordSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class MedicalVisitViewSet(BaseTenantViewSet):
+    queryset = MedicalVisit.objects.all()
+    serializer_class = MedicalVisitSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["visit_date", "created_at"]
+
+
+class MedicalRestrictionViewSet(BaseTenantViewSet):
+    queryset = MedicalRestriction.objects.all()
+    serializer_class = MedicalRestrictionSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# ---------- Paie ----------
+class PayrollViewSet(BaseTenantViewSet):
+    queryset = Payroll.objects.all()
+    serializer_class = PayrollSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["payroll_number", "employee__email"]
+    ordering_fields = ["period_start", "pay_date", "created_at"]
+
+
+# ---------- Recrutement avancé ----------
+class RecruitmentAnalyticsViewSet(BaseTenantViewSet):
+    queryset = RecruitmentAnalytics.objects.all()
+    serializer_class = RecruitmentAnalyticsSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class JobOfferViewSet(BaseTenantViewSet):
+    queryset = JobOffer.objects.all()
+    serializer_class = JobOfferSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class RecruitmentWorkflowViewSet(BaseTenantViewSet):
+    queryset = RecruitmentWorkflow.objects.all()
+    serializer_class = RecruitmentWorkflowSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class InterviewFeedbackViewSet(BaseTenantViewSet):
+    queryset = InterviewFeedback.objects.all()
+    serializer_class = InterviewFeedbackSerializer
+    permission_classes = [IsAuthenticated]
