@@ -1347,9 +1347,9 @@ class EmploymentContractViewSet(BaseTenantViewSet):
         )
 
         # ✅ Multi-tenant
-        tenant_id = getattr(request, "tenant_id", None) or request.headers.get("X-Tenant-Id")
-        if tenant_id:
-            qs = qs.filter(tenant_id=tenant_id)
+        # tenant_id = getattr(request, "tenant_id", None) or request.headers.get("X-Tenant-Id")
+        # if tenant_id:
+        #     qs = qs.filter(tenant_id=tenant_id)
 
         return qs
 
