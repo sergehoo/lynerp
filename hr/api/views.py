@@ -220,6 +220,7 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
 
         return qs.none()
 
+
 class HasTenantAccess(BasePermission):
     """
     Autorise:
