@@ -394,9 +394,9 @@ class EmploymentContractDetailView(LoginRequiredMixin, DetailView):
             return qs
 
         # 🏢 Admin entreprise → uniquement son tenant
-        tenant_id = getattr(self.request, "tenant_id", None)
-        if tenant_id:
-            qs = qs.filter(tenant_id=tenant_id)
+        # tenant_id = getattr(self.request, "tenant_id", None)
+        # if tenant_id:
+        #     qs = qs.filter(tenant_id=tenant_id)
 
         return qs
 
