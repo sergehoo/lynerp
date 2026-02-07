@@ -691,14 +691,30 @@
         window.location.assign(url);
     }
 
-    function deriveTenantFromHost(host) {
-        const h = (host || location.hostname).toLowerCase();
-        const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);
-        if (m) return m[1];
-        const parts = h.split('.');
-        if (parts.length >= 3) return parts[0];
-        return '';
-    }
+    {#function deriveTenantFromHost(host) {#}
+    {#    const h = (host || location.hostname).toLowerCase();#}
+    {#    const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);#}
+    {#    if (m) return m[1];#}
+    {#    const parts = h.split('.');#}
+    {#    if (parts.length >= 3) return parts[0];#}
+    {#    return '';#}
+    {#}#}
+   function deriveTenantFromHost(host) {
+  const h = (host || location.hostname).toLowerCase();
+
+  // si domaine "racine" rh.lyneerp.com => PAS un tenant
+  if (h === 'rh.lyneerp.com' || h === 'www.lyneerp.com' || h === 'lyneerp.com') return '';
+
+  const reserved = new Set(['rh','app','www','api','sso','static','cdn']);
+  const parts = h.split('.');
+  if (parts.length >= 3 && !reserved.has(parts[0])) return parts[0];
+
+  // pattern tenant.rh.lyneerp.com
+  const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);
+  if (m && !reserved.has(m[1])) return m[1];
+
+  return '';
+}
 
     function buildUrl(apiBase, path) {
         if (/^https?:\/\//i.test(path)) return path;
