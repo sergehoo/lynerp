@@ -114,8 +114,22 @@ class JsonListMixin:
         def serialize(o):
             data = {"id": str(o.pk)}
             for f in self.json_fields:
-                val = getattr(o, f, None)
-                data[f] = str(val) if val is not None else None
+                # support "invoice__partner__name" (notation Django)
+                if "__" in f:
+                    cur = o
+                    for part in f.split("__"):
+                        cur = getattr(cur, part, None)
+                        if cur is None:
+                            break
+                    val = cur
+                else:
+                    val = getattr(o, f, None)
+
+                # valeurs JSON-friendly
+                if hasattr(val, "isoformat"):
+                    data[f] = val.isoformat()
+                else:
+                    data[f] = str(val) if val is not None else None
             return data
 
         return JsonResponse({
@@ -284,6 +298,44 @@ def crud_views(
     return _List, _Detail, _Create, _Update, _Delete
 
 
+class PaymentList(JsonListMixin, BaseTenantList):
+    model = Payment
+    permission_required = "finance.view_payment"
+    template_name = "finance/payment/list.html"
+    ordering = ("-paid_at", "-created_at")
+    search_fields = ("reference", "provider", "invoice__number", "invoice__partner__name")
+
+    # champs renvoyés
+    json_fields = (
+        "reference",
+        "invoice__partner__name",   # => customer
+        "paid_at",
+        "method",
+        "status",
+        "amount",
+        "currency",
+    )
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        # filtres
+        status = (self.request.GET.get("status") or "").strip()
+        method = (self.request.GET.get("method") or "").strip()
+        date_from = (self.request.GET.get("date_from") or "").strip()
+        date_to = (self.request.GET.get("date_to") or "").strip()
+
+        if status:
+            qs = qs.filter(status=status)
+        if method:
+            qs = qs.filter(method=method)
+        if date_from:
+            qs = qs.filter(paid_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(paid_at__date__lte=date_to)
+
+        # perf (évite N+1)
+        return qs.select_related("invoice", "invoice__partner")
 # ========= Master + lines views =========
 class JournalEntryCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, CreateView):
     model = JournalEntry
