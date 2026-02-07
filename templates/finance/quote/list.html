@@ -75,27 +75,27 @@
 
       <div>
         <label class="text-xs font-medium text-slate-500">Statut</label>
-        <select x-model="filters.status"
-                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
-          <option value="">Tous</option>
-          <option value="DRAFT">Brouillon</option>
-          <option value="POSTED">Validé</option>
-          <option value="RECONCILED">Rapproché</option>
-          <option value="CANCELLED">Annulé</option>
-        </select>
+<select x-model="filters.status"
+  class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+  <option value="">Tous</option>
+  <option value="PENDING">En attente</option>
+  <option value="DONE">Payé</option>
+  <option value="FAILED">Échoué</option>
+  <option value="CANCELLED">Annulé</option>
+</select>
       </div>
 
       <div>
         <label class="text-xs font-medium text-slate-500">Méthode</label>
-        <select x-model="filters.method"
-                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
-          <option value="">Toutes</option>
-          <option value="CASH">Espèces</option>
-          <option value="BANK">Virement</option>
-          <option value="CARD">Carte</option>
-          <option value="MOBILE_MONEY">Mobile Money</option>
-          <option value="CHEQUE">Chèque</option>
-        </select>
+       <select x-model="filters.method"
+  class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+  <option value="">Toutes</option>
+  <option value="CASH">Espèces</option>
+  <option value="BANK">Banque</option>
+  <option value="CARD">Carte</option>
+  <option value="MOBILE">Mobile money</option>
+  <option value="CHEQUE">Chèque</option>
+</select>
       </div>
 
       <div>
@@ -255,14 +255,18 @@ function financeListPage(cfg){
     get pageText(){ return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`; },
 
     statusPill(s){
-      const m = {
-        DRAFT:{label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
-        POSTED:{label:'Validé', cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},
-        RECONCILED:{label:'Rapproché', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
-        CANCELLED:{label:'Annulé', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
-      };
-      return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
-    },
+  const m = {
+    PENDING:{label:'En attente', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
+    DONE:{label:'Payé', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
+    FAILED:{label:'Échoué', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
+    CANCELLED:{label:'Annulé', cls:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},
+  };
+  return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
+},
+methodLabel(m){
+  const map = {CASH:'Espèces', BANK:'Banque', CARD:'Carte', MOBILE:'Mobile money', CHEQUE:'Chèque'};
+  return map[m] || (m || '—');
+},
     fmtDate(s){ if(!s) return '—'; try{return new Date(s).toLocaleDateString('fr-FR');}catch{return '—'}; },
     formatMoney(v){
       const n=Number(v||0);
