@@ -589,1361 +589,1132 @@
     </template>
 </div>
 
-{#<script>#}
-{#    /********************#}
-{#     * CONFIG & FLAGS#}
-{#     ********************/#}
-{#    const LICENSE_UI = false;#}
-{#    const FRONT_DEFAULT_TENANT = "demo";#}
-{#    const KC = {issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core"};#}
-{#    const DEV_MODE = (localStorage.getItem('lyneerp_dev') === '1')#}
-{#        || ['localhost', '127.0.0.1'].includes(location.hostname)#}
-{#        || location.hostname.endsWith('.local');#}
-{##}
-{#    /********************#}
-{#     * HELPERS#}
-{#     ********************/#}
-{#    const log = (...a) => console.debug('[HR]', ...a);#}
-{#    const sleep = (ms) => new Promise(r => setTimeout(r, ms));#}
-{##}
-{#    function base64UrlDecode(str) {#}
-{#        str = str.replace(/-/g, '+').replace(/_/g, '/');#}
-{#        const pad = str.length % 4;#}
-{#        if (pad) str += '='.repeat(4 - pad);#}
-{#        try {#}
-{#            return atob(str);#}
-{#        } catch {#}
-{#            return '';#}
-{#        }#}
-{#    }#}
-{##}
-{#    function parseJwt(token) {#}
-{#        if (!token) return null;#}
-{#        const parts = token.split('.');#}
-{#        if (parts.length !== 3) return null;#}
-{#        try {#}
-{#            return JSON.parse(base64UrlDecode(parts[1]));#}
-{#        } catch {#}
-{#            return null;#}
-{#        }#}
-{#    }#}
-{##}
-{#    function getStoredAccessToken() {#}
-{#        return localStorage.getItem('lyneerp_token')#}
-{#            || sessionStorage.getItem('lyneerp_token')#}
-{#            || localStorage.getItem('kc_access_token')#}
-{#            || sessionStorage.getItem('kc_access_token')#}
-{#            || '';#}
-{#    }#}
-{##}
-{#    function getStoredRefreshToken() {#}
-{#        return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';#}
-{#    }#}
-{##}
-{#    async function refreshTokenIfNeeded(exp) {#}
-{#        const now = Math.floor(Date.now() / 1000);#}
-{#        if (!exp || exp - now > 30) return false;#}
-{#        const refresh = getStoredRefreshToken();#}
-{#        if (!refresh) return false;#}
-{##}
-{#        const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {#}
-{#            method: "POST",#}
-{#            headers: {"Content-Type": "application/x-www-form-urlencoded"},#}
-{#            body: new URLSearchParams({grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh})#}
-{#        });#}
-{#        if (!res.ok) return false;#}
-{##}
-{#        const p = await res.json();#}
-{#        const remember = !!localStorage.getItem('kc_access_token');#}
-{#        const storage = remember ? localStorage : sessionStorage;#}
-{#        if (p.access_token) storage.setItem("kc_access_token", p.access_token);#}
-{#        if (p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);#}
-{#        return true;#}
-{#    }#}
-{##}
-{#    function kcLogout() {#}
-{#        const storedIdToken = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';#}
-{#        const storedAccessToken =#}
-{#            localStorage.getItem('kc_access_token') ||#}
-{#            sessionStorage.getItem('kc_access_token') ||#}
-{#            localStorage.getItem('lyneerp_token') ||#}
-{#            sessionStorage.getItem('lyneerp_token') || '';#}
-{#        const hintToken = storedIdToken || storedAccessToken;#}
-{##}
-{#        ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {#}
-{#            localStorage.removeItem(k);#}
-{#            sessionStorage.removeItem(k);#}
-{#        });#}
-{##}
-{#        if (!hintToken) {#}
-{#            window.location.assign('/oidc/authenticate/');#}
-{#            return;#}
-{#        }#}
-{##}
-{#        const redirectUri = window.location.origin + '/oidc/authenticate/';#}
-{#        const url =#}
-{#            `${KC.issuer}/protocol/openid-connect/logout` +#}
-{#            `?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}` +#}
-{#            `&client_id=${encodeURIComponent(KC.clientId)}` +#}
-{#            `&id_token_hint=${encodeURIComponent(hintToken)}`;#}
-{##}
-{#        window.location.assign(url);#}
-{#    }#}
-{##}
-{#    function deriveTenantFromHost(host) {#}
-{#        const h = (host || location.hostname).toLowerCase();#}
-{#        const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);#}
-{#        if (m) return m[1];#}
-{#        const parts = h.split('.');#}
-{#        if (parts.length >= 3) return parts[0];#}
-{#        return '';#}
-{#    }#}
-{##}
-{#    function buildUrl(apiBase, path) {#}
-{#        if (/^https?:\/\//i.test(path)) return path;#}
-{#        if (path.startsWith('/')) return path;#}
-{#        return `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`;#}
-{#    }#}
-{##}
-{#    function normalizeApiBase(val) {#}
-{#        if (!val) return '/api/rh';#}
-{#        let v = val.trim();#}
-{#        if (/^https?:\/\//i.test(v) && !/\/api\/rh\/?$/i.test(v)) v = v.replace(/\/+$/, '') + '/api/rh';#}
-{#        return v.replace(/\/+$/, '');#}
-{#    }#}
-{##}
-{#    function getCookie(name) {#}
-{#        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));#}
-{#        if (match) return decodeURIComponent(match[2]);#}
-{#        return null;#}
-{#    }#}
-{##}
-{#    function shouldSendCsrf(url, method) {#}
-{#        const sameOrigin = !/^https?:\/\//i.test(url) || url.startsWith(location.origin);#}
-{#        const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes((method || 'GET').toUpperCase());#}
-{#        return sameOrigin && unsafe;#}
-{#    }#}
-{##}
-{#    const cache = {#}
-{#        get(key) {#}
-{#            try {#}
-{#                const raw = localStorage.getItem('cache:' + key);#}
-{#                if (!raw) return null;#}
-{#                const {exp, val} = JSON.parse(raw);#}
-{#                if (exp && Date.now() > exp) {#}
-{#                    localStorage.removeItem('cache:' + key);#}
-{#                    return null;#}
-{#                }#}
-{#                return val;#}
-{#            } catch {#}
-{#                return null;#}
-{#            }#}
-{#        },#}
-{#        set(key, val, ttlMs = 60000) {#}
-{#            try {#}
-{#                localStorage.setItem('cache:' + key, JSON.stringify({exp: Date.now() + ttlMs, val}));#}
-{#            } catch {#}
-{#            }#}
-{#        },#}
-{#        del(key) {#}
-{#            localStorage.removeItem('cache:' + key);#}
-{#        }#}
-{#    };#}
-{##}
-{#   // petit helper#}
-{#const sleep = (ms) => new Promise(r => setTimeout(r, ms));#}
-{##}
-{#/**#}
-{# * fetchWithBackoff (robuste)#}
-{# * - Retry seulement sur 429 et 5xx#}
-{# * - Retry-After (si envoyé par le serveur) pour 429#}
-{# * - Circuit breaker simple: si trop d'échecs récents -> on stoppe un moment#}
-{# */#}
-{#const Backpressure = {#}
-{#  fails: 0,#}
-{#  blockedUntil: 0,#}
-{#  block(ms = 5000) {#}
-{#    this.blockedUntil = Date.now() + ms;#}
-{#  },#}
-{#  canRun() {#}
-{#    return Date.now() >= this.blockedUntil;#}
-{#  }#}
-{#};#}
-{##}
-{#async function fetchWithBackoff(url, options = {}, { retries = 2, baseDelay = 300 } = {}) {#}
-{#  if (!Backpressure.canRun()) {#}
-{#    throw new Error('server/backpressure:blocked');#}
-{#  }#}
-{##}
-{#  let attempt = 0;#}
-{#  let lastErr = null;#}
-{##}
-{#  while (attempt <= retries) {#}
-{#    try {#}
-{#      const res = await fetch(url, options);#}
-{##}
-{#      // ✅ 429: trop de requêtes -> respecter Retry-After si dispo#}
-{#      if (res.status === 429) {#}
-{#        const ra = res.headers.get('Retry-After');#}
-{#        const waitMs = ra ? (parseInt(ra, 10) * 1000) : (baseDelay * Math.pow(2, attempt));#}
-{##}
-{#        // si dernier essai => on coupe + circuit breaker#}
-{#        if (attempt === retries) {#}
-{#          Backpressure.fails++;#}
-{#          if (Backpressure.fails >= 3) Backpressure.block(8000); // blocage 8s#}
-{#          throw new Error(`server/backpressure:429`);#}
-{#        }#}
-{##}
-{#        await sleep(waitMs);#}
-{#        attempt++;#}
-{#        continue;#}
-{#      }#}
-{##}
-{#      // ✅ 5xx: serveur en erreur -> retry avec backoff#}
-{#      if (res.status >= 500) {#}
-{#        if (attempt === retries) {#}
-{#          Backpressure.fails++;#}
-{#          if (Backpressure.fails >= 3) Backpressure.block(5000);#}
-{#          throw new Error(`server/backpressure:${res.status}`);#}
-{#        }#}
-{#        await sleep(baseDelay * Math.pow(2, attempt));#}
-{#        attempt++;#}
-{#        continue;#}
-{#      }#}
-{##}
-{#      // ✅ si OK (ou 4xx hors 429): pas de retry#}
-{#      Backpressure.fails = 0;#}
-{#      return res;#}
-{##}
-{#    } catch (e) {#}
-{#      lastErr = e;#}
-{##}
-{#      // erreurs réseau (timeout, DNS, etc.) -> retry#}
-{#      if (attempt === retries) break;#}
-{#      await sleep(baseDelay * Math.pow(2, attempt));#}
-{#      attempt++;#}
-{#    }#}
-{#  }#}
-{##}
-{#  throw lastErr || new Error('fetch failed');#}
-{#}#}
-{#    const Conf = {#}
-{#        apiBase: normalizeApiBase(localStorage.getItem('lyneerp_api') || '/api/rh'),#}
-{#        tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),#}
-{#        token: getStoredAccessToken(),#}
-{#        dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,#}
-{#        save() {#}
-{#            localStorage.setItem('lyneerp_api', this.apiBase);#}
-{#            localStorage.setItem('lyneerp_tenant', this.tenantId || '');#}
-{#            if (this.token) localStorage.setItem('lyneerp_token', this.token);#}
-{#            localStorage.setItem('lyneerp_dark', this.dark ? '1' : '0');#}
-{#        }#}
-{#    };#}
-{##}
-{#    function resolveInitialTenant(current) {#}
-{#        return current || deriveTenantFromHost(location.hostname) || localStorage.getItem('lyneerp_tenant') || FRONT_DEFAULT_TENANT;#}
-{#    }#}
-{##}
-{#    function hrApp() {#}
-{#        const ROUTES = {#}
-{#            dashboard: "{% url 'hr-dashboard' %}",#}
-{##}
-{#            // si tu as ces vues:#}
-{#            employees: "{% url 'hr-employees' %}",#}
-{#            recruitment: "{% url 'hr-recruitment' %}",#}
-{#            leaves: "{% url 'hr-leaves' %}",#}
-{#            attendance: "{% url 'hr-attendance' %}",#}
-{##}
-{#            // admin:#}
+<script>
+    /********************
+     * CONFIG & FLAGS
+     ********************/
+    const LICENSE_UI = false;
+    const FRONT_DEFAULT_TENANT = "demo";
+    const KC = {issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core"};
+    const DEV_MODE = (localStorage.getItem('lyneerp_dev') === '1')
+        || ['localhost', '127.0.0.1'].includes(location.hostname)
+        || location.hostname.endsWith('.local');
+
+    /********************
+     * HELPERS
+     ********************/
+    const log = (...a) => console.debug('[HR]', ...a);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function base64UrlDecode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = str.length % 4;
+        if (pad) str += '='.repeat(4 - pad);
+        try {
+            return atob(str);
+        } catch {
+            return '';
+        }
+    }
+
+    function parseJwt(token) {
+        if (!token) return null;
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        try {
+            return JSON.parse(base64UrlDecode(parts[1]));
+        } catch {
+            return null;
+        }
+    }
+
+    function getStoredAccessToken() {
+        return localStorage.getItem('lyneerp_token')
+            || sessionStorage.getItem('lyneerp_token')
+            || localStorage.getItem('kc_access_token')
+            || sessionStorage.getItem('kc_access_token')
+            || '';
+    }
+
+    function getStoredRefreshToken() {
+        return localStorage.getItem('kc_refresh_token') || sessionStorage.getItem('kc_refresh_token') || '';
+    }
+
+    async function refreshTokenIfNeeded(exp) {
+        const now = Math.floor(Date.now() / 1000);
+        if (!exp || exp - now > 30) return false;
+        const refresh = getStoredRefreshToken();
+        if (!refresh) return false;
+
+        const res = await fetch(`${KC.issuer}/protocol/openid-connect/token`, {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({grant_type: "refresh_token", client_id: KC.clientId, refresh_token: refresh})
+        });
+        if (!res.ok) return false;
+
+        const p = await res.json();
+        const remember = !!localStorage.getItem('kc_access_token');
+        const storage = remember ? localStorage : sessionStorage;
+        if (p.access_token) storage.setItem("kc_access_token", p.access_token);
+        if (p.refresh_token) storage.setItem("kc_refresh_token", p.refresh_token);
+        return true;
+    }
+
+    function kcLogout() {
+        const storedIdToken = sessionStorage.getItem('kc_id_token') || localStorage.getItem('kc_id_token') || '';
+        const storedAccessToken =
+            localStorage.getItem('kc_access_token') ||
+            sessionStorage.getItem('kc_access_token') ||
+            localStorage.getItem('lyneerp_token') ||
+            sessionStorage.getItem('lyneerp_token') || '';
+        const hintToken = storedIdToken || storedAccessToken;
+
+        ['lyneerp_token', 'kc_access_token', 'kc_refresh_token', 'kc_id_token'].forEach(k => {
+            localStorage.removeItem(k);
+            sessionStorage.removeItem(k);
+        });
+
+        if (!hintToken) {
+            window.location.assign('/oidc/authenticate/');
+            return;
+        }
+
+        const redirectUri = window.location.origin + '/oidc/authenticate/';
+        const url =
+            `${KC.issuer}/protocol/openid-connect/logout` +
+            `?post_logout_redirect_uri=${encodeURIComponent(redirectUri)}` +
+            `&client_id=${encodeURIComponent(KC.clientId)}` +
+            `&id_token_hint=${encodeURIComponent(hintToken)}`;
+
+        window.location.assign(url);
+    }
+
+    function deriveTenantFromHost(host) {
+        const h = (host || location.hostname).toLowerCase();
+        const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);
+        if (m) return m[1];
+        const parts = h.split('.');
+        if (parts.length >= 3) return parts[0];
+        return '';
+    }
+
+    function buildUrl(apiBase, path) {
+        if (/^https?:\/\//i.test(path)) return path;
+        if (path.startsWith('/')) return path;
+        return `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
+    }
+
+    function normalizeApiBase(val) {
+        if (!val) return '/api/rh';
+        let v = val.trim();
+        if (/^https?:\/\//i.test(v) && !/\/api\/rh\/?$/i.test(v)) v = v.replace(/\/+$/, '') + '/api/rh';
+        return v.replace(/\/+$/, '');
+    }
+
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        if (match) return decodeURIComponent(match[2]);
+        return null;
+    }
+
+    function shouldSendCsrf(url, method) {
+        const sameOrigin = !/^https?:\/\//i.test(url) || url.startsWith(location.origin);
+        const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes((method || 'GET').toUpperCase());
+        return sameOrigin && unsafe;
+    }
+
+    const cache = {
+        get(key) {
+            try {
+                const raw = localStorage.getItem('cache:' + key);
+                if (!raw) return null;
+                const {exp, val} = JSON.parse(raw);
+                if (exp && Date.now() > exp) {
+                    localStorage.removeItem('cache:' + key);
+                    return null;
+                }
+                return val;
+            } catch {
+                return null;
+            }
+        },
+        set(key, val, ttlMs = 60000) {
+            try {
+                localStorage.setItem('cache:' + key, JSON.stringify({exp: Date.now() + ttlMs, val}));
+            } catch {
+            }
+        },
+        del(key) {
+            localStorage.removeItem('cache:' + key);
+        }
+    };
+
+   // petit helper
+
+
+/**
+ * fetchWithBackoff (robuste)
+ * - Retry seulement sur 429 et 5xx
+ * - Retry-After (si envoyé par le serveur) pour 429
+ * - Circuit breaker simple: si trop d'échecs récents -> on stoppe un moment
+ */
+const Backpressure = {
+  fails: 0,
+  blockedUntil: 0,
+  block(ms = 5000) {
+    this.blockedUntil = Date.now() + ms;
+  },
+  canRun() {
+    return Date.now() >= this.blockedUntil;
+  }
+};
+
+async function fetchWithBackoff(url, options = {}, { retries = 2, baseDelay = 300 } = {}) {
+  if (!Backpressure.canRun()) {
+    throw new Error('server/backpressure:blocked');
+  }
+
+  let attempt = 0;
+  let lastErr = null;
+
+  while (attempt <= retries) {
+    try {
+      const res = await fetch(url, options);
+
+      // ✅ 429: trop de requêtes -> respecter Retry-After si dispo
+      if (res.status === 429) {
+        const ra = res.headers.get('Retry-After');
+        const waitMs = ra ? (parseInt(ra, 10) * 1000) : (baseDelay * Math.pow(2, attempt));
+
+        // si dernier essai => on coupe + circuit breaker
+        if (attempt === retries) {
+          Backpressure.fails++;
+          if (Backpressure.fails >= 3) Backpressure.block(8000); // blocage 8s
+          throw new Error(`server/backpressure:429`);
+        }
+
+        await sleep(waitMs);
+        attempt++;
+        continue;
+      }
+
+      // ✅ 5xx: serveur en erreur -> retry avec backoff
+      if (res.status >= 500) {
+        if (attempt === retries) {
+          Backpressure.fails++;
+          if (Backpressure.fails >= 3) Backpressure.block(5000);
+          throw new Error(`server/backpressure:${res.status}`);
+        }
+        await sleep(baseDelay * Math.pow(2, attempt));
+        attempt++;
+        continue;
+      }
+
+      // ✅ si OK (ou 4xx hors 429): pas de retry
+      Backpressure.fails = 0;
+      return res;
+
+    } catch (e) {
+      lastErr = e;
+
+      // erreurs réseau (timeout, DNS, etc.) -> retry
+      if (attempt === retries) break;
+      await sleep(baseDelay * Math.pow(2, attempt));
+      attempt++;
+    }
+  }
+
+  throw lastErr || new Error('fetch failed');
+}
+    const Conf = {
+        apiBase: normalizeApiBase(localStorage.getItem('lyneerp_api') || '/api/rh'),
+        tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
+        token: getStoredAccessToken(),
+        dark: (localStorage.getItem('lyneerp_dark') === '1') || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
+        save() {
+            localStorage.setItem('lyneerp_api', this.apiBase);
+            localStorage.setItem('lyneerp_tenant', this.tenantId || '');
+            if (this.token) localStorage.setItem('lyneerp_token', this.token);
+            localStorage.setItem('lyneerp_dark', this.dark ? '1' : '0');
+        }
+    };
+
+    function resolveInitialTenant(current) {
+        return current || deriveTenantFromHost(location.hostname) || localStorage.getItem('lyneerp_tenant') || FRONT_DEFAULT_TENANT;
+    }
+
+    function hrApp() {
+        const ROUTES = {
+            dashboard: "{% url 'hr-dashboard' %}",
+
+            // si tu as ces vues:
+            employees: "{% url 'hr-employees' %}",
+            recruitment: "{% url 'hr-recruitment' %}",
+            leaves: "{% url 'hr-leaves' %}",
+            attendance: "{% url 'hr-attendance' %}",
+
+            // admin:
             {#tenants: "{% url 'tenants' %}",#}
             {#users_roles: "{% url 'hr-employees' %}",   // exemple: ta page “LISTE DES UTILISATEURS & ROLES”#}
             {#permissions: "{% url 'hr-permissions' %}",#}
             {#license: "{% url 'hr-licenses' %}",#}
             {#logs: "{% url 'hr-logs' %}",#}
             {#settings: "{% url 'hr-settings' %}",#}
-{#        };#}
-{#        return {#}
-{#            favorites: JSON.parse(localStorage.getItem('lyneerp_favs') || '[]'),#}
-{##}
-{#            isFav(itemId) {#}
-{#                return this.favorites.includes(itemId);#}
-{#            },#}
-{#            toggleFav(itemId) {#}
-{#                if (!itemId) return;#}
-{#                if (this.isFav(itemId)) this.favorites = this.favorites.filter(x => x !== itemId);#}
-{#                else this.favorites = [itemId, ...this.favorites].slice(0, 12);#}
-{#                localStorage.setItem('lyneerp_favs', JSON.stringify(this.favorites));#}
-{#            },#}
-{#            get favoriteItems() {#}
-{#                const out = [];#}
-{#                for (const g of this.navigation) {#}
-{#                    for (const it of g.items) {#}
-{#                        if (this.isFav(it.id)) out.push({...it, _group: g});#}
-{#                    }#}
-{#                }#}
-{#                out.sort((a, b) => this.favorites.indexOf(a.id) - this.favorites.indexOf(b.id));#}
-{#                return out;#}
-{#            },#}
-{##}
-{#            navQuery: '',#}
-{#            openGroupId: null,#}
-{##}
-{#            toggleGroup(id) {#}
-{#                // in collapsed: keep a single open group (accordion)#}
-{#                this.openGroupId = (this.openGroupId === id) ? null : id;#}
-{#            },#}
-{##}
-{#            switchView(item) {#}
-{#                if (!item) return;#}
-{#                this.activeNav = item.id;#}
-{#                this.currentView = item.id;#}
-{##}
-{#                // open correct group#}
-{#                const g = this.navigation.find(x => x.items?.some(it => it.id === item.id));#}
-{#                if (g) this.openGroupId = g.id;#}
-{##}
-{#                if (item.route) {#}
-{#                    window.location.assign(item.route);#}
-{#                    return;#}
-{#                }#}
-{#                this.prefetch(item.id);#}
-{#            },#}
-{##}
-{#            get filteredNavigation() {#}
-{#                const q = (this.navQuery || '').toLowerCase().trim();#}
-{#                if (!q) return this.navigation;#}
-{#                return this.navigation#}
-{#                    .map(g => {#}
-{#                        const items = g.items.filter(it =>#}
-{#                            (it.name || '').toLowerCase().includes(q) ||#}
-{#                            (it.id || '').toLowerCase().includes(q)#}
-{#                        );#}
-{#                        const groupMatch =#}
-{#                            (g.name || '').toLowerCase().includes(q) ||#}
-{#                            (g.desc || '').toLowerCase().includes(q);#}
-{#                        if (groupMatch) return g;#}
-{#                        if (items.length) return {...g, items};#}
-{#                        return null;#}
-{#                    })#}
-{#                    .filter(Boolean);#}
-{#            },#}
-{##}
-{#            sidebarCollapsed: false,#}
-{#            openCmd: false,#}
-{#            openSettings: false,#}
-{#            cmdQuery: '',#}
-{##}
-{#            loading: false,#}
-{#            toasts: [],#}
-{#            dark: Conf.dark,#}
-{#            online: navigator.onLine,#}
-{##}
-{#            authHint: false,#}
-{#            license: {status: 'active', plan: 'FREE', valid_until: null},#}
-{#            licenseBlocker: {visible: false, detail: ''},#}
-{##}
-{#            apiBase: normalizeApiBase(Conf.apiBase),#}
-{#            tenantId: resolveInitialTenant(Conf.tenantId) || FRONT_DEFAULT_TENANT,#}
-{#            token: Conf.token,#}
-{#            user: null,#}
-{##}
-{#            currentView: 'dashboard',#}
-{#            activeNav: 'dashboard',#}
-{#            dashboardStats: {},#}
-{#            employees: [],#}
-{#            recruitments: [],#}
-{##}
-{#            // THEMES#}
-{#            navThemes: {#}
-{#                core: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-indigo-50/80 to-white/70 dark:from-indigo-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-indigo-200/60 dark:border-indigo-900/40',#}
-{#                    pill: 'bg-indigo-600 text-white',#}
-{#                    panelRing: 'ring-1 ring-indigo-200/60 dark:ring-indigo-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-indigo-50/70 to-white dark:from-indigo-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-indigo-50/60 dark:hover:bg-indigo-900/15',#}
-{#                    headerActive: 'bg-indigo-50/70 dark:bg-indigo-900/15',#}
-{#                    chip: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200',#}
-{#                    icon: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/30',#}
-{#                    iconOpen: 'bg-indigo-600 text-white border-transparent shadow-sm shadow-indigo-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-indigo-900 dark:text-indigo-200',#}
-{#                    desc: 'text-indigo-700/80 dark:text-indigo-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/15',#}
-{#                    itemActive: 'bg-indigo-600 text-white shadow-sm shadow-indigo-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/25 dark:text-indigo-200 dark:border-indigo-900/25',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                },#}
-{#                hr: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-emerald-50/80 to-white/70 dark:from-emerald-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-emerald-200/60 dark:border-emerald-900/40',#}
-{#                    pill: 'bg-emerald-600 text-white',#}
-{#                    panelRing: 'ring-1 ring-emerald-200/60 dark:ring-emerald-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-emerald-50/70 to-white dark:from-emerald-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15',#}
-{#                    headerActive: 'bg-emerald-50/80 dark:bg-emerald-900/15',#}
-{#                    chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200',#}
-{#                    icon: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-900/30',#}
-{#                    iconOpen: 'bg-emerald-600 text-white border-transparent shadow-sm shadow-emerald-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-emerald-900 dark:text-emerald-200',#}
-{#                    desc: 'text-emerald-700/80 dark:text-emerald-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15',#}
-{#                    itemActive: 'bg-emerald-600 text-white shadow-sm shadow-emerald-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/25 dark:text-emerald-200 dark:border-emerald-900/25',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                },#}
-{#                finance: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-orange-50/80 to-white/70 dark:from-orange-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-orange-200/60 dark:border-orange-900/40',#}
-{#                    pill: 'bg-orange-600 text-white',#}
-{#                    panelRing: 'ring-1 ring-orange-200/60 dark:ring-orange-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-orange-50/70 to-white dark:from-orange-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-orange-50/70 dark:hover:bg-orange-900/15',#}
-{#                    headerActive: 'bg-orange-50/80 dark:bg-orange-900/15',#}
-{#                    chip: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200',#}
-{#                    icon: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/30',#}
-{#                    iconOpen: 'bg-orange-600 text-white border-transparent shadow-sm shadow-orange-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-orange-900 dark:text-orange-200',#}
-{#                    desc: 'text-orange-700/80 dark:text-orange-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-orange-50/70 dark:hover:bg-orange-900/15',#}
-{#                    itemActive: 'bg-orange-600 text-white shadow-sm shadow-orange-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-orange-50 text-orange-800 border-orange-100 dark:bg-orange-900/25 dark:text-orange-200 dark:border-orange-900/25',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-orange-100 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                },#}
-{#                sales: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-rose-50/80 to-white/70 dark:from-rose-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-rose-200/60 dark:border-rose-900/40',#}
-{#                    pill: 'bg-rose-600 text-white',#}
-{#                    panelRing: 'ring-1 ring-rose-200/60 dark:ring-rose-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-rose-50/70 to-white dark:from-rose-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-rose-50/70 dark:hover:bg-rose-900/15',#}
-{#                    headerActive: 'bg-rose-50/80 dark:bg-rose-900/15',#}
-{#                    chip: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200',#}
-{#                    icon: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-900/30',#}
-{#                    iconOpen: 'bg-rose-600 text-white border-transparent shadow-sm shadow-rose-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-rose-900 dark:text-rose-200',#}
-{#                    desc: 'text-rose-700/80 dark:text-rose-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-rose-50/70 dark:hover:bg-rose-900/15',#}
-{#                    itemActive: 'bg-rose-600 text-white shadow-sm shadow-rose-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/25 dark:text-rose-200 dark:border-rose-900/25',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                },#}
-{#                ops: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-cyan-50/80 to-white/70 dark:from-cyan-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-cyan-200/60 dark:border-cyan-900/40',#}
-{#                    pill: 'bg-cyan-600 text-white',#}
-{#                    panelRing: 'ring-1 ring-cyan-200/60 dark:ring-cyan-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-cyan-50/70 to-white dark:from-cyan-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-cyan-50/70 dark:hover:bg-cyan-900/15',#}
-{#                    headerActive: 'bg-cyan-50/80 dark:bg-cyan-900/15',#}
-{#                    chip: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-200',#}
-{#                    icon: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-200 dark:border-cyan-900/30',#}
-{#                    iconOpen: 'bg-cyan-600 text-white border-transparent shadow-sm shadow-cyan-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-cyan-900 dark:text-cyan-200',#}
-{#                    desc: 'text-cyan-700/80 dark:text-cyan-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-cyan-50/70 dark:hover:bg-cyan-900/15',#}
-{#                    itemActive: 'bg-cyan-600 text-white shadow-sm shadow-cyan-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-900/25 dark:text-cyan-200 dark:border-cyan-900/25',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                },#}
-{#                projects: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-blue-50/80 to-white/70 dark:from-blue-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-blue-200/60 dark:border-blue-900/40',#}
-{#                    pill: 'bg-blue-600 text-white',#}
-{#                    panelRing: 'ring-1 ring-blue-200/60 dark:ring-blue-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-blue-50/70 to-white dark:from-blue-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-blue-50/70 dark:hover:bg-blue-900/15',#}
-{#                    headerActive: 'bg-blue-50/80 dark:bg-blue-900/15',#}
-{#                    chip: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200',#}
-{#                    icon: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-900/30',#}
-{#                    iconOpen: 'bg-blue-600 text-white border-transparent shadow-sm shadow-blue-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-blue-900 dark:text-blue-200',#}
-{#                    desc: 'text-blue-700/80 dark:text-blue-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-blue-50/70 dark:hover:bg-blue-900/15',#}
-{#                    itemActive: 'bg-blue-600 text-white shadow-sm shadow-blue-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/25 dark:text-blue-200 dark:border-blue-900/25',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                },#}
-{#                bi: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-yellow-50/85 to-white/70 dark:from-yellow-900/15 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-yellow-200/70 dark:border-yellow-900/40',#}
-{#                    pill: 'bg-yellow-500 text-slate-900',#}
-{#                    panelRing: 'ring-1 ring-yellow-200/70 dark:ring-yellow-900/40',#}
-{#                    panelGlow: 'bg-gradient-to-br from-yellow-50/70 to-white dark:from-yellow-900/10 dark:to-slate-900',#}
-{#                    header: 'hover:bg-yellow-50/70 dark:hover:bg-yellow-900/15',#}
-{#                    headerActive: 'bg-yellow-50/80 dark:bg-yellow-900/15',#}
-{#                    chip: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',#}
-{#                    icon: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-900/30',#}
-{#                    iconOpen: 'bg-yellow-500 text-slate-900 border-transparent shadow-sm shadow-yellow-200/60 dark:shadow-none',#}
-{#                    titleOpen: 'text-yellow-900 dark:text-yellow-200',#}
-{#                    desc: 'text-yellow-700/80 dark:text-yellow-200/70',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/15',#}
-{#                    itemActive: 'bg-yellow-500 text-slate-900 shadow-sm shadow-yellow-200/60 dark:shadow-none',#}
-{#                    itemIcon: 'bg-yellow-50 text-yellow-800 border-yellow-100 dark:bg-yellow-900/25 dark:text-yellow-200 dark:border-yellow-900/25',#}
-{#                    itemIconActive: 'bg-black/10 text-slate-900 border-black/10',#}
-{#                    badge: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-200',#}
-{#                    accent: 'bg-slate-900/70'#}
-{#                },#}
-{#                admin: {#}
-{#                    topbarTint: 'bg-gradient-to-r from-slate-50/80 to-white/70 dark:from-slate-800/40 dark:to-slate-900/70',#}
-{#                    topbarBorder: 'border-slate-200/70 dark:border-slate-800',#}
-{#                    pill: 'bg-slate-900 text-white',#}
-{#                    panelRing: 'ring-1 ring-slate-200/70 dark:ring-slate-700/70',#}
-{#                    panelGlow: 'bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900',#}
-{#                    header: 'hover:bg-slate-50 dark:hover:bg-slate-800',#}
-{#                    headerActive: 'bg-slate-50 dark:bg-slate-800',#}
-{#                    chip: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',#}
-{#                    icon: 'bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',#}
-{#                    iconOpen: 'bg-slate-900 text-white border-transparent',#}
-{#                    titleOpen: 'text-slate-900 dark:text-white',#}
-{#                    desc: 'text-slate-500 dark:text-slate-400',#}
-{#                    item: 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800',#}
-{#                    itemActive: 'bg-slate-900 text-white',#}
-{#                    itemIcon: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',#}
-{#                    itemIconActive: 'bg-white/15 text-white border-white/10',#}
-{#                    badge: 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200',#}
-{#                    accent: 'bg-white/80'#}
-{#                }#}
-{#            },#}
-{##}
-{#            // NAVIGATION#}
-{#            navigation: [#}
-{#                {#}
-{#                    id: 'core',#}
-{#                    name: 'Accueil & Core',#}
-{#                    icon: 'fa-solid fa-house',#}
-{#                    desc: 'Vue générale, tâches, documents, audits',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'dashboard', name: 'Tableau de bord', icon: 'fa-solid fa-chart-pie'},#}
-{#                        {id: 'notifications', name: 'Notifications', icon: 'fa-solid fa-bell'},#}
-{#                        {id: 'tasks', name: 'Tâches & Rappels', icon: 'fa-solid fa-list-check'},#}
-{#                        {id: 'documents', name: 'GED (Documents)', icon: 'fa-solid fa-folder-open'},#}
-{#                        {id: 'audit', name: 'Journal & Audit', icon: 'fa-solid fa-shield-halved'},#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'hr',#}
-{#                    name: 'Ressources Humaines',#}
-{#                    icon: 'fa-solid fa-users',#}
-{#                    desc: 'Employés, congés, pointage, recrutement',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'employees', name: 'Employés', icon: 'fa-solid fa-users'},#}
-{#                        {id: 'contracts', name: 'Contrats', icon: 'fa-solid fa-file-signature'},#}
-{#                        {id: 'leaves', name: 'Congés', icon: 'fa-solid fa-calendar-check'},#}
-{#                        {id: 'attendance', name: 'Pointage', icon: 'fa-solid fa-clock'},#}
-{#                        {id: 'recruitment', name: 'Recrutement', icon: 'fa-solid fa-briefcase'},#}
-{#                        {id: 'performance', name: 'Évaluations', icon: 'fa-solid fa-star'},#}
-{#                        {id: 'training', name: 'Formations', icon: 'fa-solid fa-graduation-cap'},#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'finance',#}
-{#                    name: 'Finance & Comptabilité',#}
-{#                    icon: 'fa-solid fa-coins',#}
-{#                    desc: 'Facturation, paiements, compta, banques, rapports',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        // ---- Facturation / Ventes ----#}
-{#                        {#}
-{#                            id: 'finance_quotes',#}
-{#                            name: 'Devis',#}
-{#                            icon: 'fa-solid fa-file-signature',#}
-{#                            route: "{% url 'finance:quotes:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_invoices',#}
-{#                            name: 'Factures',#}
-{#                            icon: 'fa-solid fa-file-invoice-dollar',#}
-{#                            route: "{% url 'finance:invoices:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_payments',#}
-{#                            name: 'Paiements',#}
-{#                            icon: 'fa-solid fa-credit-card',#}
-{#                            route: "{% url 'finance:payments:list' %}"#}
-{#                        },#}
-{##}
-{#                        // ---- Achats / Dépenses ----#}
-{#                        {#}
-{#                            id: 'finance_vendor_bills',#}
-{#                            name: 'Factures fournisseurs',#}
-{#                            icon: 'fa-solid fa-file-invoice',#}
-{#                            route: "{% url 'finance:vendor_bills:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_expense_reports',#}
-{#                            name: 'Notes de frais',#}
-{#                            icon: 'fa-solid fa-receipt',#}
-{#                            route: "{% url 'finance:expense_reports:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_payment_orders',#}
-{#                            name: 'Ordres de paiement',#}
-{#                            icon: 'fa-solid fa-money-check-dollar',#}
-{#                            route: "{% url 'finance:payment_orders:list' %}"#}
-{#                        },#}
-{##}
-{#                        // ---- Référentiels / Paramètres ----#}
-{#                        {#}
-{#                            id: 'finance_partners',#}
-{#                            name: 'Partenaires',#}
-{#                            icon: 'fa-solid fa-users',#}
-{#                            route: "{% url 'finance:partners:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_taxes',#}
-{#                            name: 'Taxes (TVA)',#}
-{#                            icon: 'fa-solid fa-percent',#}
-{#                            route: "{% url 'finance:taxes:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_fx',#}
-{#                            name: 'Taux de change',#}
-{#                            icon: 'fa-solid fa-arrow-right-arrow-left',#}
-{#                            route: "{% url 'finance:fx:list' %}"#}
-{#                        },#}
-{##}
-{#                        // ---- Comptabilité ----#}
-{#                        {#}
-{#                            id: 'finance_accounts',#}
-{#                            name: 'Plan comptable',#}
-{#                            icon: 'fa-solid fa-list',#}
-{#                            route: "{% url 'finance:accounts:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_journals',#}
-{#                            name: 'Journaux',#}
-{#                            icon: 'fa-solid fa-book',#}
-{#                            route: "{% url 'finance:journals:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_entries',#}
-{#                            name: 'Écritures',#}
-{#                            icon: 'fa-solid fa-pen-to-square',#}
-{#                            route: "{% url 'finance:journal_entries:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_fiscal_years',#}
-{#                            name: 'Exercices',#}
-{#                            icon: 'fa-solid fa-calendar-days',#}
-{#                            route: "{% url 'finance:fiscal_years:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_periods',#}
-{#                            name: 'Périodes',#}
-{#                            icon: 'fa-solid fa-calendar',#}
-{#                            route: "{% url 'finance:periods:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_closings',#}
-{#                            name: 'Clôtures',#}
-{#                            icon: 'fa-solid fa-lock',#}
-{#                            route: "{% url 'finance:closings:list' %}"#}
-{#                        },#}
-{##}
-{#                        // ---- Banque / Rapprochement ----#}
-{#                        {#}
-{#                            id: 'finance_bank_connectors',#}
-{#                            name: 'Connecteurs bancaires',#}
-{#                            icon: 'fa-solid fa-plug',#}
-{#                            route: "{% url 'finance:bank_connectors:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_bank_accounts',#}
-{#                            name: 'Comptes bancaires',#}
-{#                            icon: 'fa-solid fa-building-columns',#}
-{#                            route: "{% url 'finance:bank_accounts:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_bank_transactions',#}
-{#                            name: 'Transactions',#}
-{#                            icon: 'fa-solid fa-money-bill-transfer',#}
-{#                            route: "{% url 'finance:bank_transactions:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_reconciliations',#}
-{#                            name: 'Rapprochements',#}
-{#                            icon: 'fa-solid fa-link',#}
-{#                            route: "{% url 'finance:reconciliations:list' %}"#}
-{#                        },#}
-{##}
-{#                        // ---- Abonnements / Relances ----#}
-{#                        {#}
-{#                            id: 'finance_subscription_plans',#}
-{#                            name: 'Plans d’abonnement',#}
-{#                            icon: 'fa-solid fa-box',#}
-{#                            route: "{% url 'finance:subscription_plans:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_subscriptions',#}
-{#                            name: 'Abonnements',#}
-{#                            icon: 'fa-solid fa-rotate',#}
-{#                            route: "{% url 'finance:subscriptions:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_dunning_stages',#}
-{#                            name: 'Relances (étapes)',#}
-{#                            icon: 'fa-solid fa-bell',#}
-{#                            route: "{% url 'finance:dunning_stages:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_dunning_events',#}
-{#                            name: 'Relances (envois)',#}
-{#                            icon: 'fa-solid fa-envelope',#}
-{#                            route: "{% url 'finance:dunning_events:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_portal_tokens',#}
-{#                            name: 'Tokens portail client',#}
-{#                            icon: 'fa-solid fa-key',#}
-{#                            route: "{% url 'finance:portal_tokens:list' %}"#}
-{#                        },#}
-{##}
-{#                        // ---- Reporting / Audit ----#}
-{#                        {#}
-{#                            id: 'finance_reports',#}
-{#                            name: 'Rapports',#}
-{#                            icon: 'fa-solid fa-chart-line',#}
-{#                            route: "{% url 'finance:reports:list' %}"#}
-{#                        },#}
-{#                        {#}
-{#                            id: 'finance_audit',#}
-{#                            name: 'Audit',#}
-{#                            icon: 'fa-solid fa-shield-halved',#}
-{#                            route: "{% url 'finance:audit_events:list' %}"#}
-{#                        },#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'sales',#}
-{#                    name: 'Ventes & CRM',#}
-{#                    icon: 'fa-solid fa-handshake',#}
-{#                    desc: 'Leads, opportunités, devis, support',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'leads', name: 'Prospects (Leads)', icon: 'fa-solid fa-user-plus'},#}
-{#                        {id: 'opportunities', name: 'Opportunités', icon: 'fa-solid fa-mountain-sun'},#}
-{#                        {id: 'quotes', name: 'Devis', icon: 'fa-solid fa-file-signature'},#}
-{#                        {id: 'sales_orders', name: 'Commandes', icon: 'fa-solid fa-cart-shopping'},#}
-{#                        {id: 'customer_support', name: 'Support client', icon: 'fa-solid fa-headset'},#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'ops',#}
-{#                    name: 'Achats • Stock • Logistique',#}
-{#                    icon: 'fa-solid fa-truck-ramp-box',#}
-{#                    desc: 'Achats, inventaire, expéditions',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'purchase_orders', name: 'Bons de commande', icon: 'fa-solid fa-file-invoice'},#}
-{#                        {id: 'products', name: 'Produits', icon: 'fa-solid fa-box'},#}
-{#                        {id: 'stock_moves', name: 'Mouvements de stock', icon: 'fa-solid fa-arrow-right-arrow-left'},#}
-{#                        {id: 'inventory_counts', name: 'Inventaires', icon: 'fa-solid fa-clipboard-check'},#}
-{#                        {id: 'shipments', name: 'Expéditions', icon: 'fa-solid fa-truck-fast'},#}
-{#                        {id: 'tracking', name: 'Tracking', icon: 'fa-solid fa-location-crosshairs'},#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'projects',#}
-{#                    name: 'Projets',#}
-{#                    icon: 'fa-solid fa-diagram-project',#}
-{#                    desc: 'Kanban, jalons, coûts',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'projects_list', name: 'Projets', icon: 'fa-solid fa-folder'},#}
-{#                        {id: 'kanban', name: 'Kanban', icon: 'fa-solid fa-table-columns'},#}
-{#                        {id: 'gantt', name: 'Gantt', icon: 'fa-solid fa-chart-gantt'},#}
-{#                        {id: 'project_costs', name: 'Coûts projet', icon: 'fa-solid fa-sack-dollar'},#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'bi',#}
-{#                    name: 'BI & Reporting',#}
-{#                    icon: 'fa-solid fa-chart-column',#}
-{#                    desc: 'Dashboards, KPI, exports',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'dashboards', name: 'Dashboards', icon: 'fa-solid fa-chart-column'},#}
-{#                        {id: 'reports', name: 'Rapports', icon: 'fa-solid fa-file-lines'},#}
-{#                        {id: 'exports', name: 'Exports', icon: 'fa-solid fa-file-export'},#}
-{#                        {id: 'data_quality', name: 'Qualité des données', icon: 'fa-solid fa-check-double'},#}
-{#                    ]#}
-{#                },#}
-{#                {#}
-{#                    id: 'admin',#}
-{#                    name: 'Administration',#}
-{#                    icon: 'fa-solid fa-gear',#}
-{#                    desc: 'Tenants, rôles, licences, logs',#}
-{#                    theme: null,#}
-{#                    items: [#}
-{#                        {id: 'tenants', name: 'Tenants', icon: 'fa-solid fa-building'},#}
-{#                        {id: 'users_roles', name: 'Utilisateurs & Rôles', icon: 'fa-solid fa-users-gear'},#}
-{#                        {id: 'permissions', name: 'Permissions', icon: 'fa-solid fa-user-shield'},#}
-{#                        {id: 'license', name: 'Licences', icon: 'fa-solid fa-receipt'},#}
-{#                        {id: 'logs', name: 'Logs', icon: 'fa-solid fa-scroll'},#}
-{#                        {id: 'settings', name: 'Paramètres', icon: 'fa-solid fa-sliders'},#}
-{#                    ]#}
-{#                },#}
-{#            ],#}
-{##}
-{#            // computed#}
-{#            get viewTitle() {#}
-{#                for (const g of this.navigation) {#}
-{#                    const it = g.items.find(x => x.id === this.currentView);#}
-{#                    if (it) return it.name;#}
-{#                }#}
-{#                return 'LyneERP';#}
-{#            },#}
-{#            get activeGroup() {#}
-{#                for (const g of this.navigation) {#}
-{#                    if (g.items?.some(it => it.id === this.currentView)) return g;#}
-{#                }#}
-{#                return this.navigation?.[0] || null;#}
-{#            },#}
-{#            get topbarTheme() {#}
-{#                const t = this.activeGroup?.theme || {};#}
-{#                return {#}
-{#                    tint: t.topbarTint || 'bg-white/70 dark:bg-slate-900/70',#}
-{#                    border: t.topbarBorder || 'border-gray-200 dark:border-slate-800',#}
-{#                    pill: t.pill || 'bg-slate-900 text-white'#}
-{#                };#}
-{#            },#}
-{#            get viewDesc() {#}
-{#                return ({#}
-{#                    dashboard: 'Vue d’ensemble de votre activité RH',#}
-{#                    employees: 'Gérez votre effectif et les informations employés',#}
-{#                    recruitment: 'Recrutez avec l’aide de l’IA',#}
-{#                    leaves: 'Suivez et approuvez les demandes de congés',#}
-{#                    attendance: 'Surveillez la présence et les heures',#}
-{#                    contracts: 'Gestion des contrats de travail et documents',#}
-{#                    payroll: 'Paie, primes, charges et bulletins',#}
-{#                    finance_dashboard: 'Vue globale comptable et trésorerie',#}
-{#                })[this.currentView] || 'Plateforme ERP intelligente';#}
-{#            },#}
-{##}
-{#            toggleDark() {#}
-{#                this.dark = !this.dark;#}
-{#                Conf.dark = this.dark;#}
-{#                Conf.save();#}
-{#            },#}
-{##}
-{#            async ensureAuthenticated() {#}
-{#                try {#}
-{#                    if (!this.token) this.token = getStoredAccessToken();#}
-{##}
-{#                    try {#}
-{#                        const who = await this.apiCall('/api/auth/whoami/', {noAuth: true, noTenant: true});#}
-{#                        this.user = who?.user || {};#}
-{#                        this.tenantId = resolveInitialTenant(this.tenantId || who?.tenant);#}
-{#                        Conf.tenantId = this.tenantId;#}
-{#                        Conf.save();#}
-{#                        return;#}
-{#                    } catch (e) {#}
-{#                        log('Session whoami failed → trying JWT', e?.message);#}
-{#                    }#}
-{##}
-{#                    if (this.token) {#}
-{#                        const claims = parseJwt(this.token);#}
-{#                        await refreshTokenIfNeeded(claims?.exp);#}
-{#                        this.token = getStoredAccessToken();#}
-{##}
-{#                        const who = await this.apiCall('/api/auth/whoami/', {noTenant: true});#}
-{#                        this.user = who?.user || {#}
-{#                            preferred_username: claims?.preferred_username,#}
-{#                            username: claims?.preferred_username#}
-{#                        };#}
-{#                        this.tenantId = resolveInitialTenant(this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id);#}
-{#                        Conf.token = this.token;#}
-{#                        Conf.tenantId = this.tenantId;#}
-{#                        Conf.save();#}
-{#                        return;#}
-{#                    }#}
-{##}
-{#                    if (DEV_MODE) {#}
-{#                        this.user = {username: 'dev', preferred_username: 'dev'};#}
-{#                        this.tenantId = resolveInitialTenant(this.tenantId);#}
-{#                        Conf.tenantId = this.tenantId;#}
-{#                        Conf.save();#}
-{#                        return;#}
-{#                    }#}
-{##}
-{#                    throw new Error("Aucune méthode d'authentification valide");#}
-{#                } catch (e) {#}
-{#                    console.error('Authentication error:', e);#}
-{#                    this.authHint = true;#}
-{#                    if (!DEV_MODE) {#}
-{#                        setTimeout(() => {#}
-{#                            const loginUrl = '/auth/keycloak/login/';#}
-{#                            if (window.location.pathname !== loginUrl) window.location.assign(loginUrl);#}
-{#                        }, 1200);#}
-{#                    }#}
-{#                    throw e;#}
-{#                }#}
-{#            },#}
-{##}
-{#            async apiCall(path, options = {}) {#}
-{#                this.authHint = false;#}
-{#                const {noAuth = false, noTenant = false, cacheKey = null, cacheTtl = 0, ...fetchOptions} = options;#}
-{##}
-{#                const url = buildUrl(this.apiBase, path);#}
-{#                const method = (fetchOptions.method || 'GET').toUpperCase();#}
-{##}
-{#                if (cacheKey && cacheTtl > 0) {#}
-{#                    const hit = cache.get(cacheKey);#}
-{#                    if (hit != null) return hit;#}
-{#                }#}
-{##}
-{#                const headers = {'Content-Type': 'application/json'};#}
-{#                const effectiveTenant = noTenant ? null : (this.tenantId || resolveInitialTenant() || FRONT_DEFAULT_TENANT);#}
-{#                if (effectiveTenant) headers['X-Tenant-Id'] = effectiveTenant;#}
-{#                if (!noAuth && this.token) headers['Authorization'] = `Bearer ${this.token}`;#}
-{#                if (shouldSendCsrf(url, method)) {#}
-{#                    const csrf = getCookie('csrftoken');#}
-{#                    if (csrf) headers['X-CSRFToken'] = csrf;#}
-{#                }#}
-{##}
-{#                try {#}
-{#                    this.loading = true;#}
-{#                    const res = await fetchWithBackoff(url, {...fetchOptions, headers}, {retries: 2, baseDelay: 300});#}
-{#                    const isJson = (res.headers.get('content-type') || '').includes('application/json');#}
-{#                    const payload = res.status === 204 ? null : (isJson ? await res.json().catch(() => null) : null);#}
-{##}
-{#                    if (!res.ok) {#}
-{#                        if (res.status === 401 || res.status === 403) this.authHint = true;#}
-{#                        const detail = payload?.detail || payload?.message || '';#}
-{#                        throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);#}
-{#                    }#}
-{##}
-{#                    if (cacheKey && cacheTtl > 0) cache.set(cacheKey, payload, cacheTtl);#}
-{#                    return payload;#}
-{#                } catch (e) {#}
-{#                    console.error(e);#}
-{#                    this.showToast(e.message || 'Erreur API', 'error');#}
-{#                    throw e;#}
-{#                } finally {#}
-{#                    this.loading = false;#}
-{#                }#}
-{#            },#}
-{##}
-{#            prefetch(k) {#}
-{#                if (k === 'dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();#}
-{#                if (k === 'employees' && !this.employees.length) this.loadEmployees();#}
-{#                if (k === 'recruitment' && !this.recruitments.length) this.loadRecruitments();#}
-{#            },#}
-{##}
-{#            async loadDashboardStats() {#}
-{#                try {#}
-{#                    this.dashboardStats = await this.apiCall('dashboard/stats/', {#}
-{#                        cacheKey: 'dashboard_stats',#}
-{#                        cacheTtl: 30000#}
-{#                    });#}
-{#                } catch (_) {#}
-{#                }#}
-{#            },#}
-{#            async loadEmployees() {#}
-{#                try {#}
-{#                    const d = await this.apiCall('employees/');#}
-{#                    this.employees = d?.results || d || [];#}
-{#                } catch (_) {#}
-{#                }#}
-{#            },#}
-{#            async loadRecruitments() {#}
-{#                try {#}
-{#                    const d = await this.apiCall('recruitments/');#}
-{#                    this.recruitments = d?.results || d || [];#}
-{#                } catch (_) {#}
-{#                }#}
-{#            },#}
-{##}
-{#            showToast(message, type = 'info') {#}
-{#                if (window.hrToast) window.hrToast(message, type);#}
-{#                const t = {message, type, visible: true};#}
-{#                this.toasts.push(t);#}
-{#                setTimeout(() => {#}
-{#                    t.visible = false;#}
-{#                    this.toasts = this.toasts.filter(x => x !== t);#}
-{#                }, 3800);#}
-{#            },#}
-{#            removeToast(i) {#}
-{#                this.toasts.splice(i, 1);#}
-{#            },#}
-{##}
-{#            saveConf() {#}
-{#                this.apiBase = normalizeApiBase(this.apiBase);#}
-{#                Conf.apiBase = this.apiBase;#}
-{#                Conf.tenantId = this.tenantId;#}
-{#                Conf.token = this.token;#}
-{#                Conf.dark = this.dark;#}
-{#                Conf.save();#}
-{#                this.showToast('Configuration enregistrée', 'success');#}
-{#            },#}
-{##}
-{#            applyTenant() {#}
-{#                this.tenantId = this.tenantId || FRONT_DEFAULT_TENANT;#}
-{#                Conf.tenantId = this.tenantId;#}
-{#                Conf.save();#}
-{#                cache.del('dashboard_stats');#}
-{#                this.loadDashboardStats();#}
-{#                this.loadEmployees();#}
-{#                this.loadRecruitments();#}
-{#                this.showToast('Tenant appliqué', 'success');#}
-{#                this.openSettings = false;#}
-{#            },#}
-{##}
-{#            handleOnline() {#}
-{#                this.online = true;#}
-{#                this.showToast('Connexion rétablie', 'success');#}
-{#            },#}
-{#            handleOffline() {#}
-{#                this.online = false;#}
-{#                this.showToast('Vous êtes hors ligne', 'warning');#}
-{#            },#}
-{##}
-{#            logout() {#}
-{#                kcLogout();#}
-{#            },#}
-{##}
-{#            async init() {#}
-{#                // set currentView based on URL (simple heuristic)#}
-{#                const path = window.location.pathname;#}
-{#                for (const g of this.navigation) {#}
-{#                    for (const it of g.items) {#}
-{#                        if (it.route && it.route !== '/' && path.startsWith(it.route)) {#}
-{#                            this.currentView = it.id;#}
-{#                            this.activeNav = it.id;#}
-{#                        }#}
-{#                    }#}
-{#                }#}
-{#                // inject routes#}
-{#                this.navigation = (this.navigation || []).map(g => ({#}
-{#                    ...g,#}
-{#                    items: (g.items || []).map(it => ({#}
-{#                        ...it,#}
-{#                        route: it.route || ROUTES[it.id] || null#}
-{#                    }))#}
-{#                }));#}
-{#                // inject themes#}
-{#                this.navigation = (this.navigation || []).map(g => ({#}
-{#                    ...g,#}
-{#                    theme: this.navThemes[g.id] || this.navThemes.admin#}
-{#                }));#}
-{##}
-{#                // open group for current view#}
-{#                const g = this.navigation.find(x => x.items?.some(it => it.id === this.currentView));#}
-{#                this.openGroupId = g?.id || 'hr';#}
-{##}
-{#                // watch collapsed (UX: close in collapsed, restore on expand)#}
-{#                this.$watch('sidebarCollapsed', (v) => {#}
-{#                    if (v) this.openGroupId = null;#}
-{#                    else {#}
-{#                        const gg = this.navigation.find(x => x.items?.some(it => it.id === this.currentView));#}
-{#                        this.openGroupId = gg?.id || 'hr';#}
-{#                    }#}
-{#                });#}
-{##}
-{#                this.apiBase = normalizeApiBase(localStorage.getItem('lyneerp_api') || this.apiBase);#}
-{#                this.tenantId = resolveInitialTenant(localStorage.getItem('lyneerp_tenant') || this.tenantId);#}
-{#                this.token = getStoredAccessToken() || this.token;#}
-{##}
-{#                await this.ensureAuthenticated();#}
-{#                this.loadDashboardStats();#}
-{#                this.loadEmployees();#}
-{#                this.loadRecruitments();#}
-{##}
-{#                window.addEventListener('online', () => this.handleOnline());#}
-{#                window.addEventListener('offline', () => this.handleOffline());#}
-{#            },#}
-{##}
-{#            get cmdResults() {#}
-{#                const q = this.cmdQuery.toLowerCase().trim();#}
-{#                const base = [#}
-{#                    {#}
-{#                        key: 'cfg',#}
-{#                        label: 'Ouvrir Configuration',#}
-{#                        desc: 'API / Tenant / Token',#}
-{#                        icon: 'fa-solid fa-gear',#}
-{#                        action: () => this.openSettings = true#}
-{#                    },#}
-{#                    {#}
-{#                        key: 'dm',#}
-{#                        label: 'Basculer Mode sombre',#}
-{#                        desc: 'Raccourci ⌘/Ctrl + J',#}
-{#                        icon: 'fa-solid fa-moon',#}
-{#                        action: () => this.toggleDark()#}
-{#                    },#}
-{#                ];#}
-{##}
-{#                const pages = [];#}
-{#                for (const g of this.navigation) {#}
-{#                    for (const it of g.items) {#}
-{#                        pages.push({#}
-{#                            key: 'nav:' + it.id,#}
-{#                            label: it.name,#}
-{#                            desc: g.name,#}
-{#                            icon: it.icon,#}
-{#                            action: () => this.switchView(it)#}
-{#                        });#}
-{#                    }#}
-{#                }#}
-{##}
-{#                const items = [...pages, ...base];#}
-{#                if (!q) return items.slice(0, 40);#}
-{#                return items.filter(it => (it.label + ' ' + it.desc).toLowerCase().includes(q)).slice(0, 40);#}
-{#            },#}
-{#        }#}
-{#    }#}
-{##}
-{#    document.addEventListener('alpine:init', () => {#}
-{#        Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);#}
-{#        Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);#}
-{#    });#}
-{##}
-{#    window.formatDate = (s) => s ? new Date(s).toLocaleDateString('fr-FR') : '';#}
-{#    window.formatDateTime = (s) => s ? new Date(s).toLocaleString('fr-FR') : '';#}
-{#</script>#}
-<script>
-/**
- * HR namespace (anti double-load)
- */
-window.HR = window.HR || {};
-(() => {
-  // évite double init si script injecté 2 fois
-  if (window.HR.__booted) return;
-  window.HR.__booted = true;
+        };
+        return {
+            favorites: JSON.parse(localStorage.getItem('lyneerp_favs') || '[]'),
 
-  /********************
-   * CONFIG & FLAGS
-   ********************/
-  window.HR.LICENSE_UI = false;
-  window.HR.FRONT_DEFAULT_TENANT = "demo";
-  window.HR.KC = {issuer: "https://sso.lyneerp.com/realms/lyneerp", clientId: "rh-core"};
-  window.HR.DEV_MODE =
-    (localStorage.getItem('lyneerp_dev') === '1')
-    || ['localhost', '127.0.0.1'].includes(location.hostname)
-    || location.hostname.endsWith('.local');
+            isFav(itemId) {
+                return this.favorites.includes(itemId);
+            },
+            toggleFav(itemId) {
+                if (!itemId) return;
+                if (this.isFav(itemId)) this.favorites = this.favorites.filter(x => x !== itemId);
+                else this.favorites = [itemId, ...this.favorites].slice(0, 12);
+                localStorage.setItem('lyneerp_favs', JSON.stringify(this.favorites));
+            },
+            get favoriteItems() {
+                const out = [];
+                for (const g of this.navigation) {
+                    for (const it of g.items) {
+                        if (this.isFav(it.id)) out.push({...it, _group: g});
+                    }
+                }
+                out.sort((a, b) => this.favorites.indexOf(a.id) - this.favorites.indexOf(b.id));
+                return out;
+            },
 
-  /********************
-   * HELPERS
-   ********************/
-  window.HR.log = (...a) => console.debug('[HR]', ...a);
-  window.HR.sleep = (ms) => new Promise(r => setTimeout(r, ms));
+            navQuery: '',
+            openGroupId: null,
 
-  window.HR.base64UrlDecode = (str) => {
-    str = (str || '').replace(/-/g, '+').replace(/_/g, '/');
-    const pad = str.length % 4;
-    if (pad) str += '='.repeat(4 - pad);
-    try { return atob(str); } catch { return ''; }
-  };
+            toggleGroup(id) {
+                // in collapsed: keep a single open group (accordion)
+                this.openGroupId = (this.openGroupId === id) ? null : id;
+            },
 
-  window.HR.parseJwt = (token) => {
-    if (!token) return null;
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    try { return JSON.parse(window.HR.base64UrlDecode(parts[1])); }
-    catch { return null; }
-  };
+            switchView(item) {
+                if (!item) return;
+                this.activeNav = item.id;
+                this.currentView = item.id;
 
-  window.HR.getStoredAccessToken = () =>
-    localStorage.getItem('lyneerp_token')
-    || sessionStorage.getItem('lyneerp_token')
-    || localStorage.getItem('kc_access_token')
-    || sessionStorage.getItem('kc_access_token')
-    || '';
+                // open correct group
+                const g = this.navigation.find(x => x.items?.some(it => it.id === item.id));
+                if (g) this.openGroupId = g.id;
 
-  window.HR.getStoredRefreshToken = () =>
-    localStorage.getItem('kc_refresh_token')
-    || sessionStorage.getItem('kc_refresh_token')
-    || '';
+                if (item.route) {
+                    window.location.assign(item.route);
+                    return;
+                }
+                this.prefetch(item.id);
+            },
 
-  window.HR.normalizeApiBase = (val) => {
-    if (!val) return '/api/rh';
-    let v = (val || '').trim();
-    if (/^https?:\/\//i.test(v) && !/\/api\/rh\/?$/i.test(v)) v = v.replace(/\/+$/, '') + '/api/rh';
-    return v.replace(/\/+$/, '');
-  };
+            get filteredNavigation() {
+                const q = (this.navQuery || '').toLowerCase().trim();
+                if (!q) return this.navigation;
+                return this.navigation
+                    .map(g => {
+                        const items = g.items.filter(it =>
+                            (it.name || '').toLowerCase().includes(q) ||
+                            (it.id || '').toLowerCase().includes(q)
+                        );
+                        const groupMatch =
+                            (g.name || '').toLowerCase().includes(q) ||
+                            (g.desc || '').toLowerCase().includes(q);
+                        if (groupMatch) return g;
+                        if (items.length) return {...g, items};
+                        return null;
+                    })
+                    .filter(Boolean);
+            },
 
-  window.HR.deriveTenantFromHost = (host) => {
-    const h = (host || location.hostname).toLowerCase();
-    const m = h.match(/^([a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$/i);
-    if (m) return m[1];
-    const parts = h.split('.');
-    if (parts.length >= 3) return parts[0];
-    return '';
-  };
+            sidebarCollapsed: false,
+            openCmd: false,
+            openSettings: false,
+            cmdQuery: '',
 
-  window.HR.buildUrl = (apiBase, path) => {
-    if (/^https?:\/\//i.test(path)) return path;
-    if (path.startsWith('/')) return path;
-    return `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
-  };
+            loading: false,
+            toasts: [],
+            dark: Conf.dark,
+            online: navigator.onLine,
 
-  window.HR.getCookie = (name) => {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    return match ? decodeURIComponent(match[2]) : null;
-  };
+            authHint: false,
+            license: {status: 'active', plan: 'FREE', valid_until: null},
+            licenseBlocker: {visible: false, detail: ''},
 
-  window.HR.shouldSendCsrf = (url, method) => {
-    const sameOrigin = !/^https?:\/\//i.test(url) || url.startsWith(location.origin);
-    const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes((method || 'GET').toUpperCase());
-    return sameOrigin && unsafe;
-  };
+            apiBase: normalizeApiBase(Conf.apiBase),
+            tenantId: resolveInitialTenant(Conf.tenantId) || FRONT_DEFAULT_TENANT,
+            token: Conf.token,
+            user: null,
 
-  window.HR.cache = {
-    get(key) {
-      try {
-        const raw = localStorage.getItem('cache:' + key);
-        if (!raw) return null;
-        const {exp, val} = JSON.parse(raw);
-        if (exp && Date.now() > exp) { localStorage.removeItem('cache:' + key); return null; }
-        return val;
-      } catch { return null; }
-    },
-    set(key, val, ttlMs = 60000) {
-      try { localStorage.setItem('cache:' + key, JSON.stringify({exp: Date.now() + ttlMs, val})); }
-      catch {}
-    },
-    del(key) { localStorage.removeItem('cache:' + key); }
-  };
+            currentView: 'dashboard',
+            activeNav: 'dashboard',
+            dashboardStats: {},
+            employees: [],
+            recruitments: [],
 
-  window.HR.fetchWithBackoff = async (url, options = {}, {retries = 2, baseDelay = 300} = {}) => {
-    let attempt = 0, lastErr;
-    while (attempt <= retries) {
-      try {
-        const res = await fetch(url, options);
-        if (res.status >= 500 || res.status === 429) throw new Error('server/backpressure');
-        return res;
-      } catch (e) {
-        lastErr = e;
-        if (attempt === retries) break;
-        await window.HR.sleep(baseDelay * Math.pow(2, attempt));
-        attempt++;
-      }
-    }
-    throw lastErr || new Error('fetch failed');
-  };
+            // THEMES
+            navThemes: {
+                core: {
+                    topbarTint: 'bg-gradient-to-r from-indigo-50/80 to-white/70 dark:from-indigo-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-indigo-200/60 dark:border-indigo-900/40',
+                    pill: 'bg-indigo-600 text-white',
+                    panelRing: 'ring-1 ring-indigo-200/60 dark:ring-indigo-900/40',
+                    panelGlow: 'bg-gradient-to-br from-indigo-50/70 to-white dark:from-indigo-900/10 dark:to-slate-900',
+                    header: 'hover:bg-indigo-50/60 dark:hover:bg-indigo-900/15',
+                    headerActive: 'bg-indigo-50/70 dark:bg-indigo-900/15',
+                    chip: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200',
+                    icon: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/30',
+                    iconOpen: 'bg-indigo-600 text-white border-transparent shadow-sm shadow-indigo-200/60 dark:shadow-none',
+                    titleOpen: 'text-indigo-900 dark:text-indigo-200',
+                    desc: 'text-indigo-700/80 dark:text-indigo-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/15',
+                    itemActive: 'bg-indigo-600 text-white shadow-sm shadow-indigo-200/60 dark:shadow-none',
+                    itemIcon: 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/25 dark:text-indigo-200 dark:border-indigo-900/25',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
+                    accent: 'bg-white/80'
+                },
+                hr: {
+                    topbarTint: 'bg-gradient-to-r from-emerald-50/80 to-white/70 dark:from-emerald-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-emerald-200/60 dark:border-emerald-900/40',
+                    pill: 'bg-emerald-600 text-white',
+                    panelRing: 'ring-1 ring-emerald-200/60 dark:ring-emerald-900/40',
+                    panelGlow: 'bg-gradient-to-br from-emerald-50/70 to-white dark:from-emerald-900/10 dark:to-slate-900',
+                    header: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15',
+                    headerActive: 'bg-emerald-50/80 dark:bg-emerald-900/15',
+                    chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200',
+                    icon: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-900/30',
+                    iconOpen: 'bg-emerald-600 text-white border-transparent shadow-sm shadow-emerald-200/60 dark:shadow-none',
+                    titleOpen: 'text-emerald-900 dark:text-emerald-200',
+                    desc: 'text-emerald-700/80 dark:text-emerald-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-emerald-50/70 dark:hover:bg-emerald-900/15',
+                    itemActive: 'bg-emerald-600 text-white shadow-sm shadow-emerald-200/60 dark:shadow-none',
+                    itemIcon: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/25 dark:text-emerald-200 dark:border-emerald-900/25',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+                    accent: 'bg-white/80'
+                },
+                finance: {
+                    topbarTint: 'bg-gradient-to-r from-orange-50/80 to-white/70 dark:from-orange-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-orange-200/60 dark:border-orange-900/40',
+                    pill: 'bg-orange-600 text-white',
+                    panelRing: 'ring-1 ring-orange-200/60 dark:ring-orange-900/40',
+                    panelGlow: 'bg-gradient-to-br from-orange-50/70 to-white dark:from-orange-900/10 dark:to-slate-900',
+                    header: 'hover:bg-orange-50/70 dark:hover:bg-orange-900/15',
+                    headerActive: 'bg-orange-50/80 dark:bg-orange-900/15',
+                    chip: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200',
+                    icon: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/30',
+                    iconOpen: 'bg-orange-600 text-white border-transparent shadow-sm shadow-orange-200/60 dark:shadow-none',
+                    titleOpen: 'text-orange-900 dark:text-orange-200',
+                    desc: 'text-orange-700/80 dark:text-orange-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-orange-50/70 dark:hover:bg-orange-900/15',
+                    itemActive: 'bg-orange-600 text-white shadow-sm shadow-orange-200/60 dark:shadow-none',
+                    itemIcon: 'bg-orange-50 text-orange-800 border-orange-100 dark:bg-orange-900/25 dark:text-orange-200 dark:border-orange-900/25',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-orange-100 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200',
+                    accent: 'bg-white/80'
+                },
+                sales: {
+                    topbarTint: 'bg-gradient-to-r from-rose-50/80 to-white/70 dark:from-rose-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-rose-200/60 dark:border-rose-900/40',
+                    pill: 'bg-rose-600 text-white',
+                    panelRing: 'ring-1 ring-rose-200/60 dark:ring-rose-900/40',
+                    panelGlow: 'bg-gradient-to-br from-rose-50/70 to-white dark:from-rose-900/10 dark:to-slate-900',
+                    header: 'hover:bg-rose-50/70 dark:hover:bg-rose-900/15',
+                    headerActive: 'bg-rose-50/80 dark:bg-rose-900/15',
+                    chip: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200',
+                    icon: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-900/30',
+                    iconOpen: 'bg-rose-600 text-white border-transparent shadow-sm shadow-rose-200/60 dark:shadow-none',
+                    titleOpen: 'text-rose-900 dark:text-rose-200',
+                    desc: 'text-rose-700/80 dark:text-rose-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-rose-50/70 dark:hover:bg-rose-900/15',
+                    itemActive: 'bg-rose-600 text-white shadow-sm shadow-rose-200/60 dark:shadow-none',
+                    itemIcon: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/25 dark:text-rose-200 dark:border-rose-900/25',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
+                    accent: 'bg-white/80'
+                },
+                ops: {
+                    topbarTint: 'bg-gradient-to-r from-cyan-50/80 to-white/70 dark:from-cyan-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-cyan-200/60 dark:border-cyan-900/40',
+                    pill: 'bg-cyan-600 text-white',
+                    panelRing: 'ring-1 ring-cyan-200/60 dark:ring-cyan-900/40',
+                    panelGlow: 'bg-gradient-to-br from-cyan-50/70 to-white dark:from-cyan-900/10 dark:to-slate-900',
+                    header: 'hover:bg-cyan-50/70 dark:hover:bg-cyan-900/15',
+                    headerActive: 'bg-cyan-50/80 dark:bg-cyan-900/15',
+                    chip: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-200',
+                    icon: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-200 dark:border-cyan-900/30',
+                    iconOpen: 'bg-cyan-600 text-white border-transparent shadow-sm shadow-cyan-200/60 dark:shadow-none',
+                    titleOpen: 'text-cyan-900 dark:text-cyan-200',
+                    desc: 'text-cyan-700/80 dark:text-cyan-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-cyan-50/70 dark:hover:bg-cyan-900/15',
+                    itemActive: 'bg-cyan-600 text-white shadow-sm shadow-cyan-200/60 dark:shadow-none',
+                    itemIcon: 'bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-900/25 dark:text-cyan-200 dark:border-cyan-900/25',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200',
+                    accent: 'bg-white/80'
+                },
+                projects: {
+                    topbarTint: 'bg-gradient-to-r from-blue-50/80 to-white/70 dark:from-blue-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-blue-200/60 dark:border-blue-900/40',
+                    pill: 'bg-blue-600 text-white',
+                    panelRing: 'ring-1 ring-blue-200/60 dark:ring-blue-900/40',
+                    panelGlow: 'bg-gradient-to-br from-blue-50/70 to-white dark:from-blue-900/10 dark:to-slate-900',
+                    header: 'hover:bg-blue-50/70 dark:hover:bg-blue-900/15',
+                    headerActive: 'bg-blue-50/80 dark:bg-blue-900/15',
+                    chip: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200',
+                    icon: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-900/30',
+                    iconOpen: 'bg-blue-600 text-white border-transparent shadow-sm shadow-blue-200/60 dark:shadow-none',
+                    titleOpen: 'text-blue-900 dark:text-blue-200',
+                    desc: 'text-blue-700/80 dark:text-blue-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-blue-50/70 dark:hover:bg-blue-900/15',
+                    itemActive: 'bg-blue-600 text-white shadow-sm shadow-blue-200/60 dark:shadow-none',
+                    itemIcon: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/25 dark:text-blue-200 dark:border-blue-900/25',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+                    accent: 'bg-white/80'
+                },
+                bi: {
+                    topbarTint: 'bg-gradient-to-r from-yellow-50/85 to-white/70 dark:from-yellow-900/15 dark:to-slate-900/70',
+                    topbarBorder: 'border-yellow-200/70 dark:border-yellow-900/40',
+                    pill: 'bg-yellow-500 text-slate-900',
+                    panelRing: 'ring-1 ring-yellow-200/70 dark:ring-yellow-900/40',
+                    panelGlow: 'bg-gradient-to-br from-yellow-50/70 to-white dark:from-yellow-900/10 dark:to-slate-900',
+                    header: 'hover:bg-yellow-50/70 dark:hover:bg-yellow-900/15',
+                    headerActive: 'bg-yellow-50/80 dark:bg-yellow-900/15',
+                    chip: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
+                    icon: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-900/30',
+                    iconOpen: 'bg-yellow-500 text-slate-900 border-transparent shadow-sm shadow-yellow-200/60 dark:shadow-none',
+                    titleOpen: 'text-yellow-900 dark:text-yellow-200',
+                    desc: 'text-yellow-700/80 dark:text-yellow-200/70',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/15',
+                    itemActive: 'bg-yellow-500 text-slate-900 shadow-sm shadow-yellow-200/60 dark:shadow-none',
+                    itemIcon: 'bg-yellow-50 text-yellow-800 border-yellow-100 dark:bg-yellow-900/25 dark:text-yellow-200 dark:border-yellow-900/25',
+                    itemIconActive: 'bg-black/10 text-slate-900 border-black/10',
+                    badge: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-200',
+                    accent: 'bg-slate-900/70'
+                },
+                admin: {
+                    topbarTint: 'bg-gradient-to-r from-slate-50/80 to-white/70 dark:from-slate-800/40 dark:to-slate-900/70',
+                    topbarBorder: 'border-slate-200/70 dark:border-slate-800',
+                    pill: 'bg-slate-900 text-white',
+                    panelRing: 'ring-1 ring-slate-200/70 dark:ring-slate-700/70',
+                    panelGlow: 'bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900',
+                    header: 'hover:bg-slate-50 dark:hover:bg-slate-800',
+                    headerActive: 'bg-slate-50 dark:bg-slate-800',
+                    chip: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                    icon: 'bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+                    iconOpen: 'bg-slate-900 text-white border-transparent',
+                    titleOpen: 'text-slate-900 dark:text-white',
+                    desc: 'text-slate-500 dark:text-slate-400',
+                    item: 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800',
+                    itemActive: 'bg-slate-900 text-white',
+                    itemIcon: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+                    itemIconActive: 'bg-white/15 text-white border-white/10',
+                    badge: 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
+                    accent: 'bg-white/80'
+                }
+            },
 
-  // Conf global (ne doit plus être "not defined")
-  window.HR.Conf = {
-    apiBase: window.HR.normalizeApiBase(localStorage.getItem('lyneerp_api') || '/api/rh'),
-    tenantId: localStorage.getItem('lyneerp_tenant') || window.HR.deriveTenantFromHost(location.hostname),
-    token: window.HR.getStoredAccessToken(),
-    dark: (localStorage.getItem('lyneerp_dark') === '1')
-      || window.matchMedia?.('(prefers-color-scheme: dark)').matches,
-    save() {
-      localStorage.setItem('lyneerp_api', this.apiBase);
-      localStorage.setItem('lyneerp_tenant', this.tenantId || '');
-      if (this.token) localStorage.setItem('lyneerp_token', this.token);
-      localStorage.setItem('lyneerp_dark', this.dark ? '1' : '0');
-    }
-  };
+            // NAVIGATION
+            navigation: [
+                {
+                    id: 'core',
+                    name: 'Accueil & Core',
+                    icon: 'fa-solid fa-house',
+                    desc: 'Vue générale, tâches, documents, audits',
+                    theme: null,
+                    items: [
+                        {id: 'dashboard', name: 'Tableau de bord', icon: 'fa-solid fa-chart-pie'},
+                        {id: 'notifications', name: 'Notifications', icon: 'fa-solid fa-bell'},
+                        {id: 'tasks', name: 'Tâches & Rappels', icon: 'fa-solid fa-list-check'},
+                        {id: 'documents', name: 'GED (Documents)', icon: 'fa-solid fa-folder-open'},
+                        {id: 'audit', name: 'Journal & Audit', icon: 'fa-solid fa-shield-halved'},
+                    ]
+                },
+                {
+                    id: 'hr',
+                    name: 'Ressources Humaines',
+                    icon: 'fa-solid fa-users',
+                    desc: 'Employés, congés, pointage, recrutement',
+                    theme: null,
+                    items: [
+                        {id: 'employees', name: 'Employés', icon: 'fa-solid fa-users'},
+                        {id: 'contracts', name: 'Contrats', icon: 'fa-solid fa-file-signature'},
+                        {id: 'leaves', name: 'Congés', icon: 'fa-solid fa-calendar-check'},
+                        {id: 'attendance', name: 'Pointage', icon: 'fa-solid fa-clock'},
+                        {id: 'recruitment', name: 'Recrutement', icon: 'fa-solid fa-briefcase'},
+                        {id: 'performance', name: 'Évaluations', icon: 'fa-solid fa-star'},
+                        {id: 'training', name: 'Formations', icon: 'fa-solid fa-graduation-cap'},
+                    ]
+                },
+                {
+                    id: 'finance',
+                    name: 'Finance & Comptabilité',
+                    icon: 'fa-solid fa-coins',
+                    desc: 'Facturation, paiements, compta, banques, rapports',
+                    theme: null,
+                    items: [
+                        // ---- Facturation / Ventes ----
+                        {
+                            id: 'finance_quotes',
+                            name: 'Devis',
+                            icon: 'fa-solid fa-file-signature',
+                            route: "{% url 'finance:quotes:list' %}"
+                        },
+                        {
+                            id: 'finance_invoices',
+                            name: 'Factures',
+                            icon: 'fa-solid fa-file-invoice-dollar',
+                            route: "{% url 'finance:invoices:list' %}"
+                        },
+                        {
+                            id: 'finance_payments',
+                            name: 'Paiements',
+                            icon: 'fa-solid fa-credit-card',
+                            route: "{% url 'finance:payments:list' %}"
+                        },
 
-  // Expo helpers
-  window.formatDate = (s) => s ? new Date(s).toLocaleDateString('fr-FR') : '';
-  window.formatDateTime = (s) => s ? new Date(s).toLocaleString('fr-FR') : '';
+                        // ---- Achats / Dépenses ----
+                        {
+                            id: 'finance_vendor_bills',
+                            name: 'Factures fournisseurs',
+                            icon: 'fa-solid fa-file-invoice',
+                            route: "{% url 'finance:vendor_bills:list' %}"
+                        },
+                        {
+                            id: 'finance_expense_reports',
+                            name: 'Notes de frais',
+                            icon: 'fa-solid fa-receipt',
+                            route: "{% url 'finance:expense_reports:list' %}"
+                        },
+                        {
+                            id: 'finance_payment_orders',
+                            name: 'Ordres de paiement',
+                            icon: 'fa-solid fa-money-check-dollar',
+                            route: "{% url 'finance:payment_orders:list' %}"
+                        },
 
-  /********************
-   * Alpine app factory
-   ********************/
-  window.hrApp = function hrApp() {
-    const Conf = window.HR.Conf;
-    const cache = window.HR.cache;
+                        // ---- Référentiels / Paramètres ----
+                        {
+                            id: 'finance_partners',
+                            name: 'Partenaires',
+                            icon: 'fa-solid fa-users',
+                            route: "{% url 'finance:partners:list' %}"
+                        },
+                        {
+                            id: 'finance_taxes',
+                            name: 'Taxes (TVA)',
+                            icon: 'fa-solid fa-percent',
+                            route: "{% url 'finance:taxes:list' %}"
+                        },
+                        {
+                            id: 'finance_fx',
+                            name: 'Taux de change',
+                            icon: 'fa-solid fa-arrow-right-arrow-left',
+                            route: "{% url 'finance:fx:list' %}"
+                        },
 
-    function resolveInitialTenant(current) {
-      return current
-        || window.HR.deriveTenantFromHost(location.hostname)
-        || localStorage.getItem('lyneerp_tenant')
-        || window.HR.FRONT_DEFAULT_TENANT;
+                        // ---- Comptabilité ----
+                        {
+                            id: 'finance_accounts',
+                            name: 'Plan comptable',
+                            icon: 'fa-solid fa-list',
+                            route: "{% url 'finance:accounts:list' %}"
+                        },
+                        {
+                            id: 'finance_journals',
+                            name: 'Journaux',
+                            icon: 'fa-solid fa-book',
+                            route: "{% url 'finance:journals:list' %}"
+                        },
+                        {
+                            id: 'finance_entries',
+                            name: 'Écritures',
+                            icon: 'fa-solid fa-pen-to-square',
+                            route: "{% url 'finance:journal_entries:list' %}"
+                        },
+                        {
+                            id: 'finance_fiscal_years',
+                            name: 'Exercices',
+                            icon: 'fa-solid fa-calendar-days',
+                            route: "{% url 'finance:fiscal_years:list' %}"
+                        },
+                        {
+                            id: 'finance_periods',
+                            name: 'Périodes',
+                            icon: 'fa-solid fa-calendar',
+                            route: "{% url 'finance:periods:list' %}"
+                        },
+                        {
+                            id: 'finance_closings',
+                            name: 'Clôtures',
+                            icon: 'fa-solid fa-lock',
+                            route: "{% url 'finance:closings:list' %}"
+                        },
+
+                        // ---- Banque / Rapprochement ----
+                        {
+                            id: 'finance_bank_connectors',
+                            name: 'Connecteurs bancaires',
+                            icon: 'fa-solid fa-plug',
+                            route: "{% url 'finance:bank_connectors:list' %}"
+                        },
+                        {
+                            id: 'finance_bank_accounts',
+                            name: 'Comptes bancaires',
+                            icon: 'fa-solid fa-building-columns',
+                            route: "{% url 'finance:bank_accounts:list' %}"
+                        },
+                        {
+                            id: 'finance_bank_transactions',
+                            name: 'Transactions',
+                            icon: 'fa-solid fa-money-bill-transfer',
+                            route: "{% url 'finance:bank_transactions:list' %}"
+                        },
+                        {
+                            id: 'finance_reconciliations',
+                            name: 'Rapprochements',
+                            icon: 'fa-solid fa-link',
+                            route: "{% url 'finance:reconciliations:list' %}"
+                        },
+
+                        // ---- Abonnements / Relances ----
+                        {
+                            id: 'finance_subscription_plans',
+                            name: 'Plans d’abonnement',
+                            icon: 'fa-solid fa-box',
+                            route: "{% url 'finance:subscription_plans:list' %}"
+                        },
+                        {
+                            id: 'finance_subscriptions',
+                            name: 'Abonnements',
+                            icon: 'fa-solid fa-rotate',
+                            route: "{% url 'finance:subscriptions:list' %}"
+                        },
+                        {
+                            id: 'finance_dunning_stages',
+                            name: 'Relances (étapes)',
+                            icon: 'fa-solid fa-bell',
+                            route: "{% url 'finance:dunning_stages:list' %}"
+                        },
+                        {
+                            id: 'finance_dunning_events',
+                            name: 'Relances (envois)',
+                            icon: 'fa-solid fa-envelope',
+                            route: "{% url 'finance:dunning_events:list' %}"
+                        },
+                        {
+                            id: 'finance_portal_tokens',
+                            name: 'Tokens portail client',
+                            icon: 'fa-solid fa-key',
+                            route: "{% url 'finance:portal_tokens:list' %}"
+                        },
+
+                        // ---- Reporting / Audit ----
+                        {
+                            id: 'finance_reports',
+                            name: 'Rapports',
+                            icon: 'fa-solid fa-chart-line',
+                            route: "{% url 'finance:reports:list' %}"
+                        },
+                        {
+                            id: 'finance_audit',
+                            name: 'Audit',
+                            icon: 'fa-solid fa-shield-halved',
+                            route: "{% url 'finance:audit_events:list' %}"
+                        },
+                    ]
+                },
+                {
+                    id: 'sales',
+                    name: 'Ventes & CRM',
+                    icon: 'fa-solid fa-handshake',
+                    desc: 'Leads, opportunités, devis, support',
+                    theme: null,
+                    items: [
+                        {id: 'leads', name: 'Prospects (Leads)', icon: 'fa-solid fa-user-plus'},
+                        {id: 'opportunities', name: 'Opportunités', icon: 'fa-solid fa-mountain-sun'},
+                        {id: 'quotes', name: 'Devis', icon: 'fa-solid fa-file-signature'},
+                        {id: 'sales_orders', name: 'Commandes', icon: 'fa-solid fa-cart-shopping'},
+                        {id: 'customer_support', name: 'Support client', icon: 'fa-solid fa-headset'},
+                    ]
+                },
+                {
+                    id: 'ops',
+                    name: 'Achats • Stock • Logistique',
+                    icon: 'fa-solid fa-truck-ramp-box',
+                    desc: 'Achats, inventaire, expéditions',
+                    theme: null,
+                    items: [
+                        {id: 'purchase_orders', name: 'Bons de commande', icon: 'fa-solid fa-file-invoice'},
+                        {id: 'products', name: 'Produits', icon: 'fa-solid fa-box'},
+                        {id: 'stock_moves', name: 'Mouvements de stock', icon: 'fa-solid fa-arrow-right-arrow-left'},
+                        {id: 'inventory_counts', name: 'Inventaires', icon: 'fa-solid fa-clipboard-check'},
+                        {id: 'shipments', name: 'Expéditions', icon: 'fa-solid fa-truck-fast'},
+                        {id: 'tracking', name: 'Tracking', icon: 'fa-solid fa-location-crosshairs'},
+                    ]
+                },
+                {
+                    id: 'projects',
+                    name: 'Projets',
+                    icon: 'fa-solid fa-diagram-project',
+                    desc: 'Kanban, jalons, coûts',
+                    theme: null,
+                    items: [
+                        {id: 'projects_list', name: 'Projets', icon: 'fa-solid fa-folder'},
+                        {id: 'kanban', name: 'Kanban', icon: 'fa-solid fa-table-columns'},
+                        {id: 'gantt', name: 'Gantt', icon: 'fa-solid fa-chart-gantt'},
+                        {id: 'project_costs', name: 'Coûts projet', icon: 'fa-solid fa-sack-dollar'},
+                    ]
+                },
+                {
+                    id: 'bi',
+                    name: 'BI & Reporting',
+                    icon: 'fa-solid fa-chart-column',
+                    desc: 'Dashboards, KPI, exports',
+                    theme: null,
+                    items: [
+                        {id: 'dashboards', name: 'Dashboards', icon: 'fa-solid fa-chart-column'},
+                        {id: 'reports', name: 'Rapports', icon: 'fa-solid fa-file-lines'},
+                        {id: 'exports', name: 'Exports', icon: 'fa-solid fa-file-export'},
+                        {id: 'data_quality', name: 'Qualité des données', icon: 'fa-solid fa-check-double'},
+                    ]
+                },
+                {
+                    id: 'admin',
+                    name: 'Administration',
+                    icon: 'fa-solid fa-gear',
+                    desc: 'Tenants, rôles, licences, logs',
+                    theme: null,
+                    items: [
+                        {id: 'tenants', name: 'Tenants', icon: 'fa-solid fa-building'},
+                        {id: 'users_roles', name: 'Utilisateurs & Rôles', icon: 'fa-solid fa-users-gear'},
+                        {id: 'permissions', name: 'Permissions', icon: 'fa-solid fa-user-shield'},
+                        {id: 'license', name: 'Licences', icon: 'fa-solid fa-receipt'},
+                        {id: 'logs', name: 'Logs', icon: 'fa-solid fa-scroll'},
+                        {id: 'settings', name: 'Paramètres', icon: 'fa-solid fa-sliders'},
+                    ]
+                },
+            ],
+
+            // computed
+            get viewTitle() {
+                for (const g of this.navigation) {
+                    const it = g.items.find(x => x.id === this.currentView);
+                    if (it) return it.name;
+                }
+                return 'LyneERP';
+            },
+            get activeGroup() {
+                for (const g of this.navigation) {
+                    if (g.items?.some(it => it.id === this.currentView)) return g;
+                }
+                return this.navigation?.[0] || null;
+            },
+            get topbarTheme() {
+                const t = this.activeGroup?.theme || {};
+                return {
+                    tint: t.topbarTint || 'bg-white/70 dark:bg-slate-900/70',
+                    border: t.topbarBorder || 'border-gray-200 dark:border-slate-800',
+                    pill: t.pill || 'bg-slate-900 text-white'
+                };
+            },
+            get viewDesc() {
+                return ({
+                    dashboard: 'Vue d’ensemble de votre activité RH',
+                    employees: 'Gérez votre effectif et les informations employés',
+                    recruitment: 'Recrutez avec l’aide de l’IA',
+                    leaves: 'Suivez et approuvez les demandes de congés',
+                    attendance: 'Surveillez la présence et les heures',
+                    contracts: 'Gestion des contrats de travail et documents',
+                    payroll: 'Paie, primes, charges et bulletins',
+                    finance_dashboard: 'Vue globale comptable et trésorerie',
+                })[this.currentView] || 'Plateforme ERP intelligente';
+            },
+
+            toggleDark() {
+                this.dark = !this.dark;
+                Conf.dark = this.dark;
+                Conf.save();
+            },
+
+            async ensureAuthenticated() {
+                try {
+                    if (!this.token) this.token = getStoredAccessToken();
+
+                    try {
+                        const who = await this.apiCall('/api/auth/whoami/', {noAuth: true, noTenant: true});
+                        this.user = who?.user || {};
+                        this.tenantId = resolveInitialTenant(this.tenantId || who?.tenant);
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        return;
+                    } catch (e) {
+                        log('Session whoami failed → trying JWT', e?.message);
+                    }
+
+                    if (this.token) {
+                        const claims = parseJwt(this.token);
+                        await refreshTokenIfNeeded(claims?.exp);
+                        this.token = getStoredAccessToken();
+
+                        const who = await this.apiCall('/api/auth/whoami/', {noTenant: true});
+                        this.user = who?.user || {
+                            preferred_username: claims?.preferred_username,
+                            username: claims?.preferred_username
+                        };
+                        this.tenantId = resolveInitialTenant(this.tenantId || who?.tenant || claims?.tenant || claims?.tenant_id);
+                        Conf.token = this.token;
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        return;
+                    }
+
+                    if (DEV_MODE) {
+                        this.user = {username: 'dev', preferred_username: 'dev'};
+                        this.tenantId = resolveInitialTenant(this.tenantId);
+                        Conf.tenantId = this.tenantId;
+                        Conf.save();
+                        return;
+                    }
+
+                    throw new Error("Aucune méthode d'authentification valide");
+                } catch (e) {
+                    console.error('Authentication error:', e);
+                    this.authHint = true;
+                    if (!DEV_MODE) {
+                        setTimeout(() => {
+                            const loginUrl = '/auth/keycloak/login/';
+                            if (window.location.pathname !== loginUrl) window.location.assign(loginUrl);
+                        }, 1200);
+                    }
+                    throw e;
+                }
+            },
+
+            async apiCall(path, options = {}) {
+                this.authHint = false;
+                const {noAuth = false, noTenant = false, cacheKey = null, cacheTtl = 0, ...fetchOptions} = options;
+
+                const url = buildUrl(this.apiBase, path);
+                const method = (fetchOptions.method || 'GET').toUpperCase();
+
+                if (cacheKey && cacheTtl > 0) {
+                    const hit = cache.get(cacheKey);
+                    if (hit != null) return hit;
+                }
+
+                const headers = {'Content-Type': 'application/json'};
+                const effectiveTenant = noTenant ? null : (this.tenantId || resolveInitialTenant() || FRONT_DEFAULT_TENANT);
+                if (effectiveTenant) headers['X-Tenant-Id'] = effectiveTenant;
+                if (!noAuth && this.token) headers['Authorization'] = `Bearer ${this.token}`;
+                if (shouldSendCsrf(url, method)) {
+                    const csrf = getCookie('csrftoken');
+                    if (csrf) headers['X-CSRFToken'] = csrf;
+                }
+
+                try {
+                    this.loading = true;
+                    const res = await fetchWithBackoff(url, {...fetchOptions, headers}, {retries: 2, baseDelay: 300});
+                    const isJson = (res.headers.get('content-type') || '').includes('application/json');
+                    const payload = res.status === 204 ? null : (isJson ? await res.json().catch(() => null) : null);
+
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) this.authHint = true;
+                        const detail = payload?.detail || payload?.message || '';
+                        throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);
+                    }
+
+                    if (cacheKey && cacheTtl > 0) cache.set(cacheKey, payload, cacheTtl);
+                    return payload;
+                } catch (e) {
+                    console.error(e);
+                    this.showToast(e.message || 'Erreur API', 'error');
+                    throw e;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            prefetch(k) {
+                if (k === 'dashboard' && !Object.keys(this.dashboardStats).length) this.loadDashboardStats();
+                if (k === 'employees' && !this.employees.length) this.loadEmployees();
+                if (k === 'recruitment' && !this.recruitments.length) this.loadRecruitments();
+            },
+
+            async loadDashboardStats() {
+                try {
+                    this.dashboardStats = await this.apiCall('dashboard/stats/', {
+                        cacheKey: 'dashboard_stats',
+                        cacheTtl: 30000
+                    });
+                } catch (_) {
+                }
+            },
+            async loadEmployees() {
+                try {
+                    const d = await this.apiCall('employees/');
+                    this.employees = d?.results || d || [];
+                } catch (_) {
+                }
+            },
+            async loadRecruitments() {
+                try {
+                    const d = await this.apiCall('recruitments/');
+                    this.recruitments = d?.results || d || [];
+                } catch (_) {
+                }
+            },
+
+            showToast(message, type = 'info') {
+                if (window.hrToast) window.hrToast(message, type);
+                const t = {message, type, visible: true};
+                this.toasts.push(t);
+                setTimeout(() => {
+                    t.visible = false;
+                    this.toasts = this.toasts.filter(x => x !== t);
+                }, 3800);
+            },
+            removeToast(i) {
+                this.toasts.splice(i, 1);
+            },
+
+            saveConf() {
+                this.apiBase = normalizeApiBase(this.apiBase);
+                Conf.apiBase = this.apiBase;
+                Conf.tenantId = this.tenantId;
+                Conf.token = this.token;
+                Conf.dark = this.dark;
+                Conf.save();
+                this.showToast('Configuration enregistrée', 'success');
+            },
+
+            applyTenant() {
+                this.tenantId = this.tenantId || FRONT_DEFAULT_TENANT;
+                Conf.tenantId = this.tenantId;
+                Conf.save();
+                cache.del('dashboard_stats');
+                this.loadDashboardStats();
+                this.loadEmployees();
+                this.loadRecruitments();
+                this.showToast('Tenant appliqué', 'success');
+                this.openSettings = false;
+            },
+
+            handleOnline() {
+                this.online = true;
+                this.showToast('Connexion rétablie', 'success');
+            },
+            handleOffline() {
+                this.online = false;
+                this.showToast('Vous êtes hors ligne', 'warning');
+            },
+
+            logout() {
+                kcLogout();
+            },
+
+            async init() {
+                // set currentView based on URL (simple heuristic)
+                const path = window.location.pathname;
+                for (const g of this.navigation) {
+                    for (const it of g.items) {
+                        if (it.route && it.route !== '/' && path.startsWith(it.route)) {
+                            this.currentView = it.id;
+                            this.activeNav = it.id;
+                        }
+                    }
+                }
+                // inject routes
+                this.navigation = (this.navigation || []).map(g => ({
+                    ...g,
+                    items: (g.items || []).map(it => ({
+                        ...it,
+                        route: it.route || ROUTES[it.id] || null
+                    }))
+                }));
+                // inject themes
+                this.navigation = (this.navigation || []).map(g => ({
+                    ...g,
+                    theme: this.navThemes[g.id] || this.navThemes.admin
+                }));
+
+                // open group for current view
+                const g = this.navigation.find(x => x.items?.some(it => it.id === this.currentView));
+                this.openGroupId = g?.id || 'hr';
+
+                // watch collapsed (UX: close in collapsed, restore on expand)
+                this.$watch('sidebarCollapsed', (v) => {
+                    if (v) this.openGroupId = null;
+                    else {
+                        const gg = this.navigation.find(x => x.items?.some(it => it.id === this.currentView));
+                        this.openGroupId = gg?.id || 'hr';
+                    }
+                });
+
+                this.apiBase = normalizeApiBase(localStorage.getItem('lyneerp_api') || this.apiBase);
+                this.tenantId = resolveInitialTenant(localStorage.getItem('lyneerp_tenant') || this.tenantId);
+                this.token = getStoredAccessToken() || this.token;
+
+                await this.ensureAuthenticated();
+                this.loadDashboardStats();
+                this.loadEmployees();
+                this.loadRecruitments();
+
+                window.addEventListener('online', () => this.handleOnline());
+                window.addEventListener('offline', () => this.handleOffline());
+            },
+
+            get cmdResults() {
+                const q = this.cmdQuery.toLowerCase().trim();
+                const base = [
+                    {
+                        key: 'cfg',
+                        label: 'Ouvrir Configuration',
+                        desc: 'API / Tenant / Token',
+                        icon: 'fa-solid fa-gear',
+                        action: () => this.openSettings = true
+                    },
+                    {
+                        key: 'dm',
+                        label: 'Basculer Mode sombre',
+                        desc: 'Raccourci ⌘/Ctrl + J',
+                        icon: 'fa-solid fa-moon',
+                        action: () => this.toggleDark()
+                    },
+                ];
+
+                const pages = [];
+                for (const g of this.navigation) {
+                    for (const it of g.items) {
+                        pages.push({
+                            key: 'nav:' + it.id,
+                            label: it.name,
+                            desc: g.name,
+                            icon: it.icon,
+                            action: () => this.switchView(it)
+                        });
+                    }
+                }
+
+                const items = [...pages, ...base];
+                if (!q) return items.slice(0, 40);
+                return items.filter(it => (it.label + ' ' + it.desc).toLowerCase().includes(q)).slice(0, 40);
+            },
+        }
     }
 
-    return {
-      // état minimal pour éviter "is not defined"
-      sidebarCollapsed: false,
-      openCmd: false,
-      openSettings: false,
-      navQuery: '',
-      cmdQuery: '',
-      loading: false,
-      toasts: [],
-      dark: Conf.dark,
-      online: navigator.onLine,
-      authHint: false,
-      licenseBlocker: {visible: false, detail: ''},
+    document.addEventListener('alpine:init', () => {
+        Alpine.magic('cmd', el => e => e.metaKey && !e.shiftKey);
+        Alpine.magic('ctrl', el => e => e.ctrlKey && !e.shiftKey);
+    });
 
-      apiBase: window.HR.normalizeApiBase(Conf.apiBase),
-      tenantId: resolveInitialTenant(Conf.tenantId),
-      token: Conf.token,
-      user: null,
-
-      currentView: 'dashboard',
-      activeNav: 'dashboard',
-      dashboardStats: {},
-      employees: [],
-      recruitments: [],
-
-      async apiCall(path, options = {}) {
-        const {noAuth = false, noTenant = false, cacheKey = null, cacheTtl = 0, ...fetchOptions} = options;
-
-        const url = window.HR.buildUrl(this.apiBase, path);
-        const method = (fetchOptions.method || 'GET').toUpperCase();
-
-        if (cacheKey && cacheTtl > 0) {
-          const hit = cache.get(cacheKey);
-          if (hit != null) return hit;
-        }
-
-        const headers = {'Content-Type': 'application/json'};
-        const effectiveTenant = noTenant ? null : (this.tenantId || resolveInitialTenant());
-        if (effectiveTenant) headers['X-Tenant-Id'] = effectiveTenant;
-        if (!noAuth && this.token) headers['Authorization'] = `Bearer ${this.token}`;
-
-        if (window.HR.shouldSendCsrf(url, method)) {
-          const csrf = window.HR.getCookie('csrftoken');
-          if (csrf) headers['X-CSRFToken'] = csrf;
-        }
-
-        this.loading = true;
-        try {
-          const res = await window.HR.fetchWithBackoff(url, {...fetchOptions, headers}, {retries: 2, baseDelay: 300});
-          const isJson = (res.headers.get('content-type') || '').includes('application/json');
-          const payload = res.status === 204 ? null : (isJson ? await res.json().catch(() => null) : null);
-          if (!res.ok) throw new Error(`${res.status} ${res.statusText} ${payload?.detail || ''}`.trim());
-          if (cacheKey && cacheTtl > 0) cache.set(cacheKey, payload, cacheTtl);
-          return payload;
-        } finally {
-          this.loading = false;
-        }
-      },
-
-      async init() {
-        // garantit tenant/token au démarrage
-        this.apiBase = window.HR.normalizeApiBase(localStorage.getItem('lyneerp_api') || this.apiBase);
-        this.tenantId = resolveInitialTenant(localStorage.getItem('lyneerp_tenant') || this.tenantId);
-        this.token = window.HR.getStoredAccessToken() || this.token;
-        // charge stats sans casser si API down
-        try {
-          this.dashboardStats = await this.apiCall('dashboard/stats/', {cacheKey: 'dashboard_stats', cacheTtl: 30000});
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    };
-  };
-
-})();
+    window.formatDate = (s) => s ? new Date(s).toLocaleDateString('fr-FR') : '';
+    window.formatDateTime = (s) => s ? new Date(s).toLocaleString('fr-FR') : '';
 </script>
+
 <script>
     // Toast helper
     window.hrToast = function (message, type = 'info') {
