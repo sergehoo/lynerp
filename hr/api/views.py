@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core import cache
+from django.core.cache import cache
 # from django.contrib.auth.models import User
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
