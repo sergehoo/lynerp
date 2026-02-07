@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.contrib.admin import ModelAdmin, TabularInline, StackedInline
 from django.contrib.admin.models import LogEntry
+from django.core.exceptions import ValidationError
 from django.utils.html import format_html
 from django.db.models import Count, Sum, Q
 from django.urls import reverse
@@ -351,36 +352,56 @@ class PartnerAdmin(ModelAdmin):
     )
 
 
+def get_request_tenant(request):
+    # middleware: request.tenant
+    t = getattr(request, "tenant", None)
+    if t:
+        return t
+    # fallback dev: header
+    slug = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
+    if slug:
+        from tenants.models import Tenant
+        return Tenant.objects.filter(slug=slug, is_active=True).first()
+    return None
+
+class QuoteLineInline(admin.TabularInline):
+    model = QuoteLine
+    extra = 1
+
+    def save_new_instance(self, request, obj, form, change):
+        # pas appelé par défaut, donc on gère via save_formset plus bas
+        super().save_new_instance(request, obj, form, change)
+
 @admin.register(Quote)
-class QuoteAdmin(ModelAdmin):
-    list_display = ('number', 'partner', 'status', 'issue_date', 'valid_until', 'total', 'tenant')
-    list_filter = ('status', 'issue_date', 'tenant')
-    search_fields = ('number', 'partner__name', 'partner__code')
-    readonly_fields = ('subtotal', 'total_tax', 'total')
+class QuoteAdmin(admin.ModelAdmin):
     inlines = [QuoteLineInline]
-    fieldsets = (
-        ('Devis', {
-            'fields': ('number', 'partner', 'status', 'issue_date', 'valid_until')
-        }),
-        ('Montants', {
-            'fields': ('currency', 'subtotal', 'total_tax', 'total', 'notes'),
-            'classes': ('collapse',)
-        }),
-        ('Document', {
-            'fields': ('pdf_file',),
-            'classes': ('collapse',)
-        }),
-    )
-    date_hierarchy = 'issue_date'
-    actions = ['convert_to_invoice']
+    list_display = ("number", "tenant", "partner", "status", "issue_date")
 
-    def convert_to_invoice(self, request, queryset):
-        for quote in queryset.filter(status='ACCEPTED'):
-            # Logique de conversion à implémenter
-            pass
-        self.message_user(request, f"{queryset.count()} devis sélectionnés pour conversion.")
+    def save_model(self, request, obj, form, change):
+        if not obj.tenant_id:
+            tenant = get_request_tenant(request)
+            if not tenant:
+                raise ValidationError("Tenant non résolu. En admin, envoie X-Tenant-Id ou définis request.tenant.")
+            obj.tenant = tenant
+        super().save_model(request, obj, form, change)
 
-    convert_to_invoice.short_description = "Convertir en facture"
+    def save_formset(self, request, form, formset, change):
+        """
+        Important: les QuoteLine héritent aussi de TenantOwnedModel => tenant obligatoire.
+        """
+        instances = formset.save(commit=False)
+
+        # le parent quote est déjà sauvé ici
+        quote = form.instance
+        for inst in instances:
+            if hasattr(inst, "tenant_id") and not inst.tenant_id:
+                inst.tenant = quote.tenant
+            formset.save_m2m()
+            inst.save()
+
+        # suppressions
+        for obj in formset.deleted_objects:
+            obj.delete()
 
 
 @admin.register(Invoice)
