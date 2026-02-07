@@ -701,417 +701,786 @@
     </div>
 </div>
 
+{#<script>#}
+{#    /* JS d’origine conservé (juste ré-indenter) */#}
+{#    function employeeView() {#}
+{#        return {#}
+{#            // state#}
+{#            tenants: [],#}
+{#            employees: [],#}
+{#            loading: false,#}
+{#            page: 1,#}
+{#            pageSize: 10,#}
+{#            total: 0,#}
+{#            maxPage: 1,#}
+{#            ordering: 'last_name',#}
+{#            search: '',#}
+{#            filters: {tenant: '', department: '', contract_type: '', is_active: ''},#}
+{#            selectedIds: [],#}
+{#            get allChecked() {#}
+{#                return this.selectedIds.length && this.selectedIds.length === this.employees.length;#}
+{#            },#}
+{##}
+{#            resetFilters() {#}
+{#                this.search = '';#}
+{#                this.filters = {tenant: '', department: '', contract_type: '', is_active: ''};#}
+{#                this.page = 1;#}
+{#                this.ordering = 'last_name';#}
+{#                this.pageSize = 10;#}
+{#                this.selectedIds = [];#}
+{#                this.fetchEmployees();#}
+{#            },#}
+{##}
+{#            // refs#}
+{#            departments: [],#}
+{#            positions: [],#}
+{#            counts: {total: 0, active: 0, inactive: 0},#}
+{##}
+{#            // modals/forms#}
+{#            showForm: false,#}
+{#            editId: null,#}
+{#            submitting: false,#}
+{#            form: {#}
+{#                matricule: '', email: '', first_name: '', last_name: '',#}
+{#                hire_date: new Date().toISOString().slice(0, 10),#}
+{#                contract_type: 'CDI', department: '', position: '', is_active: true#}
+{#            },#}
+{##}
+{#            confirming: false,#}
+{#            toDelete: null,#}
+{#            showImport: false,#}
+{#            importFile: null,#}
+{#            importUpdateExisting: true,#}
+{#            showExport: false,#}
+{#            exportFormat: 'xlsx',#}
+{#            exportFields: ['matricule', 'first_name', 'last_name', 'email', 'department', 'position', 'hire_date', 'contract_type', 'is_active'],#}
+{#            exportFieldsAll: [#}
+{#                {label: 'Matricule', value: 'matricule'},#}
+{#                {label: 'Prénom', value: 'first_name'},#}
+{#                {label: 'Nom', value: 'last_name'},#}
+{#                {label: 'Email', value: 'email'},#}
+{#                {label: 'Département', value: 'department'},#}
+{#                {label: 'Poste', value: 'position'},#}
+{#                {label: 'Date embauche', value: 'hire_date'},#}
+{#                {label: 'Contrat', value: 'contract_type'},#}
+{#                {label: 'Actif', value: 'is_active'},#}
+{#            ],#}
+{#            exportFilters: {department: '', contract_type: '', is_active: ''},#}
+{##}
+{#            showBatchDept: false,#}
+{#            batchDepartmentId: '',#}
+{#            showTerminate: false,#}
+{#            terminateReason: '',#}
+{##}
+{#            // API helper#}
+{#            async apiCall(path, options = {}, expectBlob = false) {#}
+{#                const headers = {'X-Tenant-Id': Conf.tenantId};#}
+{#                // CSRF pour les requêtes non-GET / non-HEAD#}
+{#                const method = (options.method || 'GET').toUpperCase();#}
+{#                if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {#}
+{#                    const csrftoken = getCookie('csrftoken');#}
+{#                    if (csrftoken) {#}
+{#                        headers['X-CSRFToken'] = csrftoken;   // 👈 important#}
+{#                    }#}
+{#                }#}
+{#                if (!(options.body instanceof FormData)) {#}
+{#                    headers['Content-Type'] = 'application/json';#}
+{#                }#}
+{#                if (Conf.token) headers['Authorization'] = `Bearer ${Conf.token}`;#}
+{##}
+{#                const url = `${Conf.apiBase}${path.startsWith('/') ? '' : '/'}${path}`;#}
+{#                const res = await fetch(url, {...options, headers});#}
+{##}
+{#                if (!res.ok) {#}
+{#                    let detail = '';#}
+{#                    try {#}
+{#                        const j = await res.json();#}
+{#                        if (typeof j === 'string') {#}
+{#                            detail = j;#}
+{#                        } else if (j.detail) {#}
+{#                            detail = j.detail;#}
+{#                        } else {#}
+{#                            // on garde tout le payload (erreurs de champs DRF)#}
+{#                            detail = JSON.stringify(j);#}
+{#                        }#}
+{#                    } catch {#}
+{#                        // rien, on garde detail=''#}
+{#                    }#}
+{#                    throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);#}
+{#                }#}
+{##}
+{#                if (expectBlob) return res.blob();#}
+{#                return res.status === 204 ? null : res.json();#}
+{#            },#}
+{##}
+{#            // load#}
+{#            async fetchRefs() {#}
+{#                try {#}
+{#                    const d = await this.apiCall('/departments/');#}
+{#                    this.departments = d.results || d;#}
+{#                } catch {#}
+{#                }#}
+{#                try {#}
+{#                    const p = await this.apiCall('/positions/');#}
+{#                    this.positions = p.results || p;#}
+{#                } catch {#}
+{#                }#}
+{#                try {#}
+{#                    const t = await this.apiCall('/tenants/'); // adapte l'URL si besoin#}
+{#                    this.tenants = t.results || t;#}
+{#                } catch {#}
+{#                }#}
+{#            },#}
+{##}
+{#            async fetchEmployees() {#}
+{#                this.loading = true;#}
+{#                try {#}
+{#                    const params = new URLSearchParams();#}
+{#                    params.set('page', this.page);#}
+{#                    params.set('page_size', this.pageSize);#}
+{#                    params.set('ordering', this.ordering);#}
+{##}
+{#                    if (this.search) params.set('search', this.search);#}
+{#                    if (this.filters.tenant) params.set('tenant', this.filters.tenant);#}
+{#                    if (this.filters.department) params.set('department', this.filters.department);#}
+{#                    if (this.filters.contract_type) params.set('contract_type', this.filters.contract_type);#}
+{#                    if (this.filters.is_active !== '') {#}
+{#                        // on force un bool pour DRF (true/false)#}
+{#                        const boolVal = this.filters.is_active === 'true';#}
+{#                        params.set('is_active', boolVal);#}
+{#                    }#}
+{##}
+{#                    const data = await this.apiCall(`/employees/?${params.toString()}`);#}
+{#                    const list = data.results || data;#}
+{##}
+{#                    this.employees = list;#}
+{#                    this.total = data.count ?? (Array.isArray(list) ? list.length : 0);#}
+{#                    this.maxPage = data.count#}
+{#                        ? Math.max(1, Math.ceil(data.count / this.pageSize))#}
+{#                        : 1;#}
+{##}
+{#                    // counts sur la page courante#}
+{#                    let active = 0, inactive = 0;#}
+{#                    for (const e of list) {#}
+{#                        if (e.is_active) active++;#}
+{#                        else inactive++;#}
+{#                    }#}
+{#                    this.counts = {total: this.total, active, inactive};#}
+{##}
+{#                    // on garde seulement les IDs encore visibles#}
+{#                    this.selectedIds = this.selectedIds.filter(#}
+{#                        id => this.employees.find(e => e.id === id)#}
+{#                    );#}
+{#                } catch (e) {#}
+{#                    console.error(e);#}
+{#                    this.toast('Chargement des employés impossible', 'error');#}
+{#                } finally {#}
+{#                    this.loading = false;#}
+{#                }#}
+{#            },#}
+{##}
+{#            // pagination#}
+{#            paginationText() {#}
+{#                if (!this.total) return '—';#}
+{#                const start = (this.page - 1) * this.pageSize + 1;#}
+{#                const end = Math.min(this.page * this.pageSize, this.total);#}
+{#                return `Résultats ${start}–${end} sur ${this.total}`;#}
+{#            },#}
+{#            nextPage() {#}
+{#                if (this.page < this.maxPage) {#}
+{#                    this.page++;#}
+{#                    this.fetchEmployees();#}
+{#                }#}
+{#            },#}
+{#            prevPage() {#}
+{#                if (this.page > 1) {#}
+{#                    this.page--;#}
+{#                    this.fetchEmployees();#}
+{#                }#}
+{#            },#}
+{##}
+{#            // selection#}
+{#            toggleAll(ev) {#}
+{#                this.selectedIds = ev.target.checked ? this.employees.map(e => e.id) : [];#}
+{#            },#}
+{#            toggleOne(id, ev) {#}
+{#                if (ev.target.checked) {#}
+{#                    if (!this.selectedIds.includes(id)) this.selectedIds.push(id);#}
+{#                } else {#}
+{#                    this.selectedIds = this.selectedIds.filter(x => x !== id);#}
+{#                }#}
+{#            },#}
+{##}
+{#            // CRUD simple#}
+{#            openCreate() {#}
+{#                this.editId = null;#}
+{#                this.form = {#}
+{#                    matricule: '', email: '', first_name: '', last_name: '',#}
+{#                    hire_date: new Date().toISOString().slice(0, 10),#}
+{#                    contract_type: 'CDI', department: '', position: '', is_active: true#}
+{#                };#}
+{#                this.showForm = true;#}
+{#            },#}
+{#            openEdit(emp) {#}
+{#                this.editId = emp.id;#}
+{#                this.form = {#}
+{#                    matricule: emp.matricule || '',#}
+{#                    email: emp.email || '',#}
+{#                    first_name: emp.first_name || '',#}
+{#                    last_name: emp.last_name || '',#}
+{#                    hire_date: (emp.hire_date || '').slice(0, 10),#}
+{#                    contract_type: emp.contract_type || 'CDI',#}
+{#                    department: emp.department || emp.department_id || emp.department?.id || '',#}
+{#                    position: emp.position || emp.position_id || emp.position?.id || '',#}
+{#                    is_active: !!emp.is_active#}
+{#                };#}
+{#                this.showForm = true;#}
+{#            },#}
+{#            closeForm() {#}
+{#                this.showForm = false;#}
+{#                this.editId = null;#}
+{#            },#}
+{##}
+{#            async submitForm() {#}
+{#                this.submitting = true;#}
+{#                try {#}
+{#                    const payload = {...this.form};#}
+{#                    if (this.editId) {#}
+{#                        await this.apiCall(`/employees/${this.editId}/`, {#}
+{#                            method: 'PATCH',#}
+{#                            body: JSON.stringify(payload),#}
+{#                        });#}
+{#                        this.toast('Employé mis à jour avec succès', 'success');#}
+{#                    } else {#}
+{#                        await this.apiCall('/employees/', {#}
+{#                            method: 'POST',#}
+{#                            body: JSON.stringify(payload),#}
+{#                        });#}
+{#                        this.toast('Employé créé avec succès', 'success');#}
+{#                    }#}
+{#                    this.showForm = false;#}
+{#                    this.fetchEmployees();#}
+{#                } catch (e) {#}
+{#                    console.error('Erreur submit employé:', e);#}
+{#                    const msg = e && e.message ? e.message : 'Enregistrement impossible';#}
+{#                    this.toast(msg, 'error');#}
+{#                } finally {#}
+{#                    this.submitting = false;#}
+{#                }#}
+{#            },#}
+{##}
+{#            confirmDelete(emp) {#}
+{#                this.toDelete = emp;#}
+{#                this.confirming = true;#}
+{#            },#}
+{#            async doDelete() {#}
+{#                try {#}
+{#                    await this.apiCall(`/employees/${this.toDelete.id}/`, {method: 'DELETE'});#}
+{#                    this.toast('Employé supprimé', 'success');#}
+{#                    this.confirming = false;#}
+{#                    this.toDelete = null;#}
+{#                    this.fetchEmployees();#}
+{#                } catch {#}
+{#                    this.toast('Suppression impossible', 'error');#}
+{#                }#}
+{#            },#}
+{##}
+{#            // toggle actif#}
+{#            async toggleActive(emp) {#}
+{#                try {#}
+{#                    const newVal = !emp.is_active;#}
+{#                    await this.apiCall(`/employees/${emp.id}/`, {#}
+{#                        method: 'PATCH',#}
+{#                        body: JSON.stringify({is_active: newVal})#}
+{#                    });#}
+{#                    emp.is_active = newVal;#}
+{#                    this.toast(newVal ? 'Employé activé' : 'Employé désactivé', 'success');#}
+{#                } catch {#}
+{#                    this.toast('Action impossible', 'error');#}
+{#                }#}
+{#            },#}
+{##}
+{#            // batch#}
+{#            async batch(action) {#}
+{#                if (!this.selectedIds.length) return;#}
+{#                try {#}
+{#                    let data = {employee_ids: this.selectedIds, action};#}
+{#                    if (action === 'change_department') data.data = {department_id: this.batchDepartmentId};#}
+{#                    if (action === 'terminate') data.data = {reason: this.terminateReason || ''};#}
+{##}
+{#                    await this.apiCall('/bulk/bulk_employee_action/', {method: 'POST', body: JSON.stringify(data)});#}
+{#                    this.toast('Action batch appliquée', 'success');#}
+{#                    this.showBatchDept = false;#}
+{#                    this.showTerminate = false;#}
+{#                    this.selectedIds = [];#}
+{#                    this.fetchEmployees();#}
+{#                } catch {#}
+{#                    this.toast('Action batch impossible', 'error');#}
+{#                }#}
+{#            },#}
+{#            openBatchDepartment() {#}
+{#                this.showBatchDept = true;#}
+{#            },#}
+{#            openTerminate() {#}
+{#                this.showTerminate = true;#}
+{#            },#}
+{##}
+{#            // import#}
+{#            openImport() {#}
+{#                this.showImport = true;#}
+{#                this.importFile = null;#}
+{#            },#}
+{#            handleFile(e) {#}
+{#                this.importFile = e.target.files?.[0] || null;#}
+{#            },#}
+{#            async doImport() {#}
+{#                if (!this.importFile) return;#}
+{#                try {#}
+{#                    const form = new FormData();#}
+{#                    form.append('file', this.importFile);#}
+{#                    form.append('update_existing', String(this.importUpdateExisting));#}
+{#                    await this.apiCall('/employees/import_employees/', {method: 'POST', body: form});#}
+{#                    this.toast('Import terminé', 'success');#}
+{#                    this.showImport = false;#}
+{#                    this.fetchEmployees();#}
+{#                } catch {#}
+{#                    this.toast('Import impossible', 'error');#}
+{#                }#}
+{#            },#}
+{##}
+{#            // export#}
+{#            openExport() {#}
+{#                // on pré-remplit l'export avec les filtres déjà appliqués#}
+{#                this.exportFilters = {#}
+{#                    tenant: this.filters.tenant || '',#}
+{#                    department: this.filters.department || '',#}
+{#                    contract_type: this.filters.contract_type || '',#}
+{#                    is_active: this.filters.is_active || '',#}
+{#                };#}
+{#                this.showExport = true;#}
+{#            },#}
+{#            async doExport() {#}
+{#                try {#}
+{#                    const body = {#}
+{#                        format: this.exportFormat,#}
+{#                        fields: this.exportFields,#}
+{#                        filters: {#}
+{#                            ...(this.exportFilters.tenant ? {tenant: this.exportFilters.tenant} : {}),#}
+{#                            ...(this.exportFilters.department ? {department: this.exportFilters.department} : {}),#}
+{#                            ...(this.exportFilters.contract_type ? {contract_type: this.exportFilters.contract_type} : {}),#}
+{#                            ...(this.exportFilters.is_active ? {is_active: this.exportFilters.is_active} : {})#}
+{#                        }#}
+{#                    };#}
+{#                    const blob = await this.apiCall('/employees/export_employees/', {#}
+{#                        method: 'POST',#}
+{#                        body: JSON.stringify(body)#}
+{#                    }, true);#}
+{#                    const url = URL.createObjectURL(blob);#}
+{#                    const a = document.createElement('a');#}
+{#                    const ext = this.exportFormat === 'xlsx' ? 'xlsx' : 'csv';#}
+{#                    a.href = url;#}
+{#                    a.download = `employees_export.${ext}`;#}
+{#                    document.body.appendChild(a);#}
+{#                    a.click();#}
+{#                    a.remove();#}
+{#                    URL.revokeObjectURL(url);#}
+{#                    this.toast('Export généré', 'success');#}
+{#                    this.showExport = false;#}
+{#                } catch {#}
+{#                    this.toast('Export impossible', 'error');#}
+{#                }#}
+{#            },#}
+{##}
+{#            // utils#}
+{#            formatDate(d) {#}
+{#                if (!d) return '';#}
+{#                return new Date(d).toLocaleDateString('fr-FR');#}
+{#            },#}
+{#            toast(msg, type = 'info') {#}
+{#                if (window.hrToast) {#}
+{#                    window.hrToast(msg, type);#}
+{#                } else {#}
+{#                    console.log(`[${type}]`, msg);#}
+{#                    alert(msg);#}
+{#                }#}
+{#            },#}
+{##}
+{#            // init#}
+{#            async init() {#}
+{#                await this.fetchRefs();#}
+{#                await this.fetchEmployees();#}
+{#            }#}
+{#        };#}
+{#    }#}
+{#</script>#}
+
 <script>
-    /* JS d’origine conservé (juste ré-indenter) */
-    function employeeView() {
-        return {
-            // state
-            tenants: [],
-            employees: [],
-            loading: false,
-            page: 1,
-            pageSize: 10,
-            total: 0,
-            maxPage: 1,
-            ordering: 'last_name',
-            search: '',
-            filters: {tenant: '', department: '', contract_type: '', is_active: ''},
-            selectedIds: [],
-            get allChecked() {
-                return this.selectedIds.length && this.selectedIds.length === this.employees.length;
-            },
+  function employeeView() {
+    const hasConf = () => typeof window.Conf !== 'undefined' && window.Conf && window.Conf.apiBase;
 
-            resetFilters() {
-                this.search = '';
-                this.filters = {tenant: '', department: '', contract_type: '', is_active: ''};
-                this.page = 1;
-                this.ordering = 'last_name';
-                this.pageSize = 10;
-                this.selectedIds = [];
-                this.fetchEmployees();
-            },
+    return {
+      // state
+      tenants: [],
+      employees: [],
+      loading: false,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      maxPage: 1,
+      ordering: 'last_name',
+      search: '',
+      filters: { tenant: '', department: '', contract_type: '', is_active: '' },
+      selectedIds: [],
+      get allChecked() {
+        return this.employees.length > 0 && this.selectedIds.length === this.employees.length;
+      },
 
-            // refs
-            departments: [],
-            positions: [],
-            counts: {total: 0, active: 0, inactive: 0},
+      resetFilters() {
+        this.search = '';
+        this.filters = { tenant: '', department: '', contract_type: '', is_active: '' };
+        this.page = 1;
+        this.ordering = 'last_name';
+        this.pageSize = 10;
+        this.selectedIds = [];
+        this.fetchEmployees();
+      },
 
-            // modals/forms
-            showForm: false,
-            editId: null,
-            submitting: false,
-            form: {
-                matricule: '', email: '', first_name: '', last_name: '',
-                hire_date: new Date().toISOString().slice(0, 10),
-                contract_type: 'CDI', department: '', position: '', is_active: true
-            },
+      // refs
+      departments: [],
+      positions: [],
+      counts: { total: 0, active: 0, inactive: 0 },
 
-            confirming: false,
-            toDelete: null,
-            showImport: false,
-            importFile: null,
-            importUpdateExisting: true,
-            showExport: false,
-            exportFormat: 'xlsx',
-            exportFields: ['matricule', 'first_name', 'last_name', 'email', 'department', 'position', 'hire_date', 'contract_type', 'is_active'],
-            exportFieldsAll: [
-                {label: 'Matricule', value: 'matricule'},
-                {label: 'Prénom', value: 'first_name'},
-                {label: 'Nom', value: 'last_name'},
-                {label: 'Email', value: 'email'},
-                {label: 'Département', value: 'department'},
-                {label: 'Poste', value: 'position'},
-                {label: 'Date embauche', value: 'hire_date'},
-                {label: 'Contrat', value: 'contract_type'},
-                {label: 'Actif', value: 'is_active'},
-            ],
-            exportFilters: {department: '', contract_type: '', is_active: ''},
+      // modals/forms
+      showForm: false,
+      editId: null,
+      submitting: false,
+      form: {
+        matricule: '', email: '', first_name: '', last_name: '',
+        hire_date: new Date().toISOString().slice(0, 10),
+        contract_type: 'CDI', department: '', position: '', is_active: true
+      },
 
-            showBatchDept: false,
-            batchDepartmentId: '',
-            showTerminate: false,
-            terminateReason: '',
+      confirming: false,
+      toDelete: null,
+      showImport: false,
+      importFile: null,
+      importUpdateExisting: true,
+      showExport: false,
+      exportFormat: 'xlsx',
+      exportFields: ['matricule','first_name','last_name','email','department','position','hire_date','contract_type','is_active'],
+      exportFieldsAll: [
+        {label:'Matricule', value:'matricule'},
+        {label:'Prénom', value:'first_name'},
+        {label:'Nom', value:'last_name'},
+        {label:'Email', value:'email'},
+        {label:'Département', value:'department'},
+        {label:'Poste', value:'position'},
+        {label:'Date embauche', value:'hire_date'},
+        {label:'Contrat', value:'contract_type'},
+        {label:'Actif', value:'is_active'},
+      ],
+      exportFilters: { tenant:'', department:'', contract_type:'', is_active:'' },
 
-            // API helper
-            async apiCall(path, options = {}, expectBlob = false) {
-                const headers = {'X-Tenant-Id': Conf.tenantId};
-                // CSRF pour les requêtes non-GET / non-HEAD
-                const method = (options.method || 'GET').toUpperCase();
-                if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-                    const csrftoken = getCookie('csrftoken');
-                    if (csrftoken) {
-                        headers['X-CSRFToken'] = csrftoken;   // 👈 important
-                    }
-                }
-                if (!(options.body instanceof FormData)) {
-                    headers['Content-Type'] = 'application/json';
-                }
-                if (Conf.token) headers['Authorization'] = `Bearer ${Conf.token}`;
+      showBatchDept: false,
+      batchDepartmentId: '',
+      showTerminate: false,
+      terminateReason: '',
 
-                const url = `${Conf.apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
-                const res = await fetch(url, {...options, headers});
+      toast(msg, type='info') {
+        if (window.hrToast) return window.hrToast(msg, type);
+        console.log(`[${type}]`, msg);
+      },
 
-                if (!res.ok) {
-                    let detail = '';
-                    try {
-                        const j = await res.json();
-                        if (typeof j === 'string') {
-                            detail = j;
-                        } else if (j.detail) {
-                            detail = j.detail;
-                        } else {
-                            // on garde tout le payload (erreurs de champs DRF)
-                            detail = JSON.stringify(j);
-                        }
-                    } catch {
-                        // rien, on garde detail=''
-                    }
-                    throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);
-                }
+      // API helper (utilise fetchWithBackoff si dispo)
+      async apiCall(path, options = {}, expectBlob = false) {
+        if (!hasConf()) {
+          this.toast("Configuration JS manquante (Conf). Corrige d'abord le script global.", "error");
+          throw new Error("Conf is not defined");
+        }
 
-                if (expectBlob) return res.blob();
-                return res.status === 204 ? null : res.json();
-            },
+        const Conf = window.Conf;
+        const url = `${Conf.apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
+        const method = (options.method || 'GET').toUpperCase();
 
-            // load
-            async fetchRefs() {
-                try {
-                    const d = await this.apiCall('/departments/');
-                    this.departments = d.results || d;
-                } catch {
-                }
-                try {
-                    const p = await this.apiCall('/positions/');
-                    this.positions = p.results || p;
-                } catch {
-                }
-                try {
-                    const t = await this.apiCall('/tenants/'); // adapte l'URL si besoin
-                    this.tenants = t.results || t;
-                } catch {
-                }
-            },
+        const headers = { 'X-Tenant-Id': Conf.tenantId || '' };
 
-            async fetchEmployees() {
-                this.loading = true;
-                try {
-                    const params = new URLSearchParams();
-                    params.set('page', this.page);
-                    params.set('page_size', this.pageSize);
-                    params.set('ordering', this.ordering);
+        // JSON vs FormData
+        const isForm = options.body instanceof FormData;
+        if (!isForm) headers['Content-Type'] = 'application/json';
 
-                    if (this.search) params.set('search', this.search);
-                    if (this.filters.tenant) params.set('tenant', this.filters.tenant);
-                    if (this.filters.department) params.set('department', this.filters.department);
-                    if (this.filters.contract_type) params.set('contract_type', this.filters.contract_type);
-                    if (this.filters.is_active !== '') {
-                        // on force un bool pour DRF (true/false)
-                        const boolVal = this.filters.is_active === 'true';
-                        params.set('is_active', boolVal);
-                    }
+        // Auth
+        if (Conf.token) headers['Authorization'] = `Bearer ${Conf.token}`;
 
-                    const data = await this.apiCall(`/employees/?${params.toString()}`);
-                    const list = data.results || data;
-
-                    this.employees = list;
-                    this.total = data.count ?? (Array.isArray(list) ? list.length : 0);
-                    this.maxPage = data.count
-                        ? Math.max(1, Math.ceil(data.count / this.pageSize))
-                        : 1;
-
-                    // counts sur la page courante
-                    let active = 0, inactive = 0;
-                    for (const e of list) {
-                        if (e.is_active) active++;
-                        else inactive++;
-                    }
-                    this.counts = {total: this.total, active, inactive};
-
-                    // on garde seulement les IDs encore visibles
-                    this.selectedIds = this.selectedIds.filter(
-                        id => this.employees.find(e => e.id === id)
-                    );
-                } catch (e) {
-                    console.error(e);
-                    this.toast('Chargement des employés impossible', 'error');
-                } finally {
-                    this.loading = false;
-                }
-            },
-
-            // pagination
-            paginationText() {
-                if (!this.total) return '—';
-                const start = (this.page - 1) * this.pageSize + 1;
-                const end = Math.min(this.page * this.pageSize, this.total);
-                return `Résultats ${start}–${end} sur ${this.total}`;
-            },
-            nextPage() {
-                if (this.page < this.maxPage) {
-                    this.page++;
-                    this.fetchEmployees();
-                }
-            },
-            prevPage() {
-                if (this.page > 1) {
-                    this.page--;
-                    this.fetchEmployees();
-                }
-            },
-
-            // selection
-            toggleAll(ev) {
-                this.selectedIds = ev.target.checked ? this.employees.map(e => e.id) : [];
-            },
-            toggleOne(id, ev) {
-                if (ev.target.checked) {
-                    if (!this.selectedIds.includes(id)) this.selectedIds.push(id);
-                } else {
-                    this.selectedIds = this.selectedIds.filter(x => x !== id);
-                }
-            },
-
-            // CRUD simple
-            openCreate() {
-                this.editId = null;
-                this.form = {
-                    matricule: '', email: '', first_name: '', last_name: '',
-                    hire_date: new Date().toISOString().slice(0, 10),
-                    contract_type: 'CDI', department: '', position: '', is_active: true
-                };
-                this.showForm = true;
-            },
-            openEdit(emp) {
-                this.editId = emp.id;
-                this.form = {
-                    matricule: emp.matricule || '',
-                    email: emp.email || '',
-                    first_name: emp.first_name || '',
-                    last_name: emp.last_name || '',
-                    hire_date: (emp.hire_date || '').slice(0, 10),
-                    contract_type: emp.contract_type || 'CDI',
-                    department: emp.department || emp.department_id || emp.department?.id || '',
-                    position: emp.position || emp.position_id || emp.position?.id || '',
-                    is_active: !!emp.is_active
-                };
-                this.showForm = true;
-            },
-            closeForm() {
-                this.showForm = false;
-                this.editId = null;
-            },
-
-            async submitForm() {
-                this.submitting = true;
-                try {
-                    const payload = {...this.form};
-                    if (this.editId) {
-                        await this.apiCall(`/employees/${this.editId}/`, {
-                            method: 'PATCH',
-                            body: JSON.stringify(payload),
-                        });
-                        this.toast('Employé mis à jour avec succès', 'success');
-                    } else {
-                        await this.apiCall('/employees/', {
-                            method: 'POST',
-                            body: JSON.stringify(payload),
-                        });
-                        this.toast('Employé créé avec succès', 'success');
-                    }
-                    this.showForm = false;
-                    this.fetchEmployees();
-                } catch (e) {
-                    console.error('Erreur submit employé:', e);
-                    const msg = e && e.message ? e.message : 'Enregistrement impossible';
-                    this.toast(msg, 'error');
-                } finally {
-                    this.submitting = false;
-                }
-            },
-
-            confirmDelete(emp) {
-                this.toDelete = emp;
-                this.confirming = true;
-            },
-            async doDelete() {
-                try {
-                    await this.apiCall(`/employees/${this.toDelete.id}/`, {method: 'DELETE'});
-                    this.toast('Employé supprimé', 'success');
-                    this.confirming = false;
-                    this.toDelete = null;
-                    this.fetchEmployees();
-                } catch {
-                    this.toast('Suppression impossible', 'error');
-                }
-            },
-
-            // toggle actif
-            async toggleActive(emp) {
-                try {
-                    const newVal = !emp.is_active;
-                    await this.apiCall(`/employees/${emp.id}/`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({is_active: newVal})
-                    });
-                    emp.is_active = newVal;
-                    this.toast(newVal ? 'Employé activé' : 'Employé désactivé', 'success');
-                } catch {
-                    this.toast('Action impossible', 'error');
-                }
-            },
-
-            // batch
-            async batch(action) {
-                if (!this.selectedIds.length) return;
-                try {
-                    let data = {employee_ids: this.selectedIds, action};
-                    if (action === 'change_department') data.data = {department_id: this.batchDepartmentId};
-                    if (action === 'terminate') data.data = {reason: this.terminateReason || ''};
-
-                    await this.apiCall('/bulk/bulk_employee_action/', {method: 'POST', body: JSON.stringify(data)});
-                    this.toast('Action batch appliquée', 'success');
-                    this.showBatchDept = false;
-                    this.showTerminate = false;
-                    this.selectedIds = [];
-                    this.fetchEmployees();
-                } catch {
-                    this.toast('Action batch impossible', 'error');
-                }
-            },
-            openBatchDepartment() {
-                this.showBatchDept = true;
-            },
-            openTerminate() {
-                this.showTerminate = true;
-            },
-
-            // import
-            openImport() {
-                this.showImport = true;
-                this.importFile = null;
-            },
-            handleFile(e) {
-                this.importFile = e.target.files?.[0] || null;
-            },
-            async doImport() {
-                if (!this.importFile) return;
-                try {
-                    const form = new FormData();
-                    form.append('file', this.importFile);
-                    form.append('update_existing', String(this.importUpdateExisting));
-                    await this.apiCall('/employees/import_employees/', {method: 'POST', body: form});
-                    this.toast('Import terminé', 'success');
-                    this.showImport = false;
-                    this.fetchEmployees();
-                } catch {
-                    this.toast('Import impossible', 'error');
-                }
-            },
-
-            // export
-            openExport() {
-                // on pré-remplit l'export avec les filtres déjà appliqués
-                this.exportFilters = {
-                    tenant: this.filters.tenant || '',
-                    department: this.filters.department || '',
-                    contract_type: this.filters.contract_type || '',
-                    is_active: this.filters.is_active || '',
-                };
-                this.showExport = true;
-            },
-            async doExport() {
-                try {
-                    const body = {
-                        format: this.exportFormat,
-                        fields: this.exportFields,
-                        filters: {
-                            ...(this.exportFilters.tenant ? {tenant: this.exportFilters.tenant} : {}),
-                            ...(this.exportFilters.department ? {department: this.exportFilters.department} : {}),
-                            ...(this.exportFilters.contract_type ? {contract_type: this.exportFilters.contract_type} : {}),
-                            ...(this.exportFilters.is_active ? {is_active: this.exportFilters.is_active} : {})
-                        }
-                    };
-                    const blob = await this.apiCall('/employees/export_employees/', {
-                        method: 'POST',
-                        body: JSON.stringify(body)
-                    }, true);
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const ext = this.exportFormat === 'xlsx' ? 'xlsx' : 'csv';
-                    a.href = url;
-                    a.download = `employees_export.${ext}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    URL.revokeObjectURL(url);
-                    this.toast('Export généré', 'success');
-                    this.showExport = false;
-                } catch {
-                    this.toast('Export impossible', 'error');
-                }
-            },
-
-            // utils
-            formatDate(d) {
-                if (!d) return '';
-                return new Date(d).toLocaleDateString('fr-FR');
-            },
-            toast(msg, type = 'info') {
-                if (window.hrToast) {
-                    window.hrToast(msg, type);
-                } else {
-                    console.log(`[${type}]`, msg);
-                    alert(msg);
-                }
-            },
-
-            // init
-            async init() {
-                await this.fetchRefs();
-                await this.fetchEmployees();
+        // CSRF (si same-origin et unsafe)
+        try {
+          if (!['GET','HEAD','OPTIONS','TRACE'].includes(method)) {
+            const sameOrigin = !/^https?:\/\//i.test(url) || url.startsWith(location.origin);
+            if (sameOrigin && typeof window.getCookie === 'function') {
+              const csrftoken = window.getCookie('csrftoken');
+              if (csrftoken) headers['X-CSRFToken'] = csrftoken;
             }
+          }
+        } catch (_) {}
+
+        const fetchFn = window.fetchWithBackoff
+          ? (u, o) => window.fetchWithBackoff(u, o, { retries: 2, baseDelay: 300 })
+          : (u, o) => fetch(u, o);
+
+        const res = await fetchFn(url, { ...options, headers });
+
+        if (!res.ok) {
+          let detail = '';
+          try {
+            const ct = (res.headers.get('content-type') || '');
+            if (ct.includes('application/json')) {
+              const j = await res.json();
+              detail = j?.detail ? j.detail : JSON.stringify(j);
+            } else {
+              detail = await res.text();
+            }
+          } catch (_) {}
+          throw new Error(`${res.status} ${res.statusText}${detail ? ' - ' + detail : ''}`);
+        }
+
+        if (expectBlob) return await res.blob();
+        return res.status === 204 ? null : await res.json();
+      },
+
+      async fetchRefs() {
+        try {
+          const d = await this.apiCall('/departments/');
+          this.departments = d.results || d || [];
+        } catch (_) {}
+        try {
+          const p = await this.apiCall('/positions/');
+          this.positions = p.results || p || [];
+        } catch (_) {}
+        try {
+          const t = await this.apiCall('/tenants/'); // adapte si besoin
+          this.tenants = t.results || t || [];
+        } catch (_) {}
+      },
+
+      async fetchEmployees() {
+        this.loading = true;
+        try {
+          const params = new URLSearchParams();
+          params.set('page', String(this.page));
+          params.set('page_size', String(this.pageSize));
+          params.set('ordering', this.ordering);
+
+          if (this.search) params.set('search', this.search);
+          if (this.filters.tenant) params.set('tenant', this.filters.tenant);
+          if (this.filters.department) params.set('department', this.filters.department);
+          if (this.filters.contract_type) params.set('contract_type', this.filters.contract_type);
+          if (this.filters.is_active !== '') {
+            params.set('is_active', this.filters.is_active === 'true' ? 'true' : 'false');
+          }
+
+          const data = await this.apiCall(`/employees/?${params.toString()}`);
+          const list = data?.results || data || [];
+
+          this.employees = list;
+          this.total = data?.count ?? (Array.isArray(list) ? list.length : 0);
+          this.maxPage = data?.count ? Math.max(1, Math.ceil(data.count / this.pageSize)) : 1;
+
+          let active = 0, inactive = 0;
+          for (const e of list) e.is_active ? active++ : inactive++;
+          this.counts = { total: this.total, active, inactive };
+
+          // conserve seulement ce qui est visible
+          this.selectedIds = this.selectedIds.filter(id => this.employees.some(e => e.id === id));
+
+        } catch (e) {
+          console.error(e);
+          this.toast(e.message || 'Chargement des employés impossible', 'error');
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      paginationText() {
+        if (!this.total) return '—';
+        const start = (this.page - 1) * this.pageSize + 1;
+        const end = Math.min(this.page * this.pageSize, this.total);
+        return `Résultats ${start}–${end} sur ${this.total}`;
+      },
+      nextPage() { if (this.page < this.maxPage) { this.page++; this.fetchEmployees(); } },
+      prevPage() { if (this.page > 1) { this.page--; this.fetchEmployees(); } },
+
+      toggleAll(ev) { this.selectedIds = ev.target.checked ? this.employees.map(e => e.id) : []; },
+      toggleOne(id, ev) {
+        if (ev.target.checked) {
+          if (!this.selectedIds.includes(id)) this.selectedIds.push(id);
+        } else {
+          this.selectedIds = this.selectedIds.filter(x => x !== id);
+        }
+      },
+
+      openCreate() {
+        this.editId = null;
+        this.form = {
+          matricule: '', email: '', first_name: '', last_name: '',
+          hire_date: new Date().toISOString().slice(0, 10),
+          contract_type: 'CDI', department: '', position: '', is_active: true
         };
-    }
+        this.showForm = true;
+      },
+      openEdit(emp) {
+        this.editId = emp.id;
+        this.form = {
+          matricule: emp.matricule || '',
+          email: emp.email || '',
+          first_name: emp.first_name || '',
+          last_name: emp.last_name || '',
+          hire_date: (emp.hire_date || '').slice(0, 10),
+          contract_type: emp.contract_type || 'CDI',
+          department: emp.department || emp.department_id || emp.department?.id || '',
+          position: emp.position || emp.position_id || emp.position?.id || '',
+          is_active: !!emp.is_active
+        };
+        this.showForm = true;
+      },
+      closeForm() { this.showForm = false; this.editId = null; },
+
+      async submitForm() {
+        this.submitting = true;
+        try {
+          const payload = { ...this.form };
+          if (this.editId) {
+            await this.apiCall(`/employees/${this.editId}/`, { method:'PATCH', body: JSON.stringify(payload) });
+            this.toast('Employé mis à jour', 'success');
+          } else {
+            await this.apiCall('/employees/', { method:'POST', body: JSON.stringify(payload) });
+            this.toast('Employé créé', 'success');
+          }
+          this.showForm = false;
+          await this.fetchEmployees();
+        } catch (e) {
+          console.error(e);
+          this.toast(e.message || 'Enregistrement impossible', 'error');
+        } finally {
+          this.submitting = false;
+        }
+      },
+
+      confirmDelete(emp) { this.toDelete = emp; this.confirming = true; },
+      async doDelete() {
+        try {
+          await this.apiCall(`/employees/${this.toDelete.id}/`, { method:'DELETE' });
+          this.toast('Employé supprimé', 'success');
+          this.confirming = false;
+          this.toDelete = null;
+          await this.fetchEmployees();
+        } catch (e) {
+          this.toast(e.message || 'Suppression impossible', 'error');
+        }
+      },
+
+      async toggleActive(emp) {
+        try {
+          const newVal = !emp.is_active;
+          await this.apiCall(`/employees/${emp.id}/`, { method:'PATCH', body: JSON.stringify({is_active: newVal}) });
+          emp.is_active = newVal;
+          this.toast(newVal ? 'Employé activé' : 'Employé désactivé', 'success');
+        } catch (e) {
+          this.toast(e.message || 'Action impossible', 'error');
+        }
+      },
+
+      // ⚠️ Batch : nécessite endpoint DRF existant
+      async batch(action) {
+        if (!this.selectedIds.length) return;
+
+        try {
+          let data = { employee_ids: this.selectedIds, action };
+          if (action === 'change_department') data.data = { department_id: this.batchDepartmentId };
+          if (action === 'terminate') data.data = { reason: this.terminateReason || '' };
+
+          // 👉 IMPORTANT: cette URL doit exister côté backend
+          await this.apiCall('/bulk/bulk_employee_action/', { method:'POST', body: JSON.stringify(data) });
+
+          this.toast('Action batch appliquée', 'success');
+          this.showBatchDept = false;
+          this.showTerminate = false;
+          this.selectedIds = [];
+          await this.fetchEmployees();
+        } catch (e) {
+          this.toast(e.message || 'Action batch impossible', 'error');
+        }
+      },
+
+      openBatchDepartment() { this.showBatchDept = true; },
+      openTerminate() { this.showTerminate = true; },
+
+      openImport() { this.showImport = true; this.importFile = null; },
+      handleFile(e) { this.importFile = e.target.files?.[0] || null; },
+
+      async doImport() {
+        if (!this.importFile) return;
+        try {
+          const form = new FormData();
+          form.append('file', this.importFile);
+          form.append('update_existing', String(this.importUpdateExisting));
+          await this.apiCall('/employees/import_employees/', { method:'POST', body: form });
+          this.toast('Import terminé', 'success');
+          this.showImport = false;
+          await this.fetchEmployees();
+        } catch (e) {
+          this.toast(e.message || 'Import impossible', 'error');
+        }
+      },
+
+      openExport() {
+        this.exportFilters = {
+          tenant: this.filters.tenant || '',
+          department: this.filters.department || '',
+          contract_type: this.filters.contract_type || '',
+          is_active: this.filters.is_active || '',
+        };
+        this.showExport = true;
+      },
+
+      async doExport() {
+        try {
+          const body = {
+            format: this.exportFormat,
+            fields: this.exportFields,
+            filters: {
+              ...(this.exportFilters.tenant ? {tenant: this.exportFilters.tenant} : {}),
+              ...(this.exportFilters.department ? {department: this.exportFilters.department} : {}),
+              ...(this.exportFilters.contract_type ? {contract_type: this.exportFilters.contract_type} : {}),
+              ...(this.exportFilters.is_active ? {is_active: this.exportFilters.is_active} : {})
+            }
+          };
+
+          const blob = await this.apiCall('/employees/export_employees/', {
+            method:'POST',
+            body: JSON.stringify(body)
+          }, true);
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `employees_export.${this.exportFormat === 'xlsx' ? 'xlsx' : 'csv'}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+
+          this.toast('Export généré', 'success');
+          this.showExport = false;
+        } catch (e) {
+          this.toast(e.message || 'Export impossible', 'error');
+        }
+      },
+
+      async init() {
+        await this.fetchRefs();
+        await this.fetchEmployees();
+      }
+    };
+  }
 </script>
 
 <style>

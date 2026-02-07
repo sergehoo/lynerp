@@ -605,6 +605,47 @@ class BulkActionsViewSet(viewsets.ViewSet):
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['post'], url_path='bulk_employee_action')
+    def bulk_employee_action(self, request):
+        tenant = get_current_tenant_from_request(request)
+        if not tenant:
+            return Response({"detail": "Tenant introuvable"}, status=400)
+
+        # payload attendu: { employee_ids: [...], action: 'activate'|'deactivate'|'change_department'|'terminate', data: {...} }
+        employee_ids = request.data.get("employee_ids") or []
+        action_type = request.data.get("action")
+        data = request.data.get("data") or {}
+
+        if not employee_ids or not action_type:
+            return Response({"detail": "employee_ids et action sont requis"}, status=400)
+
+        qs = Employee.objects.filter(id__in=employee_ids, tenant=tenant)
+
+        updated = 0
+        with transaction.atomic():
+            if action_type == "activate":
+                updated = qs.update(is_active=True)
+
+            elif action_type == "deactivate":
+                updated = qs.update(is_active=False)
+
+            elif action_type == "change_department":
+                dept_id = data.get("department_id")
+                if not dept_id:
+                    return Response({"detail": "department_id requis"}, status=400)
+                updated = qs.update(department_id=dept_id)
+
+            elif action_type == "terminate":
+                # adapte à ton modèle: contract_end_date/status/etc.
+                reason = data.get("reason", "")
+                # exemple simple:
+                updated = qs.update(is_active=False)
+
+            else:
+                return Response({"detail": f"Action inconnue: {action_type}"}, status=400)
+
+        return Response({"message": f"{updated} employés mis à jour", "action": action_type})
+
 
 # -----------------------------
 # ViewSets RH
