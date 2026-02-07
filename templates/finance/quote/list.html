@@ -1,28 +1,30 @@
+{# /Users/ogahserge/Documents/Lyneerp/templates/finance/quote/list.html #}
 {% extends "hr/base.html" %}
 {% block page_content %}
 <div x-data="financeListPage({
-  title: 'Paiements',
-  subtitle: 'Encaissements, rapprochement, statut',
-  icon: 'fa-solid fa-credit-card',
-  theme: 'orange',
-  endpoint: '/api/finance/payments/',
-  createUrl: "{% url 'finance:payments:create' %}",
-  detailUrlTpl: "{% url 'finance:payments:detail' '0' %}",
+  title: 'Devis',
+  subtitle: 'Propositions commerciales, statut, dates',
+  icon: 'fa-solid fa-file-signature',
+  theme: 'indigo',
+  endpoint: '/api/finance/quotes/',
+  createUrl: "{% url 'finance:quotes:create' %}",
+  detailUrlTpl: "{% url 'finance:quotes:detail' '0' %}",
   columns: [
-    {key:'reference', label:'Référence', mobile:true},
-    {key:'customer', label:'Client', mobile:true},
-    {key:'date', label:'Date', mobile:true},
-    {key:'method', label:'Méthode', mobile:false},
+    {key:'number', label:'N° Devis', mobile:true},
+    {key:'partner_name', label:'Client', mobile:true},
+    {key:'issue_date', label:'Émis le', mobile:true},
+    {key:'valid_until', label:'Valide jusqu’au', mobile:false},
     {key:'status', label:'Statut', mobile:true},
-    {key:'amount', label:'Montant', align:'right', mobile:true},
+    {key:'currency', label:'Devise', mobile:false},
   ]
 })" x-init="init()" class="space-y-6">
 
+  <!-- Header -->
   <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
     <div class="min-w-0">
       <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-orange-600 text-white">
-          <i :class="cfg.icon + ' text-[11px] opacity-90'"></i><span>Finance • Paiements</span>
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-indigo-600 text-white">
+          <i :class="cfg.icon + ' text-[11px] opacity-90'"></i><span>Finance • Devis</span>
         </span>
         <span class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="cfg.subtitle"></span>
       </div>
@@ -31,7 +33,7 @@
 
     <div class="flex flex-wrap items-center gap-2">
       <button @click="goCreate()"
-              class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+              class="h-10 px-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
         <i class="fa-solid fa-plus text-xs"></i><span>Nouveau</span>
       </button>
       <button @click="refresh()"
@@ -57,57 +59,61 @@
           Réinitialiser
         </button>
         <button @click="applyFilters()"
-                class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium">
+                class="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
           Appliquer
         </button>
       </div>
     </div>
 
     <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+      <!-- Search -->
       <div class="lg:col-span-2">
         <label class="text-xs font-medium text-slate-500">Recherche</label>
         <div class="mt-1 relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-          <input x-model.debounce.300ms="filters.q" type="text" placeholder="Référence, client…"
-                 class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200"/>
+          <input x-model.debounce.300ms="filters.q" type="text" placeholder="N° devis, client…"
+                 class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-200"/>
         </div>
       </div>
 
+      <!-- Status -->
       <div>
         <label class="text-xs font-medium text-slate-500">Statut</label>
-<select x-model="filters.status"
-  class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
-  <option value="">Tous</option>
-  <option value="PENDING">En attente</option>
-  <option value="DONE">Payé</option>
-  <option value="FAILED">Échoué</option>
-  <option value="CANCELLED">Annulé</option>
-</select>
+        <select x-model="filters.status"
+                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+          <option value="">Tous</option>
+          <option value="DRAFT">Brouillon</option>
+          <option value="SENT">Envoyé</option>
+          <option value="ACCEPTED">Accepté</option>
+          <option value="REJECTED">Rejeté</option>
+          <option value="CANCELLED">Annulé</option>
+        </select>
       </div>
 
+      <!-- Currency -->
       <div>
-        <label class="text-xs font-medium text-slate-500">Méthode</label>
-       <select x-model="filters.method"
-  class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
-  <option value="">Toutes</option>
-  <option value="CASH">Espèces</option>
-  <option value="BANK">Banque</option>
-  <option value="CARD">Carte</option>
-  <option value="MOBILE">Mobile money</option>
-  <option value="CHEQUE">Chèque</option>
-</select>
+        <label class="text-xs font-medium text-slate-500">Devise</label>
+        <select x-model="filters.currency"
+                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+          <option value="">Toutes</option>
+          <option value="XOF">XOF</option>
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+        </select>
       </div>
 
+      <!-- Date from -->
       <div>
         <label class="text-xs font-medium text-slate-500">Du</label>
         <input type="date" x-model="filters.date_from"
-               class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+               class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
       </div>
 
+      <!-- Date to -->
       <div>
         <label class="text-xs font-medium text-slate-500">Au</label>
         <input type="date" x-model="filters.date_to"
-               class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+               class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
       </div>
     </div>
   </div>
@@ -116,7 +122,7 @@
   <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
     <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <div class="w-10 h-10 rounded-2xl grid place-items-center bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/40">
+        <div class="w-10 h-10 rounded-2xl grid place-items-center bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/40">
           <i class="fa-solid fa-table"></i>
         </div>
         <div>
@@ -143,16 +149,24 @@
         <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
         <template x-for="r in rows" :key="r.id">
           <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
+            <!-- Number -->
             <td class="px-5 py-4">
-              <div class="font-semibold text-slate-900 dark:text-white" x-text="r.reference || r.code || ('PAY-' + r.id)"></div>
-              <div class="text-xs text-slate-500 dark:text-slate-400" x-text="r.memo || ''"></div>
+              <div class="font-semibold text-slate-900 dark:text-white" x-text="r.number || ('QT-' + r.id)"></div>
+              <div class="text-xs text-slate-500 dark:text-slate-400" x-text="(r.notes || '').slice(0, 60)"></div>
             </td>
+
+            <!-- Partner -->
             <td class="px-5 py-4">
-              <div class="font-medium text-slate-700 dark:text-slate-200" x-text="r.customer_name || r.customer?.name || '-'"></div>
-              <div class="text-xs text-slate-400" x-text="r.customer_email || r.customer?.email || ''"></div>
+              <div class="font-medium text-slate-700 dark:text-slate-200" x-text="r.partner_name || '-'"></div>
             </td>
-            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="fmtDate(r.date || r.paid_at)"></td>
-            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="r.method || '-'"></td>
+
+            <!-- Issue date -->
+            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="fmtDate(r.issue_date)"></td>
+
+            <!-- Valid until -->
+            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="fmtDate(r.valid_until)"></td>
+
+            <!-- Status -->
             <td class="px-5 py-4">
               <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
                     :class="statusPill(r.status).cls">
@@ -160,10 +174,11 @@
                 <span x-text="statusPill(r.status).label"></span>
               </span>
             </td>
-            <td class="px-5 py-4 text-right">
-              <div class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(r.amount || r.total_amount)"></div>
-              <div class="text-xs text-slate-400" x-text="r.currency || currency"></div>
-            </td>
+
+            <!-- Currency -->
+            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="r.currency || '—'"></td>
+
+            <!-- Actions -->
             <td class="px-5 py-4 text-right">
               <div class="inline-flex items-center justify-end gap-2">
                 <button @click="goDetail(r)"
@@ -171,8 +186,8 @@
                   <i class="fa-solid fa-eye mr-1"></i> Voir
                 </button>
                 <button @click="exportOne(r)"
-                        class="h-9 px-3 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs">
-                  <i class="fa-solid fa-file-invoice mr-1"></i> Reçu
+                        class="h-9 px-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs">
+                  <i class="fa-solid fa-file-pdf mr-1"></i> PDF
                 </button>
               </div>
             </td>
@@ -181,9 +196,9 @@
 
         <tr x-show="!loading && rows.length===0" x-cloak>
           <td :colspan="cfg.columns.length+1" class="px-5 py-12 text-center">
-            <div class="text-3xl mb-2">💳</div>
-            <div class="font-semibold text-slate-900 dark:text-white">Aucun paiement</div>
-            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ajustez les filtres ou enregistrez un paiement.</div>
+            <div class="text-3xl mb-2">📝</div>
+            <div class="font-semibold text-slate-900 dark:text-white">Aucun devis</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ajustez les filtres ou créez un devis.</div>
           </td>
         </tr>
         </tbody>
@@ -196,12 +211,12 @@
         <div class="p-4">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <div class="font-semibold text-slate-900 dark:text-white truncate" x-text="r.reference || r.code || ('PAY-' + r.id)"></div>
-              <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="r.customer_name || '-'"></div>
+              <div class="font-semibold text-slate-900 dark:text-white truncate" x-text="r.number || ('QT-' + r.id)"></div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="r.partner_name || '-'"></div>
             </div>
             <div class="text-right">
-              <div class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(r.amount || r.total_amount)"></div>
-              <div class="text-xs text-slate-400" x-text="fmtDate(r.date || r.paid_at)"></div>
+              <div class="text-xs text-slate-400" x-text="fmtDate(r.issue_date)"></div>
+              <div class="text-xs text-slate-400" x-text="r.currency || ''"></div>
             </div>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
@@ -244,34 +259,31 @@ function financeListPage(cfg){
   return {
     cfg,
     loading:false,
-    currency:'XOF',
     rows:[],
     page:1,
     pageSize:20,
     hasNext:false,
-    filters:{ q:'', status:'', method:'', date_from:'', date_to:'' },
+
+    filters:{ q:'', status:'', currency:'', date_from:'', date_to:'' },
 
     get metaText(){ return `${this.rows.length} ligne(s) • page ${this.page}`; },
     get pageText(){ return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`; },
 
     statusPill(s){
-  const m = {
-    PENDING:{label:'En attente', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
-    DONE:{label:'Payé', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
-    FAILED:{label:'Échoué', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
-    CANCELLED:{label:'Annulé', cls:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},
-  };
-  return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
-},
-methodLabel(m){
-  const map = {CASH:'Espèces', BANK:'Banque', CARD:'Carte', MOBILE:'Mobile money', CHEQUE:'Chèque'};
-  return map[m] || (m || '—');
-},
-    fmtDate(s){ if(!s) return '—'; try{return new Date(s).toLocaleDateString('fr-FR');}catch{return '—'}; },
-    formatMoney(v){
-      const n=Number(v||0);
-      try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:this.currency}).format(n); }
-      catch { return `${n.toLocaleString('fr-FR')} ${this.currency}`; }
+      const m = {
+        DRAFT:{label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
+        SENT:{label:'Envoyé', cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},
+        ACCEPTED:{label:'Accepté', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
+        REJECTED:{label:'Rejeté', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
+        CANCELLED:{label:'Annulé', cls:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},
+      };
+      return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
+    },
+
+    fmtDate(s){
+      if(!s) return '—';
+      try { return new Date(s).toLocaleDateString('fr-FR'); }
+      catch { return '—'; }
     },
 
     buildQuery(){
@@ -280,7 +292,7 @@ methodLabel(m){
       p.set('page_size', String(this.pageSize));
       if(this.filters.q) p.set('search', this.filters.q);
       if(this.filters.status) p.set('status', this.filters.status);
-      if(this.filters.method) p.set('method', this.filters.method);
+      if(this.filters.currency) p.set('currency', this.filters.currency);
       if(this.filters.date_from) p.set('date_from', this.filters.date_from);
       if(this.filters.date_to) p.set('date_to', this.filters.date_to);
       return p.toString();
@@ -292,6 +304,7 @@ methodLabel(m){
         const headers={'Accept':'application/json'};
         const tid=localStorage.getItem('lyneerp_tenant')||'';
         if(tid) headers['X-Tenant-Id']=tid;
+
         const token=localStorage.getItem('lyneerp_token')||localStorage.getItem('kc_access_token')||'';
         if(token) headers['Authorization']=`Bearer ${token}`;
 
@@ -300,12 +313,12 @@ methodLabel(m){
         const data = await res.json().catch(()=>null);
         if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
 
-        const list = data?.results || data || [];
-        this.rows = Array.isArray(list) ? list : [];
+        // DRF pagination => {count, next, previous, results}
+        this.rows = Array.isArray(data?.results) ? data.results : [];
         this.hasNext = !!data?.next;
-        this.currency = data?.currency || this.rows?.[0]?.currency || this.currency;
       }catch(e){
         if(window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
+        console.error(e);
       }finally{
         this.loading=false;
       }
@@ -313,8 +326,18 @@ methodLabel(m){
 
     init(){ this.fetchList(); },
     refresh(){ this.fetchList(); },
-    resetFilters(){ this.filters={q:'',status:'',method:'',date_from:'',date_to:''}; this.page=1; this.fetchList(); },
-    applyFilters(){ this.page=1; this.fetchList(); if(window.hrToast) window.hrToast('Filtres appliqués','success'); },
+
+    resetFilters(){
+      this.filters={q:'',status:'',currency:'',date_from:'',date_to:''};
+      this.page=1;
+      this.fetchList();
+    },
+
+    applyFilters(){
+      this.page=1;
+      this.fetchList();
+      if(window.hrToast) window.hrToast('Filtres appliqués','success');
+    },
 
     prevPage(){ if(this.page<=1) return; this.page--; this.fetchList(); },
     nextPage(){ if(!this.hasNext) return; this.page++; this.fetchList(); },
@@ -335,17 +358,19 @@ methodLabel(m){
     },
 
     goCreate(){ if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl); },
+
     goDetail(row){
       if(!row) return;
       const tpl=this.cfg.detailUrlTpl||'';
-      if(!tpl || tpl==='0' || tpl==='#'){ return; }
+      if(!tpl || tpl==='#') return;
       window.location.assign(tpl.replace('0', row.id));
     },
+
     exportOne(row){
-      // démo: si API expose receipt_url
-      const url = row?.receipt_url || row?.pdf_url || '';
+      // QuoteSerializer renvoie "pdf_file" (path). Si tu exposes une URL absolue, mets pdf_url côté API.
+      const url = row?.pdf_url || row?.pdf_file || '';
       if(url) return window.open(url,'_blank');
-      if(window.hrToast) window.hrToast('Reçu indisponible', 'warning');
+      if(window.hrToast) window.hrToast('PDF indisponible', 'warning');
     }
   }
 }
