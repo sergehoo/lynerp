@@ -270,6 +270,7 @@ class TenantViewSet(viewsets.ReadOnlyModelViewSet):
 # -----------------------------
 # Dashboard RH
 # -----------------------------
+
 class HRDashboardViewSet(viewsets.ViewSet):
     """Vues pour le tableau de bord RH"""
     permission_classes = [IsAuthenticated, HasRHAccess]
@@ -280,24 +281,46 @@ class HRDashboardViewSet(viewsets.ViewSet):
     def get_tenant(self, request) -> Optional[Tenant]:
         return get_current_tenant_from_request(request)
 
-    def _tenant_filter_q(self, tenant: Tenant) -> Q:
+    def tenant_filter_for(self, model_cls, tenant: Tenant) -> Q:
         """
-        Pour les modèles qui stockent tenant_id en CharField:
-        on accepte à la fois slug et uuid-string (pour compatibilité base).
+        Retourne un Q adapté selon le type de stockage du tenant sur model_cls:
+        - tenant = FK -> tenant=tenant
+        - tenant_id = UUIDField -> tenant_id=tenant.id
+        - tenant_id = CharField/TextField -> tenant_id in (tenant.slug, str(tenant.id))
         """
-        q = Q(tenant_id=tenant.slug)
-        q |= Q(tenant_id=str(tenant.id))
-        return q
+        # 1) FK tenant
+        if any(f.name == "tenant" for f in model_cls._meta.fields):
+            return Q(tenant=tenant)
+
+        # 2) champ tenant_id
+        try:
+            f = model_cls._meta.get_field("tenant_id")
+        except Exception:
+            # Aucun champ tenant reconnu -> pas de fuite de données
+            return Q(pk__in=[])
+
+        if isinstance(f, models.UUIDField):
+            return Q(tenant_id=tenant.id)
+
+        # CharField / TextField / autres => compat
+        return Q(tenant_id=tenant.slug) | Q(tenant_id=str(tenant.id))
+
+    def filter_by_tenant(self, qs, model_cls, tenant: Tenant):
+        """
+        Applique un filtre tenant sur un queryset, en fallback safe.
+        """
+        if not tenant:
+            return qs.none()
+        q = self.tenant_filter_for(model_cls, tenant)
+        if not q.children:
+            return qs.none()
+        return qs.filter(q)
 
     # -----------------------------
     # Dashboard: Stats principales
     # -----------------------------
     @action(detail=False, methods=["get"])
     def stats(self, request):
-        """
-        Statistiques globales dashboard.
-        Optimisé pour gros volume (counts + index).
-        """
         tenant = self.get_tenant(request)
         if not tenant:
             return Response(
@@ -333,24 +356,18 @@ class HRDashboardViewSet(viewsets.ViewSet):
             hire_date__month=today.month,
         ).count()
 
-        # Models avec tenant_id (CharField)
-        t_q = self._tenant_filter_q(tenant)
+        # Models qui peuvent stocker tenant_id
+        pending_leave_requests = self.filter_by_tenant(
+            LeaveRequest.objects.all(), LeaveRequest, tenant
+        ).filter(status="pending").count()
 
-        pending_leave_requests = LeaveRequest.objects.filter(
-            t_q,
-            status="pending",
-        ).count()
+        active_recruitments = self.filter_by_tenant(
+            Recruitment.objects.all(), Recruitment, tenant
+        ).filter(status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"]).count()
 
-        active_recruitments = Recruitment.objects.filter(
-            t_q,
-            status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"],
-        ).count()
-
-        upcoming_reviews = PerformanceReview.objects.filter(
-            t_q,
-            review_date__gte=today,
-            status="DRAFT",
-        ).count()
+        upcoming_reviews = self.filter_by_tenant(
+            PerformanceReview.objects.all(), PerformanceReview, tenant
+        ).filter(review_date__gte=today, status="DRAFT").count()
 
         stats_data = {
             "total_employees": total_employees,
@@ -362,10 +379,8 @@ class HRDashboardViewSet(viewsets.ViewSet):
             "upcoming_reviews": upcoming_reviews,
         }
 
-        serializer = HRDashboardSerializer(stats_data)
-        data = serializer.data
-
-        cache.set(cache_key, data, 30)  # 30s
+        data = HRDashboardSerializer(stats_data).data
+        cache.set(cache_key, data, 30)
         return Response(data)
 
     # -----------------------------
@@ -373,7 +388,6 @@ class HRDashboardViewSet(viewsets.ViewSet):
     # -----------------------------
     @action(detail=False, methods=["get"])
     def latest_hires(self, request):
-        """Top N dernières embauches (léger)"""
         tenant = self.get_tenant(request)
         if not tenant:
             return Response([], status=200)
@@ -404,7 +418,6 @@ class HRDashboardViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def active_recruitments_list(self, request):
-        """Top N recrutements actifs (léger)"""
         tenant = self.get_tenant(request)
         if not tenant:
             return Response([], status=200)
@@ -414,12 +427,12 @@ class HRDashboardViewSet(viewsets.ViewSet):
         except Exception:
             limit = 3
 
-        t_q = self._tenant_filter_q(tenant)
+        qs = self.filter_by_tenant(
+            Recruitment.objects.all(), Recruitment, tenant
+        ).filter(status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"])
 
         qs = (
-            Recruitment.objects
-            .filter(t_q, status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"])
-            .select_related("department", "position")
+            qs.select_related("department", "position")
             .only(
                 "id", "title", "status", "publication_date", "number_of_positions",
                 "department__name", "position__title"
@@ -453,38 +466,33 @@ class HRDashboardViewSet(viewsets.ViewSet):
         if cached:
             return Response(cached)
 
-        t_q = self._tenant_filter_q(tenant)
+        recruit_qs = self.filter_by_tenant(Recruitment.objects.all(), Recruitment, tenant)
+        app_qs = self.filter_by_tenant(JobApplication.objects.all(), JobApplication, tenant)
+        ai_qs = self.filter_by_tenant(AIProcessingResult.objects.all(), AIProcessingResult, tenant)
 
-        total_recruitments = Recruitment.objects.filter(t_q).count()
-        active_recruitments = Recruitment.objects.filter(
-            t_q, status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"]
-        ).count()
+        total_recruitments = recruit_qs.count()
+        active_recruitments = recruit_qs.filter(status__in=["OPEN", "IN_REVIEW", "INTERVIEW", "OFFER"]).count()
 
-        total_applications = JobApplication.objects.filter(t_q).count()
-
-        applications_this_week = JobApplication.objects.filter(
-            t_q,
+        total_applications = app_qs.count()
+        applications_this_week = app_qs.filter(
             applied_at__gte=timezone.now() - timezone.timedelta(days=7)
         ).count()
 
         avg_ai_score = (
-                JobApplication.objects.filter(t_q, ai_score__isnull=False)
-                .aggregate(avg_score=Avg("ai_score"))["avg_score"]
-                or 0
+            app_qs.filter(ai_score__isnull=False)
+            .aggregate(avg_score=Avg("ai_score"))["avg_score"]
+            or 0
         )
 
         apps_by_status = dict(
-            JobApplication.objects
-            .filter(t_q)
-            .values("status")
+            app_qs.values("status")
             .annotate(count=Count("id"))
             .values_list("status", "count")
         )
 
-        hires = JobApplication.objects.filter(t_q, status="HIRED").count()
+        hires = app_qs.filter(status="HIRED").count()
         hire_conversion_rate = (hires / total_applications * 100.0) if total_applications > 0 else 0.0
 
-        ai_qs = AIProcessingResult.objects.filter(t_q)
         ai_completed = ai_qs.filter(status="COMPLETED").count()
         ai_failed = ai_qs.filter(status="FAILED").count()
         ai_avg_overall = ai_qs.aggregate(a=Avg("overall_match_score"))["a"] or 0.0
@@ -494,19 +502,18 @@ class HRDashboardViewSet(viewsets.ViewSet):
             "active_recruitments": active_recruitments,
             "total_applications": total_applications,
             "applications_this_week": applications_this_week,
-            "average_ai_score": round(avg_ai_score, 2),
-            "hire_conversion_rate": round(hire_conversion_rate, 2),
+            "average_ai_score": round(float(avg_ai_score), 2),
+            "hire_conversion_rate": round(float(hire_conversion_rate), 2),
             "average_time_to_hire": 0.0,  # TODO
             "applications_by_status": apps_by_status,
             "ai_processing_stats": {
                 "completed": ai_completed,
                 "failed": ai_failed,
-                "avg_overall_match_score": round(ai_avg_overall, 2),
+                "avg_overall_match_score": round(float(ai_avg_overall), 2),
             },
         }
 
-        serializer = RecruitmentStatsSerializer(stats_data)
-        data = serializer.data
+        data = RecruitmentStatsSerializer(stats_data).data
         cache.set(cache_key, data, 30)
         return Response(data)
 
@@ -550,8 +557,7 @@ class HRDashboardViewSet(viewsets.ViewSet):
             "gender_distribution": gender_dist,
         }
 
-        serializer = EmployeeStatsSerializer(stats_data)
-        return Response(serializer.data)
+        return Response(EmployeeStatsSerializer(stats_data).data)
 
 
 # -----------------------------

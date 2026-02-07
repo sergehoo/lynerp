@@ -17,8 +17,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
     <!-- Alpine Plugins -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+
+<script defer>
+  document.addEventListener('alpine:init', () => {
+    Alpine.plugin(window.AlpineCollapse)
+  })
+</script>
 
 
     <script>
@@ -744,23 +750,83 @@
         }
     };
 
-    async function fetchWithBackoff(url, options = {}, {retries = 2, baseDelay = 300} = {}) {
-        let attempt = 0, lastErr;
-        while (attempt <= retries) {
-            try {
-                const res = await fetch(url, options);
-                if (res.status >= 500 || res.status === 429) throw new Error('server/backpressure');
-                return res;
-            } catch (e) {
-                lastErr = e;
-                if (attempt === retries) break;
-                await sleep(baseDelay * Math.pow(2, attempt));
-                attempt++;
-            }
-        }
-        throw lastErr || new Error('fetch failed');
-    }
+   // petit helper
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+/**
+ * fetchWithBackoff (robuste)
+ * - Retry seulement sur 429 et 5xx
+ * - Retry-After (si envoyé par le serveur) pour 429
+ * - Circuit breaker simple: si trop d'échecs récents -> on stoppe un moment
+ */
+const Backpressure = {
+  fails: 0,
+  blockedUntil: 0,
+  block(ms = 5000) {
+    this.blockedUntil = Date.now() + ms;
+  },
+  canRun() {
+    return Date.now() >= this.blockedUntil;
+  }
+};
+
+async function fetchWithBackoff(url, options = {}, { retries = 2, baseDelay = 300 } = {}) {
+  if (!Backpressure.canRun()) {
+    throw new Error('server/backpressure:blocked');
+  }
+
+  let attempt = 0;
+  let lastErr = null;
+
+  while (attempt <= retries) {
+    try {
+      const res = await fetch(url, options);
+
+      // ✅ 429: trop de requêtes -> respecter Retry-After si dispo
+      if (res.status === 429) {
+        const ra = res.headers.get('Retry-After');
+        const waitMs = ra ? (parseInt(ra, 10) * 1000) : (baseDelay * Math.pow(2, attempt));
+
+        // si dernier essai => on coupe + circuit breaker
+        if (attempt === retries) {
+          Backpressure.fails++;
+          if (Backpressure.fails >= 3) Backpressure.block(8000); // blocage 8s
+          throw new Error(`server/backpressure:429`);
+        }
+
+        await sleep(waitMs);
+        attempt++;
+        continue;
+      }
+
+      // ✅ 5xx: serveur en erreur -> retry avec backoff
+      if (res.status >= 500) {
+        if (attempt === retries) {
+          Backpressure.fails++;
+          if (Backpressure.fails >= 3) Backpressure.block(5000);
+          throw new Error(`server/backpressure:${res.status}`);
+        }
+        await sleep(baseDelay * Math.pow(2, attempt));
+        attempt++;
+        continue;
+      }
+
+      // ✅ si OK (ou 4xx hors 429): pas de retry
+      Backpressure.fails = 0;
+      return res;
+
+    } catch (e) {
+      lastErr = e;
+
+      // erreurs réseau (timeout, DNS, etc.) -> retry
+      if (attempt === retries) break;
+      await sleep(baseDelay * Math.pow(2, attempt));
+      attempt++;
+    }
+  }
+
+  throw lastErr || new Error('fetch failed');
+}
     const Conf = {
         apiBase: normalizeApiBase(localStorage.getItem('lyneerp_api') || '/api/rh'),
         tenantId: localStorage.getItem('lyneerp_tenant') || deriveTenantFromHost(location.hostname),
@@ -1673,6 +1739,14 @@
         });
     };
 </script>
-
+<script>
+  document.addEventListener('alpine:init', () => {
+    // IMPORTANT: si tu utilises le plugin collapse via CDN,
+    // il faut l'enregistrer
+    if (window.Alpine && window.AlpineCollapse) {
+      Alpine.plugin(window.AlpineCollapse)
+    }
+  })
+</script>
 </body>
 </html>
