@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Connecteurs bancaires',
+  subtitle:'Intégrations bancaires, synchro, tokens',
+  icon:'fa-solid fa-plug',
+  theme:'orange',
+  endpoint:'/api/finance/bank-connectors/',
+  createUrl:"{% url 'finance:bank_connectors:create' %}",
+  detailUrlTpl:"{% url 'finance:bank_connectors:detail' '0' %}",
+  columns:[
+    {key:'name', label:'Connecteur', mobile:true},
+    {key:'provider', label:'Fournisseur', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'last_sync', label:'Dernière synchro', mobile:true},
+    {key:'accounts_count', label:'Comptes', align:'right', mobile:true},
+    {key:'is_active', label:'Actif', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

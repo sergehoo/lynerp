@@ -1,0 +1,195 @@
+<!-- Shared Finance List Skeleton -->
+<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+  <div class="min-w-0">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-orange-600 text-white">
+        <i :class="cfg.icon + ' text-[11px] opacity-90'"></i><span>Finance • Liste</span>
+      </span>
+      <span class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="cfg.subtitle"></span>
+    </div>
+    <h2 class="mt-3 text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate" x-text="cfg.title"></h2>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <button @click="goCreate()"
+            class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+      <i class="fa-solid fa-plus text-xs"></i><span>Nouveau</span>
+    </button>
+    <button @click="refresh()"
+            class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+      <i class="fa-solid fa-rotate text-xs"></i><span>Actualiser</span>
+    </button>
+    <button @click="exportCsv()"
+            class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+      <i class="fa-solid fa-file-export text-xs"></i><span>Export</span>
+    </button>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+  <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+    <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+      <i class="fa-solid fa-sliders text-slate-400"></i><span>Filtres</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button @click="resetFilters()"
+              class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs hover:bg-gray-50 dark:hover:bg-slate-800">
+        Réinitialiser
+      </button>
+      <button @click="applyFilters()"
+              class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium">
+        Appliquer
+      </button>
+    </div>
+  </div>
+
+  <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+    <div class="lg:col-span-2">
+      <label class="text-xs font-medium text-slate-500">Recherche</label>
+      <div class="mt-1 relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input x-model.debounce.300ms="filters.q" type="text" placeholder="Rechercher…"
+               class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200"/>
+      </div>
+    </div>
+
+    <div>
+      <label class="text-xs font-medium text-slate-500">Statut</label>
+      <select x-model="filters.status"
+              class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+        <option value="">Tous</option>
+        <option value="DRAFT">Brouillon</option>
+        <option value="ISSUED">Émise</option>
+        <option value="POSTED">Validé</option>
+        <option value="PAID">Payée</option>
+        <option value="OVERDUE">En retard</option>
+        <option value="CANCELLED">Annulé</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="text-xs font-medium text-slate-500">Du</label>
+      <input type="date" x-model="filters.date_from"
+             class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+    </div>
+
+    <div>
+      <label class="text-xs font-medium text-slate-500">Au</label>
+      <input type="date" x-model="filters.date_to"
+             class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+    </div>
+
+    <div>
+      <label class="text-xs font-medium text-slate-500">Page size</label>
+      <select x-model.number="pageSize"
+              class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+        <option :value="10">10</option>
+        <option :value="20">20</option>
+        <option :value="50">50</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+  <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2">
+      <div class="w-10 h-10 rounded-2xl grid place-items-center bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/40">
+        <i class="fa-solid fa-table"></i>
+      </div>
+      <div>
+        <div class="font-semibold text-slate-900 dark:text-white">Liste</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400" x-text="metaText"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop table -->
+  <div class="hidden lg:block">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
+      <tr>
+        <template x-for="c in cfg.columns" :key="c.key">
+          <th class="font-semibold px-5 py-3"
+              :class="(c.align==='right'?'text-right':'text-left')"
+              x-text="c.label"></th>
+        </template>
+        <th class="text-right font-semibold px-5 py-3 w-36">Actions</th>
+      </tr>
+      </thead>
+
+      <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+      <template x-for="r in rows" :key="r.id">
+        <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
+          <template x-for="c in cfg.columns" :key="c.key">
+            <td class="px-5 py-4"
+                :class="(c.align==='right'?'text-right':'text-left')">
+              <span class="text-slate-700 dark:text-slate-200"
+                    x-text="renderCell(r, c.key)"></span>
+            </td>
+          </template>
+          <td class="px-5 py-4 text-right">
+            <button @click="goDetail(r)"
+                    class="h-9 px-3 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs">
+              <i class="fa-solid fa-eye mr-1"></i> Voir
+            </button>
+          </td>
+        </tr>
+      </template>
+
+      <tr x-show="!loading && rows.length===0" x-cloak>
+        <td :colspan="cfg.columns.length+1" class="px-5 py-12 text-center">
+          <div class="text-3xl mb-2">📭</div>
+          <div class="font-semibold text-slate-900 dark:text-white">Aucune donnée</div>
+          <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ajustez les filtres ou créez un élément.</div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile cards -->
+  <div class="lg:hidden divide-y divide-gray-100 dark:divide-slate-800">
+    <template x-for="r in rows" :key="'m:'+r.id">
+      <div class="p-4">
+        <div class="font-semibold text-slate-900 dark:text-white truncate" x-text="renderCell(r, cfg.columns[0]?.key)"></div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="renderCell(r, cfg.columns[1]?.key)"></div>
+
+        <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <template x-for="c in cfg.columns.filter(x => x.mobile).slice(2, 6)" :key="'mc:'+c.key">
+            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+              <div class="text-xs text-slate-500 dark:text-slate-400" x-text="c.label"></div>
+              <div class="font-medium text-slate-900 dark:text-white" x-text="renderCell(r, c.key)"></div>
+            </div>
+          </template>
+        </div>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button @click="goDetail(r)" class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
+            <i class="fa-solid fa-eye mr-1"></i> Voir
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Pagination -->
+  <div class="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+    <div class="text-xs text-slate-500 dark:text-slate-400" x-text="pageText"></div>
+    <div class="flex items-center gap-2">
+      <button @click="prevPage()" :disabled="page<=1 || loading"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+        <i class="fa-solid fa-chevron-left mr-1"></i> Précédent
+      </button>
+      <div class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 grid place-items-center text-sm">
+        <span x-text="page"></span>
+      </div>
+      <button @click="nextPage()" :disabled="!hasNext || loading"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+        Suivant <i class="fa-solid fa-chevron-right ml-1"></i>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Tokens portail client',
+  subtitle:'Accès sécurisé client (factures, paiements)',
+  icon:'fa-solid fa-key',
+  theme:'orange',
+  endpoint:'/api/finance/portal-tokens/',
+  createUrl:"{% url 'finance:portal_tokens:create' %}",
+  detailUrlTpl:"{% url 'finance:portal_tokens:detail' '0' %}",
+  columns:[
+    {key:'token', label:'Token', mobile:true},
+    {key:'customer', label:'Client', mobile:true},
+    {key:'scope', label:'Scope', mobile:true},
+    {key:'date', label:'Créé', mobile:true},
+    {key:'due_date', label:'Expire', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

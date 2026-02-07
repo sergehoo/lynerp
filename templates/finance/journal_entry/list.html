@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Écritures',
+  subtitle:'Pièces comptables, validation, lettrage',
+  icon:'fa-solid fa-pen-to-square',
+  theme:'orange',
+  endpoint:'/api/finance/journal-entries/',
+  createUrl:"{% url 'finance:journal_entries:create' %}",
+  detailUrlTpl:"{% url 'finance:journal_entries:detail' '0' %}",
+  columns:[
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'journal', label:'Journal', mobile:true},
+    {key:'date', label:'Date', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'debit', label:'Débit', align:'right', mobile:true},
+    {key:'credit', label:'Crédit', align:'right', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

@@ -41,24 +41,26 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'storages',  # pour MinIO (S3)
     'hr',
+    'finance',
     'tenants',
     'redis',
 ]
 
 MIDDLEWARE = [
-    # "tenants.middleware.TenantMiddleware",
     'django.middleware.security.SecurityMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
+
     'django.contrib.sessions.middleware.SessionMiddleware',
+
+    # ✅ ici, immédiatement après SessionMiddleware
+    'tenants.middleware.TenantResolutionMiddleware',
+
     'django.middleware.common.CommonMiddleware',
-    # "tenants.middleware.TenantResolutionMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
-    "tenants.middleware.TenantSessionMiddleware",
-    # "tenants.middleware.RequestTenantMiddleware",
+
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
 ]
 
 ROOT_URLCONF = 'Lyneerp.urls'
@@ -103,7 +105,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 SPECTACULAR_SETTINGS = {"TITLE": "LYNE-ERP RH API", "VERSION": "1.0.0"}
 
@@ -162,4 +163,3 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-

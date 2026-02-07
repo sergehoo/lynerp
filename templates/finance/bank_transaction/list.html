@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Transactions bancaires',
+  subtitle:'Mouvements importés, catégorisation, rapprochement',
+  icon:'fa-solid fa-money-bill-transfer',
+  theme:'orange',
+  endpoint:'/api/finance/bank-transactions/',
+  createUrl:"#",
+  detailUrlTpl:"{% url 'finance:bank_transactions:detail' '0' %}",
+  columns:[
+    {key:'date', label:'Date', mobile:true},
+    {key:'bank', label:'Banque', mobile:true},
+    {key:'label', label:'Libellé', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'amount', label:'Montant', align:'right', mobile:true},
+    {key:'balance', label:'Solde', align:'right', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

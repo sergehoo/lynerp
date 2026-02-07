@@ -34,6 +34,7 @@ urlpatterns = [
                   path("healthz", healthz),
                   path('admin/', admin.site.urls),
                   path('api/rh/', include((hr_urls, 'hr'))),
+                  path("finance/", include("finance.urls", namespace="finance")),
                   # path("api/rh/", include("hr.routers")),
                   path('schema/', SpectacularAPIView.as_view(), name='schema'),
                   path('docs/', SpectacularSwaggerView.as_view(url_name='schema')),

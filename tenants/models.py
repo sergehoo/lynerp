@@ -10,15 +10,48 @@ User = get_user_model()
 
 class Tenant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    slug = models.SlugField(max_length=64, unique=True)  # ex: acme
-    name = models.CharField(max_length=128)
-    domain = models.CharField(max_length=255, blank=True)  # ex: acme.lyneerp.com
-    settings = models.JSONField(default=dict, blank=True)  # préférences (voir §3)
 
-    # Informations de contact
+    # Identification (tech)
+    slug = models.SlugField(max_length=64, unique=True)
+    name = models.CharField(max_length=128)  # Nom affiché (UI)
+    domain = models.CharField(max_length=255, blank=True)
+    settings = models.JSONField(default=dict, blank=True)
+
+    # ✅ Identité légale / entreprise (documents)
+    legal_name = models.CharField(max_length=180, blank=True)         # Raison sociale
+    trade_name = models.CharField(max_length=180, blank=True)         # Nom commercial (si différent)
+    legal_form = models.CharField(max_length=64, blank=True)          # SARL, SA...
+    registration_number = models.CharField(max_length=64, blank=True) # RCCM / registre commerce
+    tax_id = models.CharField(max_length=64, blank=True)              # NIF / TVA / VAT
+    tax_center = models.CharField(max_length=128, blank=True)         # Centre des impôts (optionnel)
+
+    # ✅ Adresse de facturation
+    billing_address_line1 = models.CharField(max_length=255, blank=True)
+    billing_address_line2 = models.CharField(max_length=255, blank=True)
+    billing_city = models.CharField(max_length=80, blank=True)
+    billing_region = models.CharField(max_length=80, blank=True)
+    billing_country = models.CharField(max_length=80, default="Côte d'Ivoire", blank=True)
+    billing_postal_code = models.CharField(max_length=20, blank=True)
+
+    # ✅ Contacts
     contact_email = models.EmailField(blank=True)
+    billing_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=20, blank=True)
-    address = models.TextField(blank=True)
+    website = models.CharField(max_length=255, blank=True)
+
+    # ✅ Branding (entêtes documents)
+    logo_url = models.CharField(max_length=255, blank=True)       # ou ImageField(upload_to=...)
+    stamp_url = models.CharField(max_length=255, blank=True)      # tampon (optionnel)
+    signature_url = models.CharField(max_length=255, blank=True)  # signature (optionnel)
+    invoice_footer_note = models.TextField(blank=True)            # mentions / note bas de page
+
+    # ✅ Paramètres facturation
+    currency = models.CharField(max_length=3, default="XOF")
+    default_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # ex 18.00
+    payment_terms_days = models.PositiveIntegerField(default=0)  # 0 = payable à réception
+
+    bank_details = models.JSONField(default=dict, blank=True)     # IBAN, banque, swift...
+    mobile_money_details = models.JSONField(default=dict, blank=True)  # OM, MTN, Wave...
 
     # Statut et dates
     is_active = models.BooleanField(default=True)
@@ -26,23 +59,17 @@ class Tenant(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     trial_ends_at = models.DateTimeField(null=True, blank=True)
 
-    # Plan et facturation
     PLAN_TYPES = [
         ('STARTER', 'Starter'),
         ('PROFESSIONAL', 'Professional'),
         ('ENTERPRISE', 'Enterprise'),
     ]
-    plan_type = models.CharField(
-        max_length=20,
-        choices=PLAN_TYPES,
-        default='STARTER'
-    )
-    billing_email = models.EmailField(blank=True)
+    plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='STARTER')
 
     class Meta:
         db_table = 'tenants'
-        verbose_name = 'Tenant'
-        verbose_name_plural = 'Tenants'
+        verbose_name = "Organisation"
+        verbose_name_plural = "Organisations"
         indexes = [
             models.Index(fields=['slug']),
             models.Index(fields=['domain']),
@@ -54,14 +81,27 @@ class Tenant(models.Model):
 
     @property
     def is_in_trial(self):
-        if not self.trial_ends_at:
-            return False
-        return timezone.now() < self.trial_ends_at
+        return bool(self.trial_ends_at and timezone.now() < self.trial_ends_at)
 
     @property
     def active_users_count(self):
         return self.tenant_users.filter(is_active=True).count()
 
+    # ✅ Helpers utiles pour documents
+    @property
+    def display_legal_name(self):
+        return self.legal_name or self.name
+
+    @property
+    def display_address(self):
+        parts = [
+            self.billing_address_line1,
+            self.billing_address_line2,
+            self.billing_city,
+            self.billing_region,
+            self.billing_country,
+        ]
+        return ", ".join([p for p in parts if p])
 
 class TenantUser(models.Model):
 
@@ -114,8 +154,8 @@ class TenantUser(models.Model):
 
     class Meta:
         db_table = 'tenant_users'
-        verbose_name = 'Membre du Tenant'
-        verbose_name_plural = 'Membres des Tenants'
+        verbose_name = "Membre de l’organisation"
+        verbose_name_plural = "Membres de l’organisation"
         unique_together = ['tenant', 'user']
         indexes = [
             models.Index(fields=['tenant', 'user']),
@@ -490,8 +530,8 @@ class TenantSettings(models.Model):
 
     class Meta:
         db_table = 'tenant_settings'
-        verbose_name = 'Configuration Tenant'
-        verbose_name_plural = 'Configurations Tenants'
+        verbose_name = "Paramètres de l’organisation"
+        verbose_name_plural = "Paramètres des organisations"
 
     def __str__(self):
         return f"Configuration - {self.tenant.name}"
@@ -510,6 +550,7 @@ class TenantSubscription(models.Model):
 
     class Meta:
         db_table = "tenant_subscriptions"
+
         indexes = [models.Index(fields=["tenant", "service", "started_at"]), ]
 
 

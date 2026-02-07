@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Taux de change',
+  subtitle:'Devises, conversions, historique',
+  icon:'fa-solid fa-arrow-right-arrow-left',
+  theme:'orange',
+  endpoint:'/api/finance/fx/',
+  createUrl:"{% url 'finance:fx:create' %}",
+  detailUrlTpl:"{% url 'finance:fx:detail' '0' %}",
+  columns:[
+    {key:'pair', label:'Paire', mobile:true},
+    {key:'rate', label:'Taux', align:'right', mobile:true},
+    {key:'as_of', label:'Date', mobile:true},
+    {key:'source', label:'Source', mobile:false},
+    {key:'is_active', label:'Actif', mobile:true},
+    {key:'note', label:'Note', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

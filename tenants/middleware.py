@@ -93,30 +93,39 @@ class RequestTenantMiddleware:
 
 class TenantResolutionMiddleware:
     """
-    - Résout request. Tenant (instance) et request.tenant_id (UUID str)
-    - Range tenant_id en session pour cohérence
-    - Bloque les endpoints /api/* si aucun tenant n’est trouvé
+    - Résout request.tenant (Tenant) et request.tenant_id (UUID str)
+    - Stocke le tenant dans la session via TENANT_SESSION_KEY
+    - Injecte HTTP_X_TENANT_ID pour DRF/permissions
+    - Bloque /api/* et les requêtes JSON si tenant manquant
     """
-    def __init__(self, get_response: Callable):
+    def __init__(self, get_response):
         self.get_response = get_response
+        self.session_key = getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
 
     def __call__(self, request):
         tenant = get_tenant_from_request(request)
+
         if tenant:
             request.tenant = tenant
             request.tenant_id = str(tenant.id)
+
             if hasattr(request, "session"):
-                request.session["tenant_id"] = request.tenant_id
+                request.session[self.session_key] = request.tenant_id
+
+            if "HTTP_X_TENANT_ID" not in request.META:
+                request.META["HTTP_X_TENANT_ID"] = request.tenant_id
         else:
             request.tenant = None
             request.tenant_id = None
 
-        if (request.path.startswith("/api/") or "application/json" in (request.headers.get("Accept") or "")) and not request.tenant:
-            return JsonResponse({"detail": "Tenant introuvable", "code": "tenant_not_found"}, status=403)
+            accepts = (request.headers.get("Accept") or "")
+            if request.path.startswith("/api/") or "application/json" in accepts:
+                return JsonResponse(
+                    {"detail": "Tenant introuvable", "code": "tenant_not_found"},
+                    status=403
+                )
 
         return self.get_response(request)
-
-
 class CurrentTenant:
     slug: str | None = None
     obj: Tenant | None = None
@@ -131,16 +140,10 @@ class TenantSessionMiddleware:
         request.tenant_id = request.session.get(self.key)
         return self.get_response(request)
 
-
-#
-#
 TENANT_HEADER = "HTTP_X_TENANT_ID"
 TENANT_SESSION_KEY = getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
 TENANT_REGEX = getattr(settings, "TENANT_SUBDOMAIN_REGEX", r"^(?P<tenant>[a-z0-9-]+)\.")
 
-
-#
-#
 def _tenant_from_host(host: str) -> str | None:
     # ex: acme.rh.lyneerp.com -> "acme"
     m = re.match(TENANT_REGEX, host, re.IGNORECASE)
@@ -194,44 +197,3 @@ class TenantMiddleware(MiddlewareMixin):
         if hasattr(request, "session"):
             request.session[TENANT_SESSION_KEY] = tenant
 
-
-SUBDOMAIN_RE = re.compile(getattr(
-    settings,
-    "TENANT_SUBDOMAIN_REGEX",
-    r"^(?P<tenant>[a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$"
-), re.I)
-
-
-class RequestTenantMiddleware:
-    """
-    - Déduit request. tenant (obj Tenant) à partir de la session ou du sous-domaine
-    - S'assure que 'HTTP_X_TENANT_ID' est présent pour les vues DRF/permissions
-    """
-
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def _from_host(self, host):
-        m = SUBDOMAIN_RE.match((host or "").split(":")[0])
-        if m:
-            return m.group("tenant")
-        return None
-
-    def __call__(self, request):
-        # 1) session / cookie
-        tid = request.session.get("tenant_id") or request.session.get(
-            getattr(settings, "TENANT_SESSION_KEY", "current_tenant")
-        )
-
-        # 2) host
-        if not tid:
-            tid = self._from_host(request.get_host())
-
-        tenant_obj = resolve_tenant(tid)
-        request.tenant = tenant_obj  # peut-être None, c'est OK
-
-        # 3) Injecte X-Tenant-Id si manquant
-        if tenant_obj and "HTTP_X_TENANT_ID" not in request.META:
-            request.META["HTTP_X_TENANT_ID"] = str(tenant_obj.id)
-
-        return self.get_response(request)

@@ -24,7 +24,14 @@ def infer_tenant_from_host(host: str) -> Optional[str]:
     m = _SUBDOMAIN_RE.match(host)
     if m:
         return m.group("tenant")
-    # fallback plus permissif (ex: acme.example.com -> "acme")
+
+    # ⚠️ évite IP/localhost
+    if host in {"localhost", "127.0.0.1"}:
+        return None
+    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host):  # IPv4
+        return None
+
+    # fallback permissif
     if host and "." in host:
         return host.split(".")[0]
     return None

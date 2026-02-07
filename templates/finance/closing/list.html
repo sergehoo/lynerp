@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Clôtures',
+  subtitle:'Clôtures de période / exercice, journaux, logs',
+  icon:'fa-solid fa-lock',
+  theme:'orange',
+  endpoint:'/api/finance/closings/',
+  createUrl:"{% url 'finance:closings:create' %}",
+  detailUrlTpl:"{% url 'finance:closings:detail' '0' %}",
+  columns:[
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'scope', label:'Périmètre', mobile:true},
+    {key:'period', label:'Période', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'closed_at', label:'Date', mobile:true},
+    {key:'by', label:'Par', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Partenaires',
+  subtitle:'Clients & fournisseurs (CRM/Finance)',
+  icon:'fa-solid fa-users',
+  theme:'orange',
+  endpoint:'/api/finance/partners/',
+  createUrl:"{% url 'finance:partners:create' %}",
+  detailUrlTpl:"{% url 'finance:partners:detail' '0' %}",
+  columns:[
+    {key:'name', label:'Nom', mobile:true},
+    {key:'type', label:'Type', mobile:true},
+    {key:'email', label:'Email', mobile:false},
+    {key:'phone', label:'Téléphone', mobile:false},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'balance', label:'Solde', align:'right', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

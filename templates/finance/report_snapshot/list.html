@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Snapshots rapports',
+  subtitle:'Captures KPI, exports, versions figées',
+  icon:'fa-solid fa-chart-line',
+  theme:'orange',
+  endpoint:'/api/finance/report-snapshots/',
+  createUrl:"{% url 'finance:report_snapshots:create' %}",
+  detailUrlTpl:"{% url 'finance:report_snapshots:detail' '0' %}",
+  columns:[
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'name', label:'Rapport', mobile:true},
+    {key:'period', label:'Période', mobile:true},
+    {key:'date', label:'Date', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'note', label:'Note', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

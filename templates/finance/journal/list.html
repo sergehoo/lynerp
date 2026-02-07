@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Journaux',
+  subtitle:'Ventes, achats, banque, OD',
+  icon:'fa-solid fa-book',
+  theme:'orange',
+  endpoint:'/api/finance/journals/',
+  createUrl:"{% url 'finance:journals:create' %}",
+  detailUrlTpl:"{% url 'finance:journals:detail' '0' %}",
+  columns:[
+    {key:'code', label:'Code', mobile:true},
+    {key:'name', label:'Journal', mobile:true},
+    {key:'type', label:'Type', mobile:true},
+    {key:'default_account', label:'Compte par défaut', mobile:false},
+    {key:'is_active', label:'Actif', mobile:true},
+    {key:'created_at', label:'Créé', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

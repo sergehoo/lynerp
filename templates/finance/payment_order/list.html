@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Ordres de paiement',
+  subtitle:'Paiements fournisseurs / virements / batch',
+  icon:'fa-solid fa-money-check-dollar',
+  theme:'orange',
+  endpoint:'/api/finance/payment-orders/',
+  createUrl:"{% url 'finance:payment_orders:create' %}",
+  detailUrlTpl:"{% url 'finance:payment_orders:detail' '0' %}",
+  columns:[
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'beneficiary', label:'Bénéficiaire', mobile:true},
+    {key:'scheduled_date', label:'Prévu', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'method', label:'Méthode', mobile:false},
+    {key:'amount', label:'Montant', align:'right', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Comptes bancaires',
+  subtitle:'IBAN/RIB, soldes, journaux de banque',
+  icon:'fa-solid fa-building-columns',
+  theme:'orange',
+  endpoint:'/api/finance/bank-accounts/',
+  createUrl:"{% url 'finance:bank_accounts:create' %}",
+  detailUrlTpl:"{% url 'finance:bank_accounts:detail' '0' %}",
+  columns:[
+    {key:'name', label:'Compte', mobile:true},
+    {key:'bank', label:'Banque', mobile:true},
+    {key:'currency', label:'Devise', mobile:true},
+    {key:'balance', label:'Solde', align:'right', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'last_sync', label:'Synchro', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

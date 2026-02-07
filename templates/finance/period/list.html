@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Périodes',
+  subtitle:'Périodes comptables, verrouillage',
+  icon:'fa-solid fa-calendar',
+  theme:'orange',
+  endpoint:'/api/finance/periods/',
+  createUrl:"{% url 'finance:periods:create' %}",
+  detailUrlTpl:"{% url 'finance:periods:detail' '0' %}",
+  columns:[
+    {key:'name', label:'Période', mobile:true},
+    {key:'date_start', label:'Début', mobile:true},
+    {key:'date_end', label:'Fin', mobile:true},
+    {key:'is_open', label:'Ouverte', mobile:true},
+    {key:'locked_at', label:'Verrouillée', mobile:false},
+    {key:'note', label:'Note', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

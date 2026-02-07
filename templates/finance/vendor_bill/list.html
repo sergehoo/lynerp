@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Factures fournisseurs',
+  subtitle:'Achats & dépenses, échéances, paiement',
+  icon:'fa-solid fa-file-invoice',
+  theme:'orange',
+  endpoint:'/api/finance/vendor-bills/',
+  createUrl:"{% url 'finance:vendor_bills:create' %}",
+  detailUrlTpl:"{% url 'finance:vendor_bills:detail' '0' %}",
+  columns:[
+    {key:'number', label:'N°', mobile:true},
+    {key:'vendor', label:'Fournisseur', mobile:true},
+    {key:'bill_date', label:'Date', mobile:true},
+    {key:'due_date', label:'Échéance', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'total', label:'Total', align:'right', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

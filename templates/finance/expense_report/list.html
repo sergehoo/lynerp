@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Notes de frais',
+  subtitle:'Dépenses internes, validation, remboursement',
+  icon:'fa-solid fa-receipt',
+  theme:'orange',
+  endpoint:'/api/finance/expense-reports/',
+  createUrl:"{% url 'finance:expense_reports:create' %}",
+  detailUrlTpl:"{% url 'finance:expense_reports:detail' '0' %}",
+  columns:[
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'employee', label:'Employé', mobile:true},
+    {key:'submitted_at', label:'Soumise', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'total', label:'Total', align:'right', mobile:true},
+    {key:'approved_at', label:'Validée', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

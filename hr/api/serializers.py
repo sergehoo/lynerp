@@ -599,13 +599,6 @@ SALARY_FREQ_LABELS = {
     "HOURLY": "Horaire",
 }
 
-SALARY_FREQ_LABELS = {
-    "MONTHLY": "Mensuel",
-    "WEEKLY": "Hebdomadaire",
-    "BIWEEKLY": "Bimensuel",
-    "DAILY": "Journalier",
-    "HOURLY": "Horaire",
-}
 
 
 class EmploymentContractSerializer(serializers.ModelSerializer):

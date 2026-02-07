@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Taxes (TVA)',
+  subtitle:'Taux, règles, activation',
+  icon:'fa-solid fa-percent',
+  theme:'orange',
+  endpoint:'/api/finance/taxes/',
+  createUrl:"{% url 'finance:taxes:create' %}",
+  detailUrlTpl:"{% url 'finance:taxes:detail' '0' %}",
+  columns:[
+    {key:'name', label:'Taxe', mobile:true},
+    {key:'rate', label:'Taux', align:'right', mobile:true},
+    {key:'country', label:'Pays', mobile:false},
+    {key:'is_active', label:'Actif', mobile:true},
+    {key:'created_at', label:'Créée', mobile:false},
+    {key:'updated_at', label:'MAJ', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

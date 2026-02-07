@@ -25,3 +25,6 @@ DATABASES = {
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
+
+DEFAULT_TENANT = "acme"  # slug existant en DB, ou UUID du tenant
+TENANT_SESSION_KEY = "current_tenant"

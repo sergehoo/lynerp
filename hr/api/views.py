@@ -20,7 +20,7 @@ from openpyxl.workbook import Workbook
 from rest_framework import viewsets, status, filters, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated, BasePermission
+from rest_framework.permissions import IsAuthenticated, BasePermission, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.views import APIView
@@ -76,7 +76,7 @@ from hr.api.serializers import (
     MedicalRestrictionSerializer, PayrollSerializer, RecruitmentAnalyticsSerializer, JobOfferSerializer,
     RecruitmentWorkflowSerializer, InterviewFeedbackSerializer, EmploymentContractExportSerializer,
 )
-from tenants.models import Tenant, TenantDomain
+from tenants.models import Tenant, TenantDomain, TenantUser
 
 # Services (export, etc.)
 try:
@@ -219,6 +219,17 @@ class BaseTenantViewSet(viewsets.ModelViewSet):
             return qs.filter(filt).distinct()
 
         return qs.none()
+
+
+def get_membership(user, tenant: Tenant) -> Optional[TenantUser]:
+    if not user or user.is_anonymous or not tenant:
+        return None
+    return (
+        TenantUser.objects
+        .filter(user=user, tenant=tenant, is_active=True)
+        .select_related("tenant", "user")
+        .first()
+    )
 
 
 class HasTenantAccess(BasePermission):
@@ -1050,56 +1061,27 @@ class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 # -----------------------------
 
 class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
+    queryset = Recruitment.objects.all()  # <-- IMPORTANT (BaseTenantViewSet l’utilise)
     serializer_class = RecruitmentSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'reference']
     ordering_fields = ['created_at', 'publication_date', 'title']
 
-    # ---------- Helpers internes ----------
-
-    def _get_tenant(self, request):
-        tenant = getattr(request, "tenant", None)
-        if tenant:
-            return tenant
-
-        tenant_id = (
-                request.headers.get("X-Tenant-Id")
-                or request.META.get("HTTP_X_TENANT_ID")
-        )
-        if not tenant_id:
-            return None
-        try:
-            return Tenant.objects.get(pk=tenant_id)
-        except Tenant.DoesNotExist:
-            return None
-
-    # ---------- Queryset multi-tenant + filtres ----------
-
     def get_queryset(self):
-        request = self.request
-
-        qs = Recruitment.objects.select_related(
-            "department", "position", "hiring_manager", "tenant"
+        qs = super().get_queryset().select_related(
+            "department", "position", "hiring_manager"
         )
 
-        # Filtre tenant
-        tenant = self._get_tenant(request)
-        if tenant:
-            qs = qs.filter(tenant=tenant)
-        else:
-            # Par sécurité : aucun tenant => aucun résultat au lieu de 500
-            return Recruitment.objects.none()
-
-        # Filtres customs (status, department, position, dates)
-        status = request.query_params.get("status")
+        request = self.request
+        status_ = request.query_params.get("status")
         department = request.query_params.get("department")
         position = request.query_params.get("position")
         pub_from = request.query_params.get("publication_date_from")
         pub_to = request.query_params.get("publication_date_to")
 
-        if status and status != "all":
-            qs = qs.filter(status=status)
+        if status_ and status_ != "all":
+            qs = qs.filter(status=status_)
 
         if department:
             qs = qs.filter(department_id=department)
@@ -1132,16 +1114,27 @@ class RecruitmentStatsView(APIView):
         if tenant:
             return tenant
 
-        tenant_id = (
-                request.headers.get("X-Tenant-Id")
-                or request.META.get("HTTP_X_TENANT_ID")
-        )
-        if not tenant_id:
+        raw = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
+        if not raw:
             return None
+
+        raw = str(raw).strip()
+
+        # slug d'abord
+        t = Tenant.objects.filter(slug=raw, is_active=True).first()
+        if t:
+            return t
+
+        # uuid ensuite
         try:
-            return Tenant.objects.get(pk=tenant_id)
-        except Tenant.DoesNotExist:
+            uuid.UUID(raw)
+        except ValueError:
+            raise ValidationError({"tenant": f"'{raw}' n'est ni un slug, ni un UUID valide."})
+
+        t = Tenant.objects.filter(id=raw, is_active=True).first()
+        if not t:
             return None
+        return t
 
     def get(self, request, *args, **kwargs):
         tenant = self._get_tenant(request)

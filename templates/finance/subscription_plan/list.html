@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Plans d’abonnement',
+  subtitle:'Offres, modules, prix, cycles',
+  icon:'fa-solid fa-box',
+  theme:'orange',
+  endpoint:'/api/finance/subscription-plans/',
+  createUrl:"{% url 'finance:subscription_plans:create' %}",
+  detailUrlTpl:"{% url 'finance:subscription_plans:detail' '0' %}",
+  columns:[
+    {key:'code', label:'Code', mobile:true},
+    {key:'name', label:'Plan', mobile:true},
+    {key:'period', label:'Période', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'amount', label:'Prix', align:'right', mobile:true},
+    {key:'currency', label:'Devise', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

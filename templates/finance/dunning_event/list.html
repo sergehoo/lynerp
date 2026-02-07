@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Relances • Envois',
+  subtitle:'Historique des relances, statut, erreurs',
+  icon:'fa-solid fa-envelope',
+  theme:'orange',
+  endpoint:'/api/finance/dunning-events/',
+  createUrl:"#",
+  detailUrlTpl:"{% url 'finance:dunning_events:detail' '0' %}",
+  columns:[
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'customer', label:'Client', mobile:true},
+    {key:'stage', label:'Étape', mobile:true},
+    {key:'date', label:'Date', mobile:true},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'note', label:'Message', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

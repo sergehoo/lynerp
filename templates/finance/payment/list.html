@@ -1,0 +1,349 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="financeListPage({
+  title: 'Paiements',
+  subtitle: 'Encaissements, rapprochement, statut',
+  icon: 'fa-solid fa-credit-card',
+  theme: 'orange',
+  endpoint: '/api/finance/payments/',
+  createUrl: "{% url 'finance:payments:create' %}",
+  detailUrlTpl: "{% url 'finance:payments:detail' '0' %}",
+  columns: [
+    {key:'reference', label:'Référence', mobile:true},
+    {key:'customer', label:'Client', mobile:true},
+    {key:'date', label:'Date', mobile:true},
+    {key:'method', label:'Méthode', mobile:false},
+    {key:'status', label:'Statut', mobile:true},
+    {key:'amount', label:'Montant', align:'right', mobile:true},
+  ]
+})" x-init="init()" class="space-y-6">
+
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-orange-600 text-white">
+          <i :class="cfg.icon + ' text-[11px] opacity-90'"></i><span>Finance • Paiements</span>
+        </span>
+        <span class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="cfg.subtitle"></span>
+      </div>
+      <h2 class="mt-3 text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate" x-text="cfg.title"></h2>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button @click="goCreate()"
+              class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+        <i class="fa-solid fa-plus text-xs"></i><span>Nouveau</span>
+      </button>
+      <button @click="refresh()"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-rotate text-xs"></i><span>Actualiser</span>
+      </button>
+      <button @click="exportCsv()"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-file-export text-xs"></i><span>Export</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+        <i class="fa-solid fa-sliders text-slate-400"></i><span>Filtres</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button @click="resetFilters()"
+                class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs hover:bg-gray-50 dark:hover:bg-slate-800">
+          Réinitialiser
+        </button>
+        <button @click="applyFilters()"
+                class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium">
+          Appliquer
+        </button>
+      </div>
+    </div>
+
+    <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+      <div class="lg:col-span-2">
+        <label class="text-xs font-medium text-slate-500">Recherche</label>
+        <div class="mt-1 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input x-model.debounce.300ms="filters.q" type="text" placeholder="Référence, client…"
+                 class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200"/>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500">Statut</label>
+        <select x-model="filters.status"
+                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+          <option value="">Tous</option>
+          <option value="DRAFT">Brouillon</option>
+          <option value="POSTED">Validé</option>
+          <option value="RECONCILED">Rapproché</option>
+          <option value="CANCELLED">Annulé</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500">Méthode</label>
+        <select x-model="filters.method"
+                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+          <option value="">Toutes</option>
+          <option value="CASH">Espèces</option>
+          <option value="BANK">Virement</option>
+          <option value="CARD">Carte</option>
+          <option value="MOBILE_MONEY">Mobile Money</option>
+          <option value="CHEQUE">Chèque</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500">Du</label>
+        <input type="date" x-model="filters.date_from"
+               class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500">Au</label>
+        <input type="date" x-model="filters.date_to"
+               class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-2xl grid place-items-center bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/40">
+          <i class="fa-solid fa-table"></i>
+        </div>
+        <div>
+          <div class="font-semibold text-slate-900 dark:text-white">Liste</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400" x-text="metaText"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="hidden lg:block">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
+        <tr>
+          <template x-for="c in cfg.columns" :key="c.key">
+            <th class="font-semibold px-5 py-3"
+                :class="(c.align==='right'?'text-right':'text-left')"
+                x-text="c.label"></th>
+          </template>
+          <th class="text-right font-semibold px-5 py-3 w-44">Actions</th>
+        </tr>
+        </thead>
+
+        <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+        <template x-for="r in rows" :key="r.id">
+          <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
+            <td class="px-5 py-4">
+              <div class="font-semibold text-slate-900 dark:text-white" x-text="r.reference || r.code || ('PAY-' + r.id)"></div>
+              <div class="text-xs text-slate-500 dark:text-slate-400" x-text="r.memo || ''"></div>
+            </td>
+            <td class="px-5 py-4">
+              <div class="font-medium text-slate-700 dark:text-slate-200" x-text="r.customer_name || r.customer?.name || '-'"></div>
+              <div class="text-xs text-slate-400" x-text="r.customer_email || r.customer?.email || ''"></div>
+            </td>
+            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="fmtDate(r.date || r.paid_at)"></td>
+            <td class="px-5 py-4 text-slate-700 dark:text-slate-200" x-text="r.method || '-'"></td>
+            <td class="px-5 py-4">
+              <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                    :class="statusPill(r.status).cls">
+                <span class="w-2 h-2 rounded-full" :class="statusPill(r.status).dot"></span>
+                <span x-text="statusPill(r.status).label"></span>
+              </span>
+            </td>
+            <td class="px-5 py-4 text-right">
+              <div class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(r.amount || r.total_amount)"></div>
+              <div class="text-xs text-slate-400" x-text="r.currency || currency"></div>
+            </td>
+            <td class="px-5 py-4 text-right">
+              <div class="inline-flex items-center justify-end gap-2">
+                <button @click="goDetail(r)"
+                        class="h-9 px-3 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs">
+                  <i class="fa-solid fa-eye mr-1"></i> Voir
+                </button>
+                <button @click="exportOne(r)"
+                        class="h-9 px-3 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs">
+                  <i class="fa-solid fa-file-invoice mr-1"></i> Reçu
+                </button>
+              </div>
+            </td>
+          </tr>
+        </template>
+
+        <tr x-show="!loading && rows.length===0" x-cloak>
+          <td :colspan="cfg.columns.length+1" class="px-5 py-12 text-center">
+            <div class="text-3xl mb-2">💳</div>
+            <div class="font-semibold text-slate-900 dark:text-white">Aucun paiement</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ajustez les filtres ou enregistrez un paiement.</div>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile -->
+    <div class="lg:hidden divide-y divide-gray-100 dark:divide-slate-800">
+      <template x-for="r in rows" :key="'m:'+r.id">
+        <div class="p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="font-semibold text-slate-900 dark:text-white truncate" x-text="r.reference || r.code || ('PAY-' + r.id)"></div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="r.customer_name || '-'"></div>
+            </div>
+            <div class="text-right">
+              <div class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(r.amount || r.total_amount)"></div>
+              <div class="text-xs text-slate-400" x-text="fmtDate(r.date || r.paid_at)"></div>
+            </div>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                  :class="statusPill(r.status).cls">
+              <span class="w-2 h-2 rounded-full" :class="statusPill(r.status).dot"></span>
+              <span x-text="statusPill(r.status).label"></span>
+            </span>
+            <button @click="goDetail(r)" class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
+              <i class="fa-solid fa-eye mr-1"></i> Voir
+            </button>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Pagination -->
+    <div class="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      <div class="text-xs text-slate-500 dark:text-slate-400" x-text="pageText"></div>
+      <div class="flex items-center gap-2">
+        <button @click="prevPage()" :disabled="page<=1 || loading"
+                class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+          <i class="fa-solid fa-chevron-left mr-1"></i> Précédent
+        </button>
+        <div class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 grid place-items-center text-sm">
+          <span x-text="page"></span>
+        </div>
+        <button @click="nextPage()" :disabled="!hasNext || loading"
+                class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+          Suivant <i class="fa-solid fa-chevron-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function financeListPage(cfg){
+  return {
+    cfg,
+    loading:false,
+    currency:'XOF',
+    rows:[],
+    page:1,
+    pageSize:20,
+    hasNext:false,
+    filters:{ q:'', status:'', method:'', date_from:'', date_to:'' },
+
+    get metaText(){ return `${this.rows.length} ligne(s) • page ${this.page}`; },
+    get pageText(){ return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`; },
+
+    statusPill(s){
+      const m = {
+        DRAFT:{label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
+        POSTED:{label:'Validé', cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},
+        RECONCILED:{label:'Rapproché', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
+        CANCELLED:{label:'Annulé', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
+      };
+      return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
+    },
+    fmtDate(s){ if(!s) return '—'; try{return new Date(s).toLocaleDateString('fr-FR');}catch{return '—'}; },
+    formatMoney(v){
+      const n=Number(v||0);
+      try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:this.currency}).format(n); }
+      catch { return `${n.toLocaleString('fr-FR')} ${this.currency}`; }
+    },
+
+    buildQuery(){
+      const p=new URLSearchParams();
+      p.set('page', String(this.page));
+      p.set('page_size', String(this.pageSize));
+      if(this.filters.q) p.set('search', this.filters.q);
+      if(this.filters.status) p.set('status', this.filters.status);
+      if(this.filters.method) p.set('method', this.filters.method);
+      if(this.filters.date_from) p.set('date_from', this.filters.date_from);
+      if(this.filters.date_to) p.set('date_to', this.filters.date_to);
+      return p.toString();
+    },
+
+    async fetchList(){
+      this.loading=true;
+      try{
+        const headers={'Accept':'application/json'};
+        const tid=localStorage.getItem('lyneerp_tenant')||'';
+        if(tid) headers['X-Tenant-Id']=tid;
+        const token=localStorage.getItem('lyneerp_token')||localStorage.getItem('kc_access_token')||'';
+        if(token) headers['Authorization']=`Bearer ${token}`;
+
+        const url = `${this.cfg.endpoint}?${this.buildQuery()}`;
+        const res = await fetch(url, {headers});
+        const data = await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
+
+        const list = data?.results || data || [];
+        this.rows = Array.isArray(list) ? list : [];
+        this.hasNext = !!data?.next;
+        this.currency = data?.currency || this.rows?.[0]?.currency || this.currency;
+      }catch(e){
+        if(window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
+      }finally{
+        this.loading=false;
+      }
+    },
+
+    init(){ this.fetchList(); },
+    refresh(){ this.fetchList(); },
+    resetFilters(){ this.filters={q:'',status:'',method:'',date_from:'',date_to:''}; this.page=1; this.fetchList(); },
+    applyFilters(){ this.page=1; this.fetchList(); if(window.hrToast) window.hrToast('Filtres appliqués','success'); },
+
+    prevPage(){ if(this.page<=1) return; this.page--; this.fetchList(); },
+    nextPage(){ if(!this.hasNext) return; this.page++; this.fetchList(); },
+
+    exportCsv(){
+      const cols = (this.cfg.columns||[]).map(c=>c.key);
+      const out=[cols.join(',')];
+      for(const r of this.rows){
+        const line = cols.map(k => `"${(r[k]??'').toString().replaceAll('"','""')}"`).join(',');
+        out.push(line);
+      }
+      const blob=new Blob([out.join('\n')],{type:'text/csv;charset=utf-8'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`${(this.cfg.title||'export').toLowerCase().replaceAll(' ','_')}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+
+    goCreate(){ if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl); },
+    goDetail(row){
+      if(!row) return;
+      const tpl=this.cfg.detailUrlTpl||'';
+      if(!tpl || tpl==='0' || tpl==='#'){ return; }
+      window.location.assign(tpl.replace('0', row.id));
+    },
+    exportOne(row){
+      // démo: si API expose receipt_url
+      const url = row?.receipt_url || row?.pdf_url || '';
+      if(url) return window.open(url,'_blank');
+      if(window.hrToast) window.hrToast('Reçu indisponible', 'warning');
+    }
+  }
+}
+</script>
+{% endblock %}

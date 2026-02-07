@@ -1,0 +1,23 @@
+{% extends "hr/base.html" %}
+{% block page_content %}
+<div x-data="genericList({
+  title:'Audit Finance',
+  subtitle:'Actions, changements, traçabilité',
+  icon:'fa-solid fa-shield-halved',
+  theme:'orange',
+  endpoint:'/api/finance/audit-events/',
+  createUrl:"#",
+  detailUrlTpl:"{% url 'finance:audit_events:detail' '0' %}",
+  columns:[
+    {key:'date', label:'Date', mobile:true},
+    {key:'action', label:'Action', mobile:true},
+    {key:'by', label:'Utilisateur', mobile:true},
+    {key:'scope', label:'Objet', mobile:true},
+    {key:'reference', label:'Référence', mobile:false},
+    {key:'note', label:'Détail', mobile:false},
+  ]
+})" x-init="init()" class="space-y-6">
+  {% include "finance/shared/list_skeleton.html" %}
+</div>
+{% include "finance/shared/list_skeleton_script.html" %}
+{% endblock %}

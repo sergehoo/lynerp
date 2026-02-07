@@ -19,7 +19,7 @@
     <!-- Alpine Plugins -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    
+
 
     <script>
         tailwind.config = {
@@ -436,8 +436,8 @@
                     {% include "hr/partials/employees.html" %}
                 </div>
                 <div x-show="currentView === 'contracts' && !authHint && !licenseBlocker.visible" x-cloak>
-    {% include "hr/partials/contracts.html" %}
-</div>
+                    {% include "hr/partials/contracts.html" %}
+                </div>
 
                 <div x-show="currentView === 'recruitment' && !authHint && !licenseBlocker.visible" x-cloak>
                     {% include "hr/partials/recruitment.html" %}
@@ -1087,15 +1087,178 @@
                     id: 'finance',
                     name: 'Finance & Comptabilité',
                     icon: 'fa-solid fa-coins',
-                    desc: 'Facturation, paiements, budgets, rapports',
+                    desc: 'Facturation, paiements, compta, banques, rapports',
                     theme: null,
                     items: [
-                        {id: 'finance_dashboard', name: 'Dashboard finance', icon: 'fa-solid fa-gauge'},
-                        {id: 'invoicing', name: 'Facturation', icon: 'fa-solid fa-file-invoice-dollar'},
-                        {id: 'payments', name: 'Paiements', icon: 'fa-solid fa-credit-card'},
-                        {id: 'expenses', name: 'Dépenses', icon: 'fa-solid fa-receipt'},
-                        {id: 'budgets', name: 'Budgets', icon: 'fa-solid fa-piggy-bank'},
-                        {id: 'financial_reports', name: 'États financiers', icon: 'fa-solid fa-file-lines'},
+                        // ---- Facturation / Ventes ----
+                        {
+                            id: 'finance_quotes',
+                            name: 'Devis',
+                            icon: 'fa-solid fa-file-signature',
+                            route: "{% url 'finance:quotes:list' %}"
+                        },
+                        {
+                            id: 'finance_invoices',
+                            name: 'Factures',
+                            icon: 'fa-solid fa-file-invoice-dollar',
+                            route: "{% url 'finance:invoices:list' %}"
+                        },
+                        {
+                            id: 'finance_payments',
+                            name: 'Paiements',
+                            icon: 'fa-solid fa-credit-card',
+                            route: "{% url 'finance:payments:list' %}"
+                        },
+
+                        // ---- Achats / Dépenses ----
+                        {
+                            id: 'finance_vendor_bills',
+                            name: 'Factures fournisseurs',
+                            icon: 'fa-solid fa-file-invoice',
+                            route: "{% url 'finance:vendor_bills:list' %}"
+                        },
+                        {
+                            id: 'finance_expense_reports',
+                            name: 'Notes de frais',
+                            icon: 'fa-solid fa-receipt',
+                            route: "{% url 'finance:expense_reports:list' %}"
+                        },
+                        {
+                            id: 'finance_payment_orders',
+                            name: 'Ordres de paiement',
+                            icon: 'fa-solid fa-money-check-dollar',
+                            route: "{% url 'finance:payment_orders:list' %}"
+                        },
+
+                        // ---- Référentiels / Paramètres ----
+                        {
+                            id: 'finance_partners',
+                            name: 'Partenaires',
+                            icon: 'fa-solid fa-users',
+                            route: "{% url 'finance:partners:list' %}"
+                        },
+                        {
+                            id: 'finance_taxes',
+                            name: 'Taxes (TVA)',
+                            icon: 'fa-solid fa-percent',
+                            route: "{% url 'finance:taxes:list' %}"
+                        },
+                        {
+                            id: 'finance_fx',
+                            name: 'Taux de change',
+                            icon: 'fa-solid fa-arrow-right-arrow-left',
+                            route: "{% url 'finance:fx:list' %}"
+                        },
+
+                        // ---- Comptabilité ----
+                        {
+                            id: 'finance_accounts',
+                            name: 'Plan comptable',
+                            icon: 'fa-solid fa-list',
+                            route: "{% url 'finance:accounts:list' %}"
+                        },
+                        {
+                            id: 'finance_journals',
+                            name: 'Journaux',
+                            icon: 'fa-solid fa-book',
+                            route: "{% url 'finance:journals:list' %}"
+                        },
+                        {
+                            id: 'finance_entries',
+                            name: 'Écritures',
+                            icon: 'fa-solid fa-pen-to-square',
+                            route: "{% url 'finance:journal_entries:list' %}"
+                        },
+                        {
+                            id: 'finance_fiscal_years',
+                            name: 'Exercices',
+                            icon: 'fa-solid fa-calendar-days',
+                            route: "{% url 'finance:fiscal_years:list' %}"
+                        },
+                        {
+                            id: 'finance_periods',
+                            name: 'Périodes',
+                            icon: 'fa-solid fa-calendar',
+                            route: "{% url 'finance:periods:list' %}"
+                        },
+                        {
+                            id: 'finance_closings',
+                            name: 'Clôtures',
+                            icon: 'fa-solid fa-lock',
+                            route: "{% url 'finance:closings:list' %}"
+                        },
+
+                        // ---- Banque / Rapprochement ----
+                        {
+                            id: 'finance_bank_connectors',
+                            name: 'Connecteurs bancaires',
+                            icon: 'fa-solid fa-plug',
+                            route: "{% url 'finance:bank_connectors:list' %}"
+                        },
+                        {
+                            id: 'finance_bank_accounts',
+                            name: 'Comptes bancaires',
+                            icon: 'fa-solid fa-building-columns',
+                            route: "{% url 'finance:bank_accounts:list' %}"
+                        },
+                        {
+                            id: 'finance_bank_transactions',
+                            name: 'Transactions',
+                            icon: 'fa-solid fa-money-bill-transfer',
+                            route: "{% url 'finance:bank_transactions:list' %}"
+                        },
+                        {
+                            id: 'finance_reconciliations',
+                            name: 'Rapprochements',
+                            icon: 'fa-solid fa-link',
+                            route: "{% url 'finance:reconciliations:list' %}"
+                        },
+
+                        // ---- Abonnements / Relances ----
+                        {
+                            id: 'finance_subscription_plans',
+                            name: 'Plans d’abonnement',
+                            icon: 'fa-solid fa-box',
+                            route: "{% url 'finance:subscription_plans:list' %}"
+                        },
+                        {
+                            id: 'finance_subscriptions',
+                            name: 'Abonnements',
+                            icon: 'fa-solid fa-rotate',
+                            route: "{% url 'finance:subscriptions:list' %}"
+                        },
+                        {
+                            id: 'finance_dunning_stages',
+                            name: 'Relances (étapes)',
+                            icon: 'fa-solid fa-bell',
+                            route: "{% url 'finance:dunning_stages:list' %}"
+                        },
+                        {
+                            id: 'finance_dunning_events',
+                            name: 'Relances (envois)',
+                            icon: 'fa-solid fa-envelope',
+                            route: "{% url 'finance:dunning_events:list' %}"
+                        },
+                        {
+                            id: 'finance_portal_tokens',
+                            name: 'Tokens portail client',
+                            icon: 'fa-solid fa-key',
+                            route: "{% url 'finance:portal_tokens:list' %}"
+                        },
+
+                        // ---- Reporting / Audit ----
+                        {
+                            id: 'finance_reports',
+                            name: 'Rapports',
+                            icon: 'fa-solid fa-chart-line',
+                            route: "{% url 'finance:reports:list' %}"
+                        },
+                        {
+                            id: 'finance_audit',
+                            name: 'Audit',
+                            icon: 'fa-solid fa-shield-halved',
+                            route: "{% url 'finance:audit_events:list' %}"
+                        },
                     ]
                 },
                 {

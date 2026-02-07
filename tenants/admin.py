@@ -63,77 +63,99 @@ class TenantAdmin(admin.ModelAdmin):
         "name",
         "slug",
         "domain",
-        "plan_type",
+        "plan_badge",
         "is_active",
-        "is_in_trial",
-        "active_users_count",
-        "created_at"
+        "trial_badge",
+        "active_users_count_display",
+        "created_at",
     )
     list_filter = ("is_active", "plan_type", "created_at")
-    search_fields = ("name", "slug", "domain", "contact_email")
+    search_fields = ("name", "slug", "domain", "contact_email", "billing_email", "legal_name", "tax_id")
     list_editable = ("is_active",)
+    date_hierarchy = "created_at"
+    actions = ("activate_tenants", "deactivate_tenants")
+
     readonly_fields = (
         "created_at",
         "updated_at",
-        "is_in_trial_display",
-        "active_users_count_display"
+        "trial_badge",
+        "active_users_count_display",
+        "display_legal_name",
+        "display_address",
     )
-    date_hierarchy = "created_at"
-    actions = ["activate_tenants", "deactivate_tenants"]
 
     fieldsets = (
-        ("Informations de base", {
-            'fields': ('name', 'slug', 'domain', 'is_active')
+        ("Configuration SaaS", {
+            "fields": ("name", "slug", "domain", "is_active", "plan_type", "trial_ends_at"),
         }),
-        ("Contact", {
-            'fields': ('contact_email', 'contact_phone', 'address'),
-            'classes': ('collapse',)
+        ("Identité légale & Fiscalité", {
+            "fields": ("legal_name", "trade_name", "legal_form", "registration_number", "tax_id", "tax_center"),
         }),
-        ("Plan et facturation", {
-            'fields': ('plan_type', 'billing_email', 'trial_ends_at')
+        ("Facturation", {
+            "fields": (
+                "currency", "default_tax_rate", "payment_terms_days",
+                "billing_email", "billing_address_line1", "billing_address_line2",
+                "billing_city", "billing_region", "billing_country", "billing_postal_code",
+            ),
+            "classes": ("collapse",),
         }),
-        ("Statistiques", {
-            'fields': ('is_in_trial_display', 'active_users_count_display'),
-            'classes': ('collapse',)
+        ("Coordonnées", {
+            "fields": ("contact_email", "contact_phone", "website"),
+            "classes": ("collapse",),
+        }),
+        ("Branding documents", {
+            "fields": ("logo_url", "stamp_url", "signature_url", "invoice_footer_note"),
+            "classes": ("collapse",),
+        }),
+        ("Paiement", {
+            "fields": ("bank_details", "mobile_money_details"),
+            "classes": ("collapse",),
         }),
         ("Dates", {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
         }),
     )
 
-    def is_in_trial_display(self, obj):
+    def get_queryset(self, request):
+        # adapte le related_name si ton TenantUser s'appelle autrement
+        return super().get_queryset(request).prefetch_related("tenant_users")
+
+    # ----- Badges UI -----
+    def plan_badge(self, obj: Tenant):
+        colors = {
+            "STARTER": "#95a5a6",
+            "PROFESSIONAL": "#2980b9",
+            "ENTERPRISE": "#8e44ad",
+        }
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 10px;border-radius:999px;">{}</span>',
+            colors.get(obj.plan_type, "#111"),
+            obj.get_plan_type_display(),
+        )
+    plan_badge.short_description = "Plan"
+
+    def trial_badge(self, obj: Tenant):
         if obj.is_in_trial:
-            days_left = (obj.trial_ends_at - timezone.now()).days
-            return format_html(
-                '<span style="color: orange;">⏰ En essai ({} jours restants)</span>',
-                days_left
-            )
-        return format_html('<span style="color: gray;">Essai terminé</span>')
+            days_left = max((obj.trial_ends_at - timezone.now()).days, 0)
+            return format_html('<span style="color:#d97706;">⏰ Essai ({} j)</span>', days_left)
+        return format_html('<span style="color:#6b7280;">—</span>')
+    trial_badge.short_description = "Essai"
 
-    is_in_trial_display.short_description = "Statut essai"
+    def active_users_count_display(self, obj: Tenant):
+        return format_html("<b>{}</b>", obj.active_users_count)
+    active_users_count_display.short_description = "Users actifs"
 
-    def active_users_count_display(self, obj):
-        count = obj.active_users_count
-        return format_html('<b>{}</b> utilisateur(s) actif(s)', count)
-
-    active_users_count_display.short_description = "Utilisateurs actifs"
-
+    # ----- Actions -----
     def activate_tenants(self, request, queryset):
         updated = queryset.update(is_active=True)
-        self.message_user(request, f"{updated} tenant(s) activé(s) avec succès.")
-
-    activate_tenants.short_description = "Activer les tenants sélectionnés"
+        self.message_user(request, f"{updated} tenant(s) activé(s).")
+    activate_tenants.short_description = "Activer"
 
     def deactivate_tenants(self, request, queryset):
         updated = queryset.update(is_active=False)
-        self.message_user(request, f"{updated} tenant(s) désactivé(s) avec succès.")
-
-    deactivate_tenants.short_description = "Désactiver les tenants sélectionnés"
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('tenant_users')
-
+        self.message_user(request, f"{updated} tenant(s) désactivé(s).")
+    deactivate_tenants.short_description = "Désactiver"
 
 @admin.register(TenantUser)
 class TenantUserAdmin(admin.ModelAdmin):
