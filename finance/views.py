@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Any, Type, Tuple
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -92,7 +93,36 @@ class TenantQuerysetMixin:
         # Sécurité: si aucun tenant, retourne vide (ou raise)
         return qs.none()
 
+class JsonListMixin:
+    json_fields = ()
 
+    def render_to_response(self, context, **response_kwargs):
+        want_json = (
+            self.request.headers.get("Accept", "").find("application/json") >= 0
+            or self.request.GET.get("format") == "json"
+        )
+        if not want_json:
+            return super().render_to_response(context, **response_kwargs)
+
+        qs = context["object_list"]
+        page = int(self.request.GET.get("page", 1))
+        page_size = int(self.request.GET.get("page_size", 20))
+
+        paginator = Paginator(qs, page_size)
+        p = paginator.get_page(page)
+
+        def serialize(o):
+            data = {"id": str(o.pk)}
+            for f in self.json_fields:
+                val = getattr(o, f, None)
+                data[f] = str(val) if val is not None else None
+            return data
+
+        return JsonResponse({
+            "results": [serialize(o) for o in p.object_list],
+            "next": p.has_next(),
+            "count": paginator.count,
+        })
 class TenantFormMixin:
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -218,12 +248,13 @@ def crud_views(
     # ✅ Tip: success_url basé sur "base_url" (ex: "finance:accounts") + ":list"
     list_url_name = f"{base_url}:list"
 
-    class _List(BaseTenantList):
+    class _List(JsonListMixin, BaseTenantList):
         model = model_cls
         permission_required = f"{app_label}.view_{model_name}"
         template_name = f"finance/{template_dir}/list.html"
         # search_fields = search_fields
         ordering = default_ordering
+        json_fields = getattr(model_cls, "JSON_FIELDS", ())
 
     class _Detail(BaseTenantDetail):
         model = model_cls
