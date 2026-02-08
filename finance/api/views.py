@@ -1,7 +1,11 @@
 # finance/api/views.py
+import uuid
+
 from rest_framework import viewsets, filters
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.viewsets import ModelViewSet
 
 from finance.models import (
     AuditEvent,
@@ -18,10 +22,12 @@ from finance.models import (
 from .serializers import (
     AuditEventSerializer,
     CompanyFinanceProfileSerializer, FiscalYearSerializer, AccountingPeriodSerializer,
-    AccountSerializer, JournalSerializer, JournalEntrySerializer, JournalLineSerializer, TaxSerializer, FiscalClosingSerializer,
+    AccountSerializer, JournalSerializer, JournalEntrySerializer, JournalLineSerializer, TaxSerializer,
+    FiscalClosingSerializer,
     ExchangeRateSerializer, PartnerSerializer,
     QuoteSerializer, QuoteLineSerializer, InvoiceSerializer, InvoiceLineSerializer, PaymentSerializer,
-    SubscriptionPlanSerializer, SubscriptionSerializer, DunningStageSerializer, DunningEventSerializer, CustomerPortalTokenSerializer,
+    SubscriptionPlanSerializer, SubscriptionSerializer, DunningStageSerializer, DunningEventSerializer,
+    CustomerPortalTokenSerializer,
     VendorBillSerializer, VendorBillLineSerializer, ExpenseReportSerializer, ExpenseItemSerializer,
     PaymentOrderSerializer, PaymentOrderLineSerializer,
     BankConnectorSerializer, BankAccountSerializer, BankTransactionSerializer, ReconciliationMatchSerializer,
@@ -29,14 +35,66 @@ from .serializers import (
 )
 
 
+def _is_uuid(val: str) -> bool:
+    try:
+        uuid.UUID(str(val))
+        return True
+    except Exception:
+        return False
+
+
+def _get_tenant_value_from_request(request):
+    """
+    Retourne ce que tu as (UUID ou slug), sans présumer.
+    Ordre: request.tenant > header > querystring > sous-domaine (si tu le fais déjà)
+    """
+    # 1) middleware
+    tenant = getattr(request, "tenant", None)
+    if tenant:
+        return str(getattr(tenant, "id", ""))  # déjà un UUID
+
+    # 2) headers
+    v = (
+            request.headers.get("X-Tenant-Id")
+            or request.headers.get("X-Tenant-Slug")
+            or request.headers.get("X-Tenant")
+    )
+    if v:
+        return v.strip()
+
+    # 3) query param
+    v = request.query_params.get("tenant")
+    if v:
+        return v.strip()
+
+    # 4) fallback: sous-domaine (ex: rh.lyneerp.com => "rh")
+    host = (request.get_host() or "").split(":")[0]
+    parts = host.split(".")
+    if len(parts) >= 3:
+        return parts[0].strip()
+
+    return None
+
+
 # ---------- Tenant resolver (API)
 def _get_tenant_id_from_request(request):
-    # header prioritaire
-    tid = request.headers.get("X-Tenant-Id") or request.META.get("HTTP_X_TENANT_ID")
-    if tid:
-        return tid
-    # fallback si middleware met request.tenant_id
-    return getattr(request, "tenant_id", None) or (getattr(getattr(request, "tenant", None), "id", None))
+    """
+    Retourne TOUJOURS un UUID (string) ou None.
+    Accepte UUID direct OU slug, et résout en Tenant.id.
+    """
+    v = _get_tenant_value_from_request(request)
+    if not v:
+        return None
+
+    # UUID direct
+    if _is_uuid(v):
+        return str(uuid.UUID(v))
+
+    # Sinon => slug
+    try:
+        return str(Tenant.objects.only("id").get(slug=v).id)
+    except Tenant.DoesNotExist:
+        return None
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -60,12 +118,13 @@ class TenantScopedViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         tenant_id = _get_tenant_id_from_request(self.request)
         if not tenant_id:
-            # sécurité: pas de tenant -> vide
             return qs.none()
         return qs.filter(**{f"{self.tenant_field}_id": tenant_id})
 
     def perform_create(self, serializer):
         tenant_id = _get_tenant_id_from_request(self.request)
+        if not tenant_id:
+            raise ValidationError("Tenant introuvable pour la création.")
         serializer.save(**{f"{self.tenant_field}_id": tenant_id})
 
 
@@ -152,6 +211,21 @@ class PartnerViewSet(TenantScopedViewSet):
     serializer_class = PartnerSerializer
     search_fields = ("code", "name", "email", "phone", "vat_number", "type")
     ordering_fields = ("code", "name", "type")
+
+
+class TenantFilteredViewSet(ModelViewSet):
+    tenant_field = "tenant"  # FK name
+
+    def get_tenant(self):
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            raise NotFound("Tenant non résolu (middleware).")
+        return tenant
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        tenant = self.get_tenant()
+        return qs.filter(**{self.tenant_field: tenant})
 
 
 class QuoteViewSet(TenantScopedViewSet):
