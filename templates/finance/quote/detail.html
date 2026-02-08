@@ -4,56 +4,66 @@
 {% block page_content %}
 
 {# ✅ On injecte les données via JSON (safe) #}
+{#<script id="quote-detail-payload" type="application/json">#}
+{#{#}
+{#  "id": "{{ quote.id }}",#}
+{#  "number": "{{ quote.number|default_if_none:''|escapejs }}",#}
+{#  "status": "{{ quote.status|default_if_none:''|escapejs }}",#}
+{#  "currency": "{{ quote.currency|default_if_none:'XOF'|escapejs }}",#}
+{#  "issue_date": "{{ quote.issue_date|date:'Y-m-d'|default_if_none:'' }}",#}
+{#  "valid_until": "{{ quote.valid_until|date:'Y-m-d'|default_if_none:'' }}",#}
+{##}
+{#  "partner": {#}
+{#    "name": "{{ quote.partner.name|default_if_none:''|escapejs }}",#}
+{#    "phone": "{{ quote.partner.phone|default_if_none:''|escapejs }}",#}
+{#    "email": "{{ quote.partner.email|default_if_none:''|escapejs }}",#}
+{#    "address": "{{ quote.partner.address|default_if_none:''|escapejs }}"#}
+{#  },#}
+{##}
+{#  "notes": "{{ quote.notes|default_if_none:''|escapejs }}",#}
+{##}
+{#  "totals": {#}
+{#    "subtotal": {{ subtotal|default:0 }},#}
+{#    "tax_total": {{ tax_total|default:0 }},#}
+{#    "total": {{ total|default:0 }},#}
+{#    "lines_count": {{ lines_count|default:0 }}#}
+{#  },#}
+{##}
+{#  "urls": {#}
+{#    "list": "{% url 'finance:quotes:list' %}",#}
+{#    "edit": "{% url 'finance:quotes:update' quote.id %}",#}
+{#    "delete": "{% url 'finance:quotes:delete' quote.id %}"#}
+{#  },#}
+{##}
+{#  "lines": [#}
+{#    {% for l in lines %}#}
+{#    {#}
+{#      "id": "{{ l.id }}",#}
+{#      "description": "{{ l.description|default_if_none:''|escapejs }}",#}
+{#      "product": "{{ l.product.name|default_if_none:''|escapejs }}",#}
+{#      "qty": {{ l.quantity|default:0 }},#}
+{#      "unit_price": {{ l.unit_price|default:0 }},#}
+{#      "discount": {{ l.discount|default:0 }},#}
+{#      "tax_rate": {{ l.tax.rate|default:0 }},#}
+{#      "line_total": {{ l.line_total|default:0 }},#}
+{#      "tax_amount": {{ l.tax_amount|default:0 }},#}
+{#      "total": {{ l.total|default:0 }}#}
+{#    }{% if not forloop.last %},{% endif %}#}
+{#    {% endfor %}#}
+{#  ]#}
+{#}#}
+{#</script>#}
 <script id="quote-detail-payload" type="application/json">
 {
   "id": "{{ quote.id }}",
-  "number": "{{ quote.number|default_if_none:''|escapejs }}",
-  "status": "{{ quote.status|default_if_none:''|escapejs }}",
-  "currency": "{{ quote.currency|default_if_none:'XOF'|escapejs }}",
-  "issue_date": "{{ quote.issue_date|date:'Y-m-d'|default_if_none:'' }}",
-  "valid_until": "{{ quote.valid_until|date:'Y-m-d'|default_if_none:'' }}",
-
-  "partner": {
-    "name": "{{ quote.partner.name|default_if_none:''|escapejs }}",
-    "phone": "{{ quote.partner.phone|default_if_none:''|escapejs }}",
-    "email": "{{ quote.partner.email|default_if_none:''|escapejs }}",
-    "address": "{{ quote.partner.address|default_if_none:''|escapejs }}"
-  },
-
-  "notes": "{{ quote.notes|default_if_none:''|escapejs }}",
-
-  "totals": {
-    "subtotal": {{ subtotal|default:0 }},
-    "tax_total": {{ tax_total|default:0 }},
-    "total": {{ total|default:0 }},
-    "lines_count": {{ lines_count|default:0 }}
-  },
-
+  "api_detail": "{% url 'finance:api-quotes-detail' quote.id %}",
   "urls": {
     "list": "{% url 'finance:quotes:list' %}",
     "edit": "{% url 'finance:quotes:update' quote.id %}",
     "delete": "{% url 'finance:quotes:delete' quote.id %}"
-  },
-
-  "lines": [
-    {% for l in lines %}
-    {
-      "id": "{{ l.id }}",
-      "description": "{{ l.description|default_if_none:''|escapejs }}",
-      "product": "{{ l.product.name|default_if_none:''|escapejs }}",
-      "qty": {{ l.quantity|default:0 }},
-      "unit_price": {{ l.unit_price|default:0 }},
-      "discount": {{ l.discount|default:0 }},
-      "tax_rate": {{ l.tax.rate|default:0 }},
-      "line_total": {{ l.line_total|default:0 }},
-      "tax_amount": {{ l.tax_amount|default:0 }},
-      "total": {{ l.total|default:0 }}
-    }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  ]
+  }
 }
 </script>
-
 <div
   x-data="quoteDetailPage()"
   x-init="init()"
@@ -112,6 +122,10 @@
          class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-2">
         <i class="fa-solid fa-arrow-left text-xs"></i><span>Retour</span>
       </a>
+        <a :href="urls.pdf" target="_blank"
+   class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-2">
+  <i class="fa-solid fa-file-pdf text-xs"></i><span>PDF</span>
+</a>
     </div>
   </div>
 
@@ -321,12 +335,14 @@
     </div>
   </div>
 </div>
-
 <script>
 function quoteDetailPage(){
   return {
-    // state
     id: null,
+    api_detail: null,
+    urls: {list:'#', edit:'#', delete:'#', pdf:'#'},
+
+    // données affichées
     number: '',
     status: '',
     currency: 'XOF',
@@ -335,18 +351,82 @@ function quoteDetailPage(){
     partner: {name:'', phone:'', email:'', address:''},
     notes: '',
     totals: {subtotal:0, tax_total:0, total:0, lines_count:0},
-    urls: {list:'#', edit:'#', delete:'#'},
     lines: [],
 
     q: '',
     showDelete: false,
+    loading: false,
 
     init(){
       const el = document.getElementById('quote-detail-payload');
-      const data = el ? JSON.parse(el.textContent || '{}') : {};
-      Object.assign(this, data || {});
-      // (optionnel) recalcul client-side si nécessaire :
-      // this.recomputeTotals();
+      const base = el ? JSON.parse(el.textContent || '{}') : {};
+      Object.assign(this, base || {});
+      this.fetchDetail();
+    },
+
+    async fetchDetail(){
+      if(!this.api_detail) return;
+      this.loading = true;
+      try{
+        const headers = {'Accept':'application/json'};
+
+        // tenant header si tu l’utilises
+        const tid = localStorage.getItem('lyneerp_tenant') || '';
+        if(tid) headers['X-Tenant-Id'] = tid;
+
+        // auth
+        const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
+        if(token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(this.api_detail, {headers, credentials:'include'});
+        const data = await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
+
+        this.applyApi(data);
+      }catch(e){
+        console.error(e);
+        if(window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
+      }finally{
+        this.loading = false;
+      }
+    },
+
+    applyApi(d){
+      // champs quote (API)
+      this.id = d?.id || this.id;
+      this.number = d?.number || '';
+      this.status = d?.status || '';
+      this.currency = d?.currency || 'XOF';
+      this.issue_date = d?.issue_date || '';
+      this.valid_until = d?.valid_until || '';
+      this.notes = d?.notes || '';
+
+      // pdf
+      this.urls.pdf = d?.pdf_url || '#';
+
+      // partner : ton API donne partner_name + partner (uuid)
+      // Si tu veux email/phone/address => il faut enrichir l’API (voir plus bas).
+      this.partner = {
+        name: d?.partner_name || '—',
+        phone: '',
+        email: '',
+        address: '',
+      };
+
+      // lines : API donne label/quantity/unit_price/line_total/tax_amount (strings)
+      const lines = Array.isArray(d?.lines) ? d.lines : [];
+      this.lines = lines.map(ln => ({
+        id: ln.id,
+        description: ln.label || '',
+        qty: this.toNum(ln.quantity),
+        unit_price: this.toNum(ln.unit_price),
+        line_total: this.toNum(ln.line_total),
+        tax_amount: this.toNum(ln.tax_amount),
+        total: this.toNum(ln.line_total) + this.toNum(ln.tax_amount),
+      }));
+
+      // totals recalculés depuis API lines
+      this.recomputeTotals();
     },
 
     get displayNumber(){
@@ -393,9 +473,7 @@ function quoteDetailPage(){
     },
 
     lineTTC(ln){
-      const t = this.toNum(ln?.total);
-      if(t) return t;
-      return this.toNum(ln?.line_total) + this.toNum(ln?.tax_amount);
+      return this.toNum(ln?.total) || (this.toNum(ln?.line_total) + this.toNum(ln?.tax_amount));
     },
 
     recomputeTotals(){
@@ -405,21 +483,23 @@ function quoteDetailPage(){
         subtotal += this.toNum(ln?.line_total);
         tax_total += this.toNum(ln?.tax_amount);
       }
-      this.totals.subtotal = subtotal;
-      this.totals.tax_total = tax_total;
-      this.totals.total = subtotal + tax_total;
-      this.totals.lines_count = lines.length;
+      this.totals = {
+        subtotal,
+        tax_total,
+        total: subtotal + tax_total,
+        lines_count: lines.length,
+      };
     },
 
     get filteredLines(){
       const lines = Array.isArray(this.lines) ? this.lines : [];
       const q = (this.q || '').trim().toLowerCase();
       if(!q) return lines;
-      return lines.filter(ln => (`${ln.description||''} ${ln.product||''}`.toLowerCase().includes(q)));
+      return lines.filter(ln => (`${ln.description||''}`.toLowerCase().includes(q)));
     },
 
     exportLinesCsv(){
-      const cols = ['description','product','qty','unit_price','discount','tax_rate','line_total','tax_amount','total'];
+      const cols = ['description','qty','unit_price','line_total','tax_amount','total'];
       const out = [cols.join(',')];
       for(const ln of (this.lines||[])){
         const row = cols.map(k => `"${String(ln?.[k] ?? '').replaceAll('"','""')}"`).join(',');
@@ -435,5 +515,118 @@ function quoteDetailPage(){
   }
 }
 </script>
+{#<script>#}
+{#function quoteDetailPage(){#}
+{#  return {#}
+{#    // state#}
+{#    id: null,#}
+{#    number: '',#}
+{#    status: '',#}
+{#    currency: 'XOF',#}
+{#    issue_date: '',#}
+{#    valid_until: '',#}
+{#    partner: {name:'', phone:'', email:'', address:''},#}
+{#    notes: '',#}
+{#    totals: {subtotal:0, tax_total:0, total:0, lines_count:0},#}
+{#    urls: {list:'#', edit:'#', delete:'#'},#}
+{#    lines: [],#}
+{##}
+{#    q: '',#}
+{#    showDelete: false,#}
+{##}
+{#    init(){#}
+{#      const el = document.getElementById('quote-detail-payload');#}
+{#      const data = el ? JSON.parse(el.textContent || '{}') : {};#}
+{#      Object.assign(this, data || {});#}
+{#      // (optionnel) recalcul client-side si nécessaire :#}
+{#      // this.recomputeTotals();#}
+{#    },#}
+{##}
+{#    get displayNumber(){#}
+{#      return this.number ? `Devis ${this.number}` : `Devis ${String(this.id||'').slice(0,8).toUpperCase()}`;#}
+{#    },#}
+{##}
+{#    get linesMeta(){#}
+{#      const n = (this.lines || []).length;#}
+{#      return `${n} ligne(s) • HT ${this.money(this.totals.subtotal)} • TVA ${this.money(this.totals.tax_total)}`;#}
+{#    },#}
+{##}
+{#    statusPill(s){#}
+{#      const m = {#}
+{#        DRAFT:{label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},#}
+{#        SENT:{label:'Envoyé', cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},#}
+{#        ACCEPTED:{label:'Accepté', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},#}
+{#        REJECTED:{label:'Rejeté', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},#}
+{#        CANCELLED:{label:'Annulé', cls:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},#}
+{#      };#}
+{#      return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};#}
+{#    },#}
+{##}
+{#    fmtDate(s){#}
+{#      if(!s) return '—';#}
+{#      try { return new Date(s).toLocaleDateString('fr-FR'); } catch { return '—'; }#}
+{#    },#}
+{##}
+{#    toNum(v){#}
+{#      const n = Number(String(v ?? '0').replace(',', '.'));#}
+{#      return Number.isFinite(n) ? n : 0;#}
+{#    },#}
+{##}
+{#    fmtQty(v){#}
+{#      const n = this.toNum(v);#}
+{#      try { return new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2}).format(n); }#}
+{#      catch { return String(n); }#}
+{#    },#}
+{##}
+{#    money(v){#}
+{#      const currency = this.currency || 'XOF';#}
+{#      const n = this.toNum(v);#}
+{#      try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency}).format(n); }#}
+{#      catch { return `${n.toLocaleString('fr-FR')} ${currency}`; }#}
+{#    },#}
+{##}
+{#    lineTTC(ln){#}
+{#      const t = this.toNum(ln?.total);#}
+{#      if(t) return t;#}
+{#      return this.toNum(ln?.line_total) + this.toNum(ln?.tax_amount);#}
+{#    },#}
+{##}
+{#    recomputeTotals(){#}
+{#      const lines = Array.isArray(this.lines) ? this.lines : [];#}
+{#      let subtotal = 0, tax_total = 0;#}
+{#      for(const ln of lines){#}
+{#        subtotal += this.toNum(ln?.line_total);#}
+{#        tax_total += this.toNum(ln?.tax_amount);#}
+{#      }#}
+{#      this.totals.subtotal = subtotal;#}
+{#      this.totals.tax_total = tax_total;#}
+{#      this.totals.total = subtotal + tax_total;#}
+{#      this.totals.lines_count = lines.length;#}
+{#    },#}
+{##}
+{#    get filteredLines(){#}
+{#      const lines = Array.isArray(this.lines) ? this.lines : [];#}
+{#      const q = (this.q || '').trim().toLowerCase();#}
+{#      if(!q) return lines;#}
+{#      return lines.filter(ln => (`${ln.description||''} ${ln.product||''}`.toLowerCase().includes(q)));#}
+{#    },#}
+{##}
+{#    exportLinesCsv(){#}
+{#      const cols = ['description','product','qty','unit_price','discount','tax_rate','line_total','tax_amount','total'];#}
+{#      const out = [cols.join(',')];#}
+{#      for(const ln of (this.lines||[])){#}
+{#        const row = cols.map(k => `"${String(ln?.[k] ?? '').replaceAll('"','""')}"`).join(',');#}
+{#        out.push(row);#}
+{#      }#}
+{#      const blob=new Blob([out.join('\n')],{type:'text/csv;charset=utf-8'});#}
+{#      const a=document.createElement('a');#}
+{#      a.href=URL.createObjectURL(blob);#}
+{#      a.download=`quote_${(this.number||String(this.id||'').slice(0,8))}_lines.csv`;#}
+{#      a.click();#}
+{#      URL.revokeObjectURL(a.href);#}
+{#    },#}
+{#  }#}
+{#}#}
+{#</script>#}
 
 {% endblock %}

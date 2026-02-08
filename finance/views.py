@@ -11,6 +11,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
+from weasyprint import HTML, CSS
 
 from .models import (
     AuditEvent,
