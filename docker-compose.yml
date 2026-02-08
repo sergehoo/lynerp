@@ -52,6 +52,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_SERVER_URL: https://${MINIO_API_HOST}
+      MINIO_BROWSER_REDIRECT_URL: https://${MINIO_CONSOLE_HOST}
     volumes:
       - minio_data:/data
     networks:
