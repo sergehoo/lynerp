@@ -1,4 +1,5 @@
 # finance/api/serializers.py
+from django.urls import reverse
 from rest_framework import serializers
 from finance.models import (
     AuditEvent,
@@ -114,9 +115,16 @@ class QuoteLineSerializer(TenantReadOnlyMixin):
 
 
 class QuoteSerializer(TenantReadOnlyMixin):
+    pdf_url = serializers.SerializerMethodField()
+
     lines = QuoteLineSerializer(many=True, read_only=True)
     partner_name = serializers.CharField(source="partner.name", read_only=True)
 
+
+    def get_pdf_url(self, obj):
+        request = self.context.get("request")
+        url = reverse("finance:quote_pdf", args=[obj.id])
+        return request.build_absolute_uri(url) if request else url
     class Meta:
         model = Quote
         fields = "__all__"

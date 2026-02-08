@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 
@@ -446,6 +447,70 @@ class QuoteDelete(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
             raise Http404("Suppression non autorisée pour ce statut.")
         return super().delete(request, *args, **kwargs)
 
+class QuotePDFView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = "finance.view_quote"
+
+    def get(self, request, pk):
+        tenant = get_current_tenant(request)
+
+        quote = get_object_or_404(
+            Quote.objects.select_related("partner", "tenant")
+            .prefetch_related("lines", "lines__tax"),
+            pk=pk,
+            tenant=tenant,
+        )
+
+        lines = list(quote.lines.all())
+
+        # Totaux (si tu as déjà des champs calculés, remplace)
+        def to_num(v):
+            try:
+                return float(str(v or "0").replace(",", "."))
+            except Exception:
+                return 0.0
+
+        subtotal = sum(to_num(getattr(l, "line_total", 0)) for l in lines)
+        tax_total = sum(to_num(getattr(l, "tax_amount", 0)) for l in lines)
+        total = subtotal + tax_total
+
+        # Données entreprise (tenant) -> adapte aux champs de ton Tenant/settings
+        company = {
+            "name": getattr(tenant, "name", "") or "Votre entreprise",
+            "address": getattr(tenant, "address", "") or "",
+            "phone": getattr(tenant, "contact_phone", "") or "",
+            "email": getattr(tenant, "contact_email", "") or "",
+            # logo_url: idéalement un URL absolu (CDN / media)
+            "logo_url": getattr(getattr(tenant, "settings", {}), "get", lambda k, d=None: None)("logo_url", None)
+                        if hasattr(tenant, "settings") else None,
+        }
+
+        html_string = render_to_string(
+            "finance/quote/pdf.html",
+            {
+                "quote": quote,
+                "lines": lines,
+                "subtotal": subtotal,
+                "tax_total": tax_total,
+                "total": total,
+                "company": company,
+                "request": request,  # utile pour build_absolute_uri
+            },
+        )
+
+        # Base URL important pour résoudre /static, /media
+        base_url = request.build_absolute_uri("/")
+
+        pdf = HTML(string=html_string, base_url=base_url).write_pdf(
+            stylesheets=[CSS(string="""
+                @page { size: A4; margin: 22mm 14mm 22mm 14mm; }
+                * { -weasy-hyphens: auto; }
+            """)]
+        )
+
+        filename = f"DEVIS_{getattr(quote, 'number', str(quote.pk)[:8])}.pdf"
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return response
 
 class InvoiceCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, CreateView):
     model = Invoice

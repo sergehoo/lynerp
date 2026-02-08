@@ -1,0 +1,291 @@
+{% load humanize %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Devis {{ quote.number }}</title>
+  <style>
+    /* ====== Print base ====== */
+    :root{
+      --ink:#0f172a;        /* slate-900 */
+      --muted:#64748b;      /* slate-500 */
+      --line:#e2e8f0;       /* slate-200 */
+      --soft:#f1f5f9;       /* slate-100 */
+      --brand:#4f46e5;      /* indigo-600 */
+    }
+    html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif; color:var(--ink); }
+    .wrap { }
+
+    /* ====== Header / Footer (fixed) ====== */
+    header {
+      position: fixed;
+      top: -14mm;
+      left: 0;
+      right: 0;
+      height: 18mm;
+      padding: 0 0 0 0;
+    }
+    footer {
+      position: fixed;
+      bottom: -14mm;
+      left: 0;
+      right: 0;
+      height: 18mm;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .header-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6mm;
+    }
+    .brand {
+      display:flex; align-items:center; gap:10px;
+    }
+    .logo {
+      width: 46px; height: 46px;
+      border-radius: 10px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .logo img { width:100%; height:100%; object-fit:contain; }
+    .brand-name { font-weight: 800; font-size: 14px; letter-spacing: .2px; }
+    .brand-meta { font-size: 10px; color: var(--muted); margin-top:2px; line-height: 1.35; }
+
+    .doc-badge {
+      text-align:right;
+    }
+    .doc-title { font-size: 16px; font-weight: 900; color: var(--brand); letter-spacing:.5px; }
+    .doc-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ====== Main ====== */
+    .content { margin-top: 6mm; }
+    .top-grid {
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 12px;
+      margin: 10mm 0 6mm 0;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 12px;
+      background: white;
+    }
+    .card h3 { margin:0 0 6px 0; font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing:.6px; }
+    .card .big { font-size: 13px; font-weight: 800; margin: 2px 0 6px 0; }
+    .kv { font-size: 10.5px; color: var(--ink); line-height: 1.55; }
+    .kv .muted { color: var(--muted); }
+
+    /* ====== Lines table ====== */
+    table { width:100%; border-collapse: collapse; margin-top: 6mm; }
+    thead th {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .55px;
+      color: var(--muted);
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      background: #fbfdff;
+    }
+    tbody td {
+      font-size: 10.5px;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    .right { text-align:right; }
+    .desc { font-weight: 700; }
+    .subdesc { color: var(--muted); font-size: 10px; margin-top: 2px; }
+
+    /* ====== Totals ====== */
+    .totals {
+      margin-top: 6mm;
+      display:flex;
+      justify-content:flex-end;
+    }
+    .totals-box{
+      width: 58%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: white;
+    }
+    .row { display:flex; justify-content:space-between; font-size: 11px; padding: 4px 0; }
+    .row .label { color: var(--muted); }
+    .row.total { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; font-size: 13px; font-weight: 900; }
+    .pill {
+      display:inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    /* ====== Footer ====== */
+    .footer-bar{
+      border-top: 1px solid var(--line);
+      padding-top: 5mm;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .footer-left { line-height:1.4; }
+    .footer-right { text-align:right; }
+    .page:after { content: "Page " counter(page) " / " counter(pages); }
+
+    /* Avoid row cut */
+    tr { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-bar">
+    <div class="brand">
+      <div class="logo">
+        {% if company.logo_url %}
+          <img src="{{ company.logo_url }}" alt="Logo">
+        {% else %}
+          <!-- fallback simple -->
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--brand);font-weight:900;">{{ company.name|slice:":1" }}</div>
+        {% endif %}
+      </div>
+      <div>
+        <div class="brand-name">{{ company.name }}</div>
+        <div class="brand-meta">
+          {% if company.address %}{{ company.address }}<br>{% endif %}
+          {% if company.phone %}{{ company.phone }}{% endif %}
+          {% if company.email %}{% if company.phone %} • {% endif %}{{ company.email }}{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-badge">
+      <div class="doc-title">DEVIS</div>
+      <div class="doc-sub">
+        N° <strong>{{ quote.number|default:quote.id }}</strong>
+        • <span class="pill">{{ quote.status|default:"—" }}</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<footer>
+  <div class="footer-bar">
+    <div class="footer-left">
+      <strong>{{ company.name }}</strong>
+      {% if company.address %} • {{ company.address }}{% endif %}
+      {% if company.phone %} • {{ company.phone }}{% endif %}
+      {% if company.email %} • {{ company.email }}{% endif %}
+      <div style="margin-top:3px;color:var(--muted);">
+        Document généré le {% now "d/m/Y H:i" %} • <span class="page"></span>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div style="font-weight:800;color:var(--ink);">Merci pour votre confiance.</div>
+      <div style="margin-top:3px;">{{ request.get_host }}</div>
+    </div>
+  </div>
+</footer>
+
+<div class="content wrap">
+
+  <div class="top-grid">
+    <div class="card">
+      <h3>Client</h3>
+      <div class="big">{{ quote.partner.name|default:"—" }}</div>
+      <div class="kv">
+        {% if quote.partner.address %}<div><span class="muted">Adresse:</span> {{ quote.partner.address }}</div>{% endif %}
+        {% if quote.partner.phone %}<div><span class="muted">Téléphone:</span> {{ quote.partner.phone }}</div>{% endif %}
+        {% if quote.partner.email %}<div><span class="muted">Email:</span> {{ quote.partner.email }}</div>{% endif %}
+        {% if not quote.partner.address and not quote.partner.phone and not quote.partner.email %}
+          <div class="muted">Aucune info de contact.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Informations</h3>
+      <div class="kv">
+        <div><span class="muted">Date:</span> {{ quote.issue_date|date:"d/m/Y"|default:"—" }}</div>
+        <div><span class="muted">Validité:</span> {{ quote.valid_until|date:"d/m/Y"|default:"—" }}</div>
+        <div><span class="muted">Devise:</span> {{ quote.currency|default:"XOF" }}</div>
+        <div><span class="muted">Lignes:</span> {{ lines|length }}</div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Désignation</th>
+        <th class="right">Qté</th>
+        <th class="right">PU</th>
+        <th class="right">HT</th>
+        <th class="right">TVA</th>
+        <th class="right">TTC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lines %}
+      <tr>
+        <td>
+          <div class="desc">{{ l.description|default:"—" }}</div>
+          {% if l.product %}<div class="subdesc">Produit: {{ l.product.name }}</div>{% endif %}
+        </td>
+        <td class="right">{{ l.quantity|default:0 }}</td>
+        <td class="right">{{ l.unit_price|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</td>
+        <td class="right">{{ l.line_total|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</td>
+        <td class="right">{{ l.tax_amount|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</td>
+        <td class="right">
+          {% with t=l.total|default_if_none:0 %}
+            {% if t and t != 0 %}
+              {{ t|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}
+            {% else %}
+              {{ l.line_total|add:l.tax_amount|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}
+            {% endif %}
+          {% endwith %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="padding:14px;color:var(--muted);">Aucune ligne.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="totals-box">
+      <div class="row">
+        <div class="label">Sous-total (HT)</div>
+        <div><strong>{{ subtotal|floatformat:0|intcomma }}</strong> {{ quote.currency|default:"XOF" }}</div>
+      </div>
+      <div class="row">
+        <div class="label">TVA</div>
+        <div><strong>{{ tax_total|floatformat:0|intcomma }}</strong> {{ quote.currency|default:"XOF" }}</div>
+      </div>
+      <div class="row total">
+        <div>Total TTC</div>
+        <div>{{ total|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if quote.notes %}
+  <div class="card" style="margin-top:6mm;">
+    <h3>Notes</h3>
+    <div class="kv">{{ quote.notes|linebreaksbr }}</div>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>
