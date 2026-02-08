@@ -129,14 +129,32 @@ else:
     }
 
 # MinIO via django-storages
-AWS_S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT")
 AWS_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY")
 AWS_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_KEY")
 AWS_STORAGE_BUCKET_NAME = os.getenv("S3_BUCKET", "lyneerp")
+
+# Interne (Django -> MinIO via docker network)
+AWS_S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT", "http://lyneminio:9000")
+
 AWS_S3_REGION_NAME = "us-east-1"
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_S3_ADDRESSING_STYLE = "path"
+AWS_DEFAULT_ACL = None
+
+# Recommandé: bucket privé + URLs signées
+AWS_QUERYSTRING_AUTH = True
+
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+# --- Génération d’URL publique (pour admin/PDF/navigateur) ---
+S3_PUBLIC_HOST = os.getenv("S3_PUBLIC_HOST", "")
+S3_PUBLIC_SCHEME = os.getenv("S3_PUBLIC_SCHEME", "https")
+
+if S3_PUBLIC_HOST:
+    # force les URLs à sortir avec ton domaine Traefik
+    AWS_S3_CUSTOM_DOMAIN = S3_PUBLIC_HOST
+    # IMPORTANT : quand custom domain, l’URL finale devient:
+    # https://minios3.lyneerp.com/<bucket>/<key> (path-style)
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
