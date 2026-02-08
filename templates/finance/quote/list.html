@@ -1,25 +1,29 @@
 {# /Users/ogahserge/Documents/Lyneerp/templates/finance/quote/list.html #}
 {% extends "hr/base.html" %}
 {% block page_content %}
-<div x-data="financeListPage({
-  title: 'Devis',
-  subtitle: 'Propositions commerciales, lignes, totaux, statut',
-  icon: 'fa-solid fa-file-signature',
-  theme: 'indigo',
-  endpoint: '/finance/api/quotes/',
-  createUrl: "{% url 'finance:quotes:create' %}",
 
-  {# ✅ IMPORTANT: pk est <uuid:pk> => il faut un UUID valide pour reverse #}
-  detailUrlTpl: "{% url 'finance:quotes:detail' '00000000-0000-0000-0000-000000000000' %}",
+{# ✅ Note: pk est <uuid:pk>, donc on reverse avec un UUID valide (placeholder) #}
 
-  columns: [
-    {key:'number', label:'N°', mobile:true},
-    {key:'partner_name', label:'Client', mobile:true},
-    {key:'issue_date', label:'Émis le', mobile:true},
-    {key:'status', label:'Statut', mobile:true},
-    {key:'total', label:'Total', align:'right', mobile:true},
-  ]
-})" x-init="init()" class="space-y-6">
+<div
+  x-data="financeListPage({
+    title: 'Devis',
+    subtitle: 'Propositions commerciales, lignes, totaux, statut',
+    icon: 'fa-solid fa-file-signature',
+    theme: 'indigo',
+    endpoint: '/finance/api/quotes/',
+    createUrl: '{% url "finance:quotes:create" %}',
+    detailUrlTpl: '{% url "finance:quotes:detail" "00000000-0000-0000-0000-000000000000" %}',
+    columns: [
+      {key:'number', label:'N°', mobile:true},
+      {key:'partner_name', label:'Client', mobile:true},
+      {key:'issue_date', label:'Émis le', mobile:true},
+      {key:'status', label:'Statut', mobile:true},
+      {key:'total', label:'Total', align:'right', mobile:true},
+    ]
+  })"
+  x-init="init()"
+  class="space-y-6"
+>
 
   <!-- Header -->
   <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -260,10 +264,8 @@ function financeListPage(cfg){
     pageSize:20,
     hasNext:false,
 
-    // ✅ filtres pour Quote
     filters:{ q:'', status:'', currency:'', date_from:'', date_to:'' },
 
-    // ✅ placeholder UUID utilisé dans detailUrlTpl
     _uuidZero: '00000000-0000-0000-0000-000000000000',
 
     get metaText(){ return `${this.rows.length} devis • page ${this.page}`; },
@@ -327,11 +329,9 @@ function financeListPage(cfg){
       try{
         const headers = {'Accept':'application/json'};
 
-        // tenant header (si ton backend le supporte)
         const tid = localStorage.getItem('lyneerp_tenant') || '';
         if(tid) headers['X-Tenant-Id'] = tid;
 
-        // auth
         const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
         if(token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -341,8 +341,6 @@ function financeListPage(cfg){
         if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
 
         const list = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
-
-        // ✅ enrichissement: totaux calculés depuis lines[]
         this.rows = list.map(q => ({ ...q, ...this.computeTotals(q) }));
         this.hasNext = !!data?.next;
       }catch(e){
@@ -386,7 +384,9 @@ function financeListPage(cfg){
       URL.revokeObjectURL(a.href);
     },
 
-    goCreate(){ if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl); },
+    goCreate(){
+      if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl);
+    },
 
     goDetail(row){
       if(!row?.id) return;
@@ -403,4 +403,5 @@ function financeListPage(cfg){
   }
 }
 </script>
+
 {% endblock %}
