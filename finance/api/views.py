@@ -19,6 +19,7 @@ from finance.models import (
     BankConnector, BankAccount, BankTransaction, ReconciliationMatch,
     ReportSnapshot,
 )
+from tenants.models import Tenant
 from .serializers import (
     AuditEventSerializer,
     CompanyFinanceProfileSerializer, FiscalYearSerializer, AccountingPeriodSerializer,

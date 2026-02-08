@@ -1,0 +1,608 @@
+{# templates/finance/quote/form_with_lines.html #}
+{% extends "hr/base.html" %}
+{% load static humanize %}
+{% block page_content %}
+
+<div class="space-y-6"
+     x-data="quoteFormPage()"
+     x-init="init()">
+
+  {# ---------------- Header ---------------- #}
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <a href="{% url 'finance:quotes:list' %}"
+           class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-indigo-600 text-white">
+          <i class="fa-solid fa-file-signature text-[11px] opacity-90"></i>
+          <span>Finance • Devis</span>
+        </a>
+        <span class="text-xs text-slate-500 dark:text-slate-400 truncate">Création / Modification</span>
+      </div>
+
+      <h2 class="mt-3 text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate">
+        <span x-text="title"></span>
+      </h2>
+
+      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+        Renseignez les informations, ajoutez des lignes, puis enregistrez.
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button"
+              @click="addLine()"
+              class="h-10 px-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-soft inline-flex items-center gap-2">
+        <i class="fa-solid fa-plus text-xs"></i><span>Ajouter une ligne</span>
+      </button>
+
+      <button type="button"
+              @click="recompute()"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-2">
+        <i class="fa-solid fa-calculator text-xs"></i><span>Recalculer</span>
+      </button>
+
+      <a href="{% url 'finance:quotes:list' %}"
+         class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-2">
+        <i class="fa-solid fa-arrow-left text-xs"></i><span>Retour</span>
+      </a>
+    </div>
+  </div>
+
+  {# ---------------- Form (Quote + Formset lines) ---------------- #}
+  <form method="post" novalidate class="space-y-4">
+    {% csrf_token %}
+
+    {# erreurs globales #}
+    {% if form.non_field_errors %}
+      <div class="rounded-2xl border border-rose-200 bg-rose-50 text-rose-800 p-4 text-sm">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    {% if formset.non_form_errors %}
+      <div class="rounded-2xl border border-rose-200 bg-rose-50 text-rose-800 p-4 text-sm">
+        {{ formset.non_form_errors }}
+      </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {# ---- Card: Informations devis ---- #}
+      <div class="lg:col-span-2 rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-pen-nib text-slate-400"></i><span>Informations</span>
+          </div>
+          <span class="text-xs text-slate-500 dark:text-slate-400" x-text="metaText"></span>
+        </div>
+
+        <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {# number #}
+          <div>
+            <label class="text-xs font-medium text-slate-500">Numéro</label>
+            <div class="mt-1">
+              {{ form.number|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.number.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.number.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          {# status #}
+          <div>
+            <label class="text-xs font-medium text-slate-500">Statut</label>
+            <div class="mt-1">
+              {{ form.status|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.status.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.status.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          {# partner #}
+          <div class="md:col-span-2">
+            <label class="text-xs font-medium text-slate-500">Client</label>
+            <div class="mt-1">
+              {{ form.partner|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.partner.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.partner.errors }}</div>{% endif %}
+            </div>
+            <div class="text-xs text-slate-400 mt-1">Sélectionnez un client existant.</div>
+          </div>
+
+          {# issue_date #}
+          <div>
+            <label class="text-xs font-medium text-slate-500">Date d’émission</label>
+            <div class="mt-1">
+              {{ form.issue_date|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.issue_date.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.issue_date.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          {# valid_until #}
+          <div>
+            <label class="text-xs font-medium text-slate-500">Valable jusqu’au</label>
+            <div class="mt-1">
+              {{ form.valid_until|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.valid_until.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.valid_until.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          {# currency #}
+          <div>
+            <label class="text-xs font-medium text-slate-500">Devise</label>
+            <div class="mt-1">
+              {{ form.currency|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.currency.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.currency.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          {# notes #}
+          <div class="md:col-span-2">
+            <label class="text-xs font-medium text-slate-500">Notes</label>
+            <div class="mt-1">
+              {{ form.notes|add_class:"w-full min-h-[110px] rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2" }}
+              {% if form.notes.errors %}<div class="text-xs text-rose-600 mt-1">{{ form.notes.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# ---- Card: Totaux (client-side) ---- #}
+      <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-receipt text-slate-400"></i><span>Totaux</span>
+          </div>
+        </div>
+
+        <div class="p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-500 dark:text-slate-400">Sous-total (HT)</span>
+            <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="money(totals.subtotal)"></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-500 dark:text-slate-400">TVA</span>
+            <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="money(totals.tax_total)"></span>
+          </div>
+          <div class="pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Total TTC</span>
+            <span class="text-lg font-semibold text-slate-900 dark:text-white" x-text="money(totals.total)"></span>
+          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">
+            <span x-text="totals.lines_count"></span> ligne(s)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ---------------- Lines ---------------- #}
+    <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-2xl grid place-items-center bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/40">
+            <i class="fa-solid fa-list"></i>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-900 dark:text-white">Lignes</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400" x-text="linesMeta"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input x-model.debounce.200ms="q"
+                 class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                 placeholder="Filtrer les lignes…"/>
+          <button type="button"
+                  @click="addLine()"
+                  class="h-10 px-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-soft inline-flex items-center gap-2">
+            <i class="fa-solid fa-plus text-xs"></i><span>Ajouter</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-4 sm:p-5">
+        {# formset management #}
+        {{ formset.management_form }}
+
+        {# Desktop table #}
+        <div class="hidden lg:block">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
+              <tr>
+                <th class="font-semibold px-4 py-3 text-left">Désignation</th>
+                <th class="font-semibold px-4 py-3 text-right w-28">Qté</th>
+                <th class="font-semibold px-4 py-3 text-right w-40">PU</th>
+                <th class="font-semibold px-4 py-3 text-right w-32">TVA</th>
+                <th class="font-semibold px-4 py-3 text-right w-44">HT</th>
+                <th class="font-semibold px-4 py-3 text-right w-44">TTC</th>
+                <th class="font-semibold px-4 py-3 text-right w-20"> </th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+              {% for f in formset.forms %}
+                <tr class="align-top">
+                  {# Hidden id fields if any #}
+                  {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+
+                  <td class="px-4 py-3">
+                    <div class="space-y-2">
+                      {# support either label/description/product depending on your form #}
+                      {% if f.label %}
+                        {{ f.label|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-label" }}
+                        {% if f.label.errors %}<div class="text-xs text-rose-600">{{ f.label.errors }}</div>{% endif %}
+                      {% elif f.description %}
+                        {{ f.description|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-label" }}
+                        {% if f.description.errors %}<div class="text-xs text-rose-600">{{ f.description.errors }}</div>{% endif %}
+                      {% endif %}
+
+                      {% if f.product %}
+                        {{ f.product|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-product" }}
+                        {% if f.product.errors %}<div class="text-xs text-rose-600">{{ f.product.errors }}</div>{% endif %}
+                      {% endif %}
+                    </div>
+                  </td>
+
+                  <td class="px-4 py-3 text-right">
+                    {% if f.quantity %}
+                      {{ f.quantity|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-qty" }}
+                      {% if f.quantity.errors %}<div class="text-xs text-rose-600 text-left">{{ f.quantity.errors }}</div>{% endif %}
+                    {% elif f.qty %}
+                      {{ f.qty|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-qty" }}
+                      {% if f.qty.errors %}<div class="text-xs text-rose-600 text-left">{{ f.qty.errors }}</div>{% endif %}
+                    {% endif %}
+                  </td>
+
+                  <td class="px-4 py-3 text-right">
+                    {% if f.unit_price %}
+                      {{ f.unit_price|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-unit" }}
+                      {% if f.unit_price.errors %}<div class="text-xs text-rose-600 text-left">{{ f.unit_price.errors }}</div>{% endif %}
+                    {% endif %}
+                  </td>
+
+                  <td class="px-4 py-3 text-right">
+                    {% if f.tax %}
+                      {{ f.tax|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-tax" }}
+                      {% if f.tax.errors %}<div class="text-xs text-rose-600 text-left">{{ f.tax.errors }}</div>{% endif %}
+                    {% elif f.tax_rate %}
+                      {{ f.tax_rate|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-taxrate" }}
+                      {% if f.tax_rate.errors %}<div class="text-xs text-rose-600 text-left">{{ f.tax_rate.errors }}</div>{% endif %}
+                    {% endif %}
+                  </td>
+
+                  {# computed cells client-side #}
+                  <td class="px-4 py-3 text-right">
+                    <div class="font-semibold text-slate-900 dark:text-white js-ln-ht">—</div>
+                    <div class="text-xs text-slate-400 js-ln-ht-meta">HT</div>
+                  </td>
+
+                  <td class="px-4 py-3 text-right">
+                    <div class="font-semibold text-slate-900 dark:text-white js-ln-ttc">—</div>
+                    <div class="text-xs text-slate-400 js-ln-ttc-meta">TTC</div>
+                  </td>
+
+                  <td class="px-4 py-3 text-right">
+                    {% if f.DELETE %}
+                      <label class="inline-flex items-center gap-2 text-xs text-rose-700 dark:text-rose-200 cursor-pointer">
+                        {{ f.DELETE }}
+                        <span>Suppr.</span>
+                      </label>
+                    {% else %}
+                      <button type="button" class="text-xs text-rose-600 hover:underline" @click="markRowDeleted($event)">Suppr.</button>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Mobile blocks #}
+        <div class="lg:hidden space-y-3">
+          {% for f in formset.forms %}
+            <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+              {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+
+              <div class="space-y-3">
+                <div>
+                  <div class="text-xs font-medium text-slate-500">Désignation</div>
+                  <div class="mt-1">
+                    {% if f.label %}
+                      {{ f.label|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-label" }}
+                    {% elif f.description %}
+                      {{ f.description|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-label" }}
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <div class="text-xs font-medium text-slate-500">Qté</div>
+                    <div class="mt-1">
+                      {% if f.quantity %}
+                        {{ f.quantity|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-qty" }}
+                      {% elif f.qty %}
+                        {{ f.qty|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-qty" }}
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-xs font-medium text-slate-500">PU</div>
+                    <div class="mt-1">
+                      {% if f.unit_price %}
+                        {{ f.unit_price|add_class:"w-full rounded-2xl text-right border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-unit" }}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <div class="text-xs font-medium text-slate-500">TVA</div>
+                    <div class="mt-1">
+                      {% if f.tax %}
+                        {{ f.tax|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-tax" }}
+                      {% elif f.tax_rate %}
+                        {{ f.tax_rate|add_class:"w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 js-ln-taxrate" }}
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs font-medium text-slate-500">Montant</div>
+                    <div class="mt-2">
+                      <div class="font-semibold text-slate-900 dark:text-white js-ln-ttc">—</div>
+                      <div class="text-xs text-slate-400 js-ln-ttc-meta">TTC</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
+                  <div class="text-xs text-slate-500">HT: <span class="font-semibold text-slate-900 dark:text-white js-ln-ht">—</span></div>
+                  <div>
+                    {% if f.DELETE %}
+                      <label class="inline-flex items-center gap-2 text-xs text-rose-700 dark:text-rose-200 cursor-pointer">
+                        {{ f.DELETE }}
+                        <span>Supprimer</span>
+                      </label>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        {# Empty state #}
+        <div x-show="visibleLineCount===0" x-cloak class="p-6 text-center text-slate-500 dark:text-slate-400">
+          <div class="text-3xl mb-2">🧾</div>
+          <div class="font-semibold text-slate-900 dark:text-white">Aucune ligne</div>
+          <div class="text-sm mt-1">Cliquez sur “Ajouter une ligne”.</div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ---------------- Footer actions ---------------- #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="text-xs text-slate-500 dark:text-slate-400">
+        Astuce : le total est recalculé automatiquement quand vous modifiez Qté / PU / TVA.
+      </div>
+
+      <div class="flex items-center gap-2 justify-end">
+        <button type="submit"
+                class="h-11 px-5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-soft inline-flex items-center gap-2">
+          <i class="fa-solid fa-check text-xs"></i><span>Enregistrer</span>
+        </button>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+
+{# ---------------- Alpine controller (client totals + add row) ---------------- #}
+<script>
+function quoteFormPage(){
+  return {
+    q: '',
+    currency: 'XOF',
+    totals: {subtotal:0, tax_total:0, total:0, lines_count:0},
+
+    init(){
+      // currency from form if exists
+      const cur = document.querySelector('[name="currency"]');
+      if(cur) this.currency = cur.value || this.currency;
+
+      // listen changes -> recompute
+      document.addEventListener('input', (e) => {
+        const el = e.target;
+        if(!el) return;
+        if(el.matches('.js-ln-qty, .js-ln-unit, .js-ln-tax, .js-ln-taxrate, [name="currency"]')){
+          if(el.name === 'currency') this.currency = el.value || this.currency;
+          this.recompute();
+        }
+      });
+
+      // initial calc
+      this.recompute();
+    },
+
+    get title(){
+      // create vs update : if form has instance pk often injected elsewhere; fallback
+      const numberEl = document.querySelector('[name="number"]');
+      const n = numberEl ? (numberEl.value || '') : '';
+      return n ? `Devis ${n}` : 'Nouveau devis';
+    },
+
+    get metaText(){
+      return `${this.totals.lines_count} ligne(s) • ${this.money(this.totals.total)}`;
+    },
+
+    get linesMeta(){
+      return `HT ${this.money(this.totals.subtotal)} • TVA ${this.money(this.totals.tax_total)} • TTC ${this.money(this.totals.total)}`;
+    },
+
+    toNum(v){
+      const n = Number(String(v ?? '0').replace(',', '.'));
+      return Number.isFinite(n) ? n : 0;
+    },
+
+    money(v){
+      const currency = this.currency || 'XOF';
+      const n = this.toNum(v);
+      try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency}).format(n); }
+      catch { return `${n.toLocaleString('fr-FR')} ${currency}`; }
+    },
+
+    // count visible/non-deleted lines
+    get visibleLineCount(){
+      const rows = Array.from(document.querySelectorAll('tbody tr'));
+      // if no desktop table, fallback to mobile cards
+      if(rows.length){
+        return rows.filter(tr => !this._isRowDeleted(tr)).length;
+      }
+      const cards = Array.from(document.querySelectorAll('.lg\\:hidden .rounded-2xl.border'));
+      return cards.filter(card => !this._isRowDeleted(card)).length;
+    },
+
+    _isRowDeleted(container){
+      // if Django formset has DELETE checkbox
+      const del = container.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      return del ? !!del.checked : false;
+    },
+
+    _rowValues(container){
+      const qty = container.querySelector('.js-ln-qty');
+      const unit = container.querySelector('.js-ln-unit');
+      const tax = container.querySelector('.js-ln-tax');     // could be select of tax object (unknown rate)
+      const taxrate = container.querySelector('.js-ln-taxrate'); // direct rate field if exists
+
+      const q = this.toNum(qty ? qty.value : 0);
+      const pu = this.toNum(unit ? unit.value : 0);
+
+      // Tax handling:
+      // - If you use a Tax FK select, we can't know the rate here without embedding dataset.
+      //   So tax_rate = 0 unless you use tax_rate field.
+      const rate = this.toNum(taxrate ? taxrate.value : 0);
+
+      const ht = q * pu;
+      const tva = ht * (rate/100);
+      const ttc = ht + tva;
+      return {ht, tva, ttc};
+    },
+
+    recompute(){
+      let subtotal = 0, tax_total = 0, total = 0, count = 0;
+
+      // Desktop rows
+      const rows = Array.from(document.querySelectorAll('tbody tr'));
+      if(rows.length){
+        for(const tr of rows){
+          if(this._isRowDeleted(tr)) continue;
+          const v = this._rowValues(tr);
+          subtotal += v.ht; tax_total += v.tva; total += v.ttc; count += 1;
+
+          const htEl = tr.querySelector('.js-ln-ht');
+          const ttcEl = tr.querySelector('.js-ln-ttc');
+          if(htEl) htEl.textContent = this.money(v.ht);
+          if(ttcEl) ttcEl.textContent = this.money(v.ttc);
+        }
+      } else {
+        // Mobile cards
+        const cards = Array.from(document.querySelectorAll('.lg\\:hidden .rounded-2xl.border'));
+        for(const card of cards){
+          if(this._isRowDeleted(card)) continue;
+          const v = this._rowValues(card);
+          subtotal += v.ht; tax_total += v.tva; total += v.ttc; count += 1;
+
+          const htEl = card.querySelector('.js-ln-ht');
+          const ttcEl = card.querySelector('.js-ln-ttc');
+          if(htEl) htEl.textContent = this.money(v.ht);
+          if(ttcEl) ttcEl.textContent = this.money(v.ttc);
+        }
+      }
+
+      this.totals = {subtotal, tax_total, total, lines_count: count};
+    },
+
+    addLine(){
+      // Clone empty formset row using the empty form template technique.
+      // If you have formset.empty_form available in context, use it; otherwise this fallback increments TOTAL_FORMS but can't add inputs.
+      const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+      if(!totalForms) return;
+
+      // If you want true dynamic add, expose empty_form HTML in a <template>.
+      const tpl = document.getElementById('quote-line-empty-template');
+      if(!tpl){
+        // minimal fallback: just warn
+        if(window.hrToast) window.hrToast("Template 'empty_form' manquant. Ajoute <template id='quote-line-empty-template'>.", "warning");
+        return;
+      }
+
+      const idx = Number(totalForms.value || '0');
+      const html = tpl.innerHTML.replaceAll('__prefix__', String(idx));
+      totalForms.value = String(idx + 1);
+
+      // append in desktop tbody if exists else in mobile container
+      const tbody = document.querySelector('table tbody');
+      if(tbody){
+        const tmp = document.createElement('tbody');
+        tmp.innerHTML = html.trim();
+        // append rows
+        Array.from(tmp.children).forEach(ch => tbody.appendChild(ch));
+      }else{
+        const mobile = document.querySelector('.lg\\:hidden.space-y-3');
+        if(mobile){
+          const div = document.createElement('div');
+          div.innerHTML = html.trim();
+          Array.from(div.children).forEach(ch => mobile.appendChild(ch));
+        }
+      }
+
+      this.recompute();
+    },
+
+    markRowDeleted(e){
+      // fallback if no DELETE field, try to find delete checkbox and check it
+      const btn = e?.target;
+      const row = btn ? btn.closest('tr') : null;
+      if(!row) return;
+      const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      if(del){ del.checked = true; }
+      row.classList.add('opacity-40');
+      this.recompute();
+    },
+  }
+}
+</script>
+
+{# Optional: provide empty_form template if available #}
+{% if formset.empty_form %}
+<template id="quote-line-empty-template">
+  <tr class="align-top">
+    {% for hidden in formset.empty_form.hidden_fields %}{{ hidden.as_widget }}{% endfor %}
+    <td class="px-4 py-3">
+      {% if formset.empty_form.label %}
+        {{ formset.empty_form.label.as_widget }}
+      {% elif formset.empty_form.description %}
+        {{ formset.empty_form.description.as_widget }}
+      {% endif %}
+      {% if formset.empty_form.product %}
+        <div class="mt-2">{{ formset.empty_form.product.as_widget }}</div>
+      {% endif %}
+    </td>
+    <td class="px-4 py-3 text-right">
+      {% if formset.empty_form.quantity %}{{ formset.empty_form.quantity.as_widget }}{% elif formset.empty_form.qty %}{{ formset.empty_form.qty.as_widget }}{% endif %}
+    </td>
+    <td class="px-4 py-3 text-right">
+      {% if formset.empty_form.unit_price %}{{ formset.empty_form.unit_price.as_widget }}{% endif %}
+    </td>
+    <td class="px-4 py-3 text-right">
+      {% if formset.empty_form.tax %}{{ formset.empty_form.tax.as_widget }}{% elif formset.empty_form.tax_rate %}{{ formset.empty_form.tax_rate.as_widget }}{% endif %}
+    </td>
+    <td class="px-4 py-3 text-right"><div class="font-semibold js-ln-ht">—</div></td>
+    <td class="px-4 py-3 text-right"><div class="font-semibold js-ln-ttc">—</div></td>
+    <td class="px-4 py-3 text-right">
+      {% if formset.empty_form.DELETE %}{{ formset.empty_form.DELETE.as_widget }}{% endif %}
+    </td>
+  </tr>
+</template>
+{% endif %}
+
+{% endblock %}
