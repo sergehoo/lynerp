@@ -40,7 +40,7 @@ class Tenant(models.Model):
     website = models.CharField(max_length=255, blank=True)
 
     # ✅ Branding (entêtes documents)
-    logo_url = models.CharField(max_length=255, blank=True)       # ou ImageField(upload_to=...)
+    logo_url = models.ImageField(upload_to="tenant/logos",max_length=255, blank=True)       # ou ImageField(upload_to=...)
     stamp_url = models.CharField(max_length=255, blank=True)      # tampon (optionnel)
     signature_url = models.CharField(max_length=255, blank=True)  # signature (optionnel)
     invoice_footer_note = models.TextField(blank=True)            # mentions / note bas de page
