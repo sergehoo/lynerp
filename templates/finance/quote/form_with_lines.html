@@ -390,6 +390,7 @@ function quoteFormPage(){
         const tax = container.querySelector('select[name$="-tax"]');
         if(tax) tax.classList.add('js-ln-tax');
       });
+      document.querySelectorAll('.js-line').forEach(el => this._tagLineInputs(el));
     },
 
     get title(){
@@ -456,10 +457,76 @@ function quoteFormPage(){
     },
 
     addLine(){
-      // Ajouter une ligne dynamiquement : nécessite un empty_form/template.
-      // Ici on garde simple (sinon on casse le formset). Ajoute une ligne côté serveur.
-      if(window.hrToast) window.hrToast("Ajout dynamique désactivé (formset). Ajoute une ligne puis recharge, ou je te génère le template empty_form propre.", "info");
-    },
+  const totalEl = document.querySelector('input[name$="-TOTAL_FORMS"]');
+  const container = document.getElementById('lines-container');
+  const tpl = document.getElementById('empty-line-template');
+
+  if(!totalEl || !container || !tpl){
+    alert("Formset template manquant (TOTAL_FORMS / empty_form).");
+    return;
+  }
+
+  const index = Number(totalEl.value || "0");
+
+  // clone template
+  const fragment = tpl.content.cloneNode(true);
+
+  // remplace __prefix__ dans tous les name/id/for
+  this._replacePrefix(fragment, index);
+
+  // ajoute dans le DOM
+  container.appendChild(fragment);
+
+  // incrémente TOTAL_FORMS
+  totalEl.value = String(index + 1);
+
+  // applique classes + tags JS sur la nouvelle ligne uniquement
+  const last = container.querySelectorAll('.js-line');
+  const lastEl = last[last.length - 1];
+  if(lastEl){
+    this._applyClassesTo(lastEl);
+    this._tagLineInputs(lastEl);
+  }
+
+  // recalcul + focus
+  this.recompute();
+  const focusEl = lastEl?.querySelector('input,select,textarea');
+  if(focusEl) focusEl.focus();
+},
+
+_replacePrefix(root, index){
+  const walk = root.querySelectorAll('*');
+  walk.forEach(el => {
+    // attributes that can contain __prefix__
+    ['name','id','for'].forEach(attr => {
+      if(el.hasAttribute && el.hasAttribute(attr)){
+        el.setAttribute(attr, el.getAttribute(attr).replaceAll('__prefix__', String(index)));
+      }
+    });
+  });
+},
+
+_applyClassesTo(scope){
+  const controls = scope.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]), select, textarea');
+  controls.forEach(el => {
+    el.classList.add('fld');
+    if(el.tagName === 'TEXTAREA') el.classList.add('fld-area');
+  });
+},
+
+_tagLineInputs(scope){
+  const qty = scope.querySelector('input[name$="-quantity"], input[name$="-qty"]');
+  const unit = scope.querySelector('input[name$="-unit_price"]');
+  const taxrate = scope.querySelector('input[name$="-tax_rate"]');
+  const tax = scope.querySelector('select[name$="-tax"]');
+  const label = scope.querySelector('input[name$="-label"], input[name$="-description"], textarea[name$="-description"]');
+
+  if(qty) qty.classList.add('js-ln-qty');
+  if(unit) unit.classList.add('js-ln-unit');
+  if(taxrate) taxrate.classList.add('js-ln-taxrate');
+  if(tax) tax.classList.add('js-ln-tax');
+  if(label) label.classList.add('js-ln-label');
+},
   }
 }
 </script>
