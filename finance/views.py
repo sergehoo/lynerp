@@ -450,6 +450,7 @@ class QuoteDelete(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
             raise Http404("Suppression non autorisée pour ce statut.")
         return super().delete(request, *args, **kwargs)
 
+
 def build_absolute_url(request, url: str) -> str:
     """WeasyPrint a besoin d'URL absolue pour charger images/css."""
     if not url:
@@ -458,7 +459,8 @@ def build_absolute_url(request, url: str) -> str:
         return url
     return request.build_absolute_uri(url)
 
-class QuotePdfView(LoginRequiredMixin, PermissionRequiredMixin, View):
+
+class QuotePDFView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = "finance.view_quote"
 
     def get(self, request, pk):
@@ -467,7 +469,8 @@ class QuotePdfView(LoginRequiredMixin, PermissionRequiredMixin, View):
         except Quote.DoesNotExist:
             raise Http404
 
-        lines = list(quote.lines.all().order_by("created_at") if hasattr(quote.lines.model, "created_at") else quote.lines.all())
+        lines = list(
+            quote.lines.all().order_by("created_at") if hasattr(quote.lines.model, "created_at") else quote.lines.all())
 
         subtotal = quote.subtotal()
         tax_total = quote.total_tax()
@@ -476,7 +479,9 @@ class QuotePdfView(LoginRequiredMixin, PermissionRequiredMixin, View):
         # ✅ Company = à adapter (tenant / settings)
         # Exemple: si tu as un modèle Tenant/Company, remplace par tes champs.
         company = {
-            "name": getattr(request, "tenant", None).name if getattr(request, "tenant", None) else getattr(settings, "COMPANY_NAME", "—"),
+            "name": getattr(request, "tenant", None).name if getattr(request, "tenant", None) else getattr(settings,
+                                                                                                           "COMPANY_NAME",
+                                                                                                           "—"),
             "address": getattr(settings, "COMPANY_ADDRESS", ""),
             "phone": getattr(settings, "COMPANY_PHONE", ""),
             "email": getattr(settings, "COMPANY_EMAIL", ""),
@@ -522,6 +527,8 @@ class QuotePdfView(LoginRequiredMixin, PermissionRequiredMixin, View):
         resp = HttpResponse(pdf, content_type="application/pdf")
         resp["Content-Disposition"] = f'inline; filename="devis_{quote.number}.pdf"'
         return resp
+
+
 class InvoiceCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, CreateView):
     model = Invoice
     form_class = InvoiceForm
@@ -697,7 +704,7 @@ ExpenseReportList, ExpenseReportDetail, _, _, ExpenseReportDelete = crud_views(m
                                                                                base_url="finance:expense_reports",
                                                                                template_dir="expense_report",
                                                                                list_search_fields=(
-                                                                               "title", "employee_id"))
+                                                                                   "title", "employee_id"))
 ExpenseItemViews = crud_views(model=ExpenseItem, form_class=TenantModelForm, base_url="finance:expense_items",
                               template_dir="expense_item")
 
