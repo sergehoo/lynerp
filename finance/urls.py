@@ -36,7 +36,7 @@ def custom_include(prefix: str, namespace: str, patterns):
 urlpatterns = [
     # --- Audit ---
     path("api/", include("finance.api.routers")),
-    path("quotes/<uuid:pk>/pdf/", QuotePDFView.as_view(), name="quote_pdf"),
+    path("quotes/<uuid:pk>/pdf/", views.QuotePDFView.as_view(), name="quote_pdf"),
 
     crud_include("audit_events", views.AuditEventViews),
 
