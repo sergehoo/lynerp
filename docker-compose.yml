@@ -65,7 +65,7 @@ services:
       - traefik.docker.network=proxy
 
       # API S3
-      - traefik.http.routers.minio-api.rule=Host(`${MINIO_API_HOST}`)
+      - traefik.http.routers.minio-api.rule=Host(`minios3.lyneerp.com`)
       - traefik.http.routers.minio-api.entrypoints=websecure
       - traefik.http.routers.minio-api.tls=true
       - traefik.http.routers.minio-api.tls.certresolver=lets
@@ -74,7 +74,7 @@ services:
       - traefik.http.services.minio-api.loadbalancer.server.scheme=http
 
       # Console
-      - traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST}`)
+      - traefik.http.routers.minio-console.rule=Host(`files.lyneerp.com`)
       - traefik.http.routers.minio-console.entrypoints=websecure
       - traefik.http.routers.minio-console.tls=true
       - traefik.http.routers.minio-console.tls.certresolver=lets
