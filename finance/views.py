@@ -93,13 +93,14 @@ class TenantQuerysetMixin:
         # Sécurité: si aucun tenant, retourne vide (ou raise)
         return qs.none()
 
+
 class JsonListMixin:
     json_fields = ()
 
     def render_to_response(self, context, **response_kwargs):
         want_json = (
-            self.request.headers.get("Accept", "").find("application/json") >= 0
-            or self.request.GET.get("format") == "json"
+                self.request.headers.get("Accept", "").find("application/json") >= 0
+                or self.request.GET.get("format") == "json"
         )
         if not want_json:
             return super().render_to_response(context, **response_kwargs)
@@ -137,6 +138,8 @@ class JsonListMixin:
             "next": p.has_next(),
             "count": paginator.count,
         })
+
+
 class TenantFormMixin:
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -202,7 +205,8 @@ class MasterWithLinesMixin(TenantQuerysetMixin, TenantFormMixin):
     def get_formset(self):
         assert self.formset_class is not None, "formset_class is required"
         if self.request.method == "POST":
-            return self.formset_class(self.request.POST, self.request.FILES, instance=self.object, prefix=self.formset_prefix)
+            return self.formset_class(self.request.POST, self.request.FILES, instance=self.object,
+                                      prefix=self.formset_prefix)
         return self.formset_class(instance=self.object, prefix=self.formset_prefix)
 
     @transaction.atomic
@@ -233,13 +237,13 @@ class MasterWithLinesMixin(TenantQuerysetMixin, TenantFormMixin):
 
 # ========= Simple CRUD generator (no repetition) =========
 def crud_views(
-    *,
-    model: Type,  # ou Type[models.Model] si tu veux être strict
-    form_class: Type[TenantModelForm],
-    base_url: str,          # ex: "finance:accounts" ou "finance:invoices" (namespace géré ailleurs)
-    template_dir: str,      # ex: "accounts"
-    list_search_fields: tuple[str, ...] = (),
-    ordering: tuple[str, ...] = ("-created_at",),
+        *,
+        model: Type,  # ou Type[models.Model] si tu veux être strict
+        form_class: Type[TenantModelForm],
+        base_url: str,  # ex: "finance:accounts" ou "finance:invoices" (namespace géré ailleurs)
+        template_dir: str,  # ex: "accounts"
+        list_search_fields: tuple[str, ...] = (),
+        ordering: tuple[str, ...] = ("-created_at",),
 ):
     """
     Génère List/Detail/Create/Update/Delete pour un modèle.
@@ -308,7 +312,7 @@ class PaymentList(JsonListMixin, BaseTenantList):
     # champs renvoyés
     json_fields = (
         "reference",
-        "invoice__partner__name",   # => customer
+        "invoice__partner__name",  # => customer
         "paid_at",
         "method",
         "status",
@@ -336,6 +340,8 @@ class PaymentList(JsonListMixin, BaseTenantList):
 
         # perf (évite N+1)
         return qs.select_related("invoice", "invoice__partner")
+
+
 # ========= Master + lines views =========
 class JournalEntryCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, CreateView):
     model = JournalEntry
@@ -380,6 +386,65 @@ class QuoteUpdate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMi
     template_name = "finance/quote/form_with_lines.html"
     success_url = reverse_lazy("finance:quotes:list")
     formset_class = QuoteLineFormSet
+
+
+class QuoteDetail(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = Quote
+    permission_required = "finance.view_quote"
+    template_name = "finance/quote/detail.html"
+    context_object_name = "quote"
+
+    def get_queryset(self):
+        tenant = get_current_tenant(self.request)
+        return (
+            super()
+            .get_queryset()
+            .filter(tenant=tenant)
+            .select_related("partner")
+            .prefetch_related("lines", "lines__tax")  # optionnel
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        quote = ctx["quote"]
+
+        lines = list(quote.lines.all())  # prefetch
+        ctx["lines"] = lines
+        ctx["lines_count"] = len(lines)
+
+        def to_num(v):
+            try:
+                return float(str(v or "0").replace(",", "."))
+            except Exception:
+                return 0.0
+
+        subtotal = sum(to_num(getattr(l, "line_total", 0)) for l in lines)
+        tax_total = sum(to_num(getattr(l, "tax_amount", 0)) for l in lines)
+        total = subtotal + tax_total
+
+        ctx["subtotal"] = subtotal
+        ctx["tax_total"] = tax_total
+        ctx["total"] = total
+
+        return ctx
+
+
+class QuoteDelete(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+    model = Quote
+    permission_required = "finance.delete_quote"
+    template_name = "finance/quote/confirm_delete.html"
+    success_url = reverse_lazy("finance:quotes:list")
+    context_object_name = "quote"
+
+    def get_queryset(self):
+        tenant = get_current_tenant(self.request)
+        return super().get_queryset().filter(tenant=tenant)
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if getattr(self.object, "status", None) not in (None, "DRAFT"):
+            raise Http404("Suppression non autorisée pour ce statut.")
+        return super().delete(request, *args, **kwargs)
 
 
 class InvoiceCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, CreateView):
@@ -480,11 +545,16 @@ AuditEventViews = crud_views(
     ordering=("-created_at",),
 )
 
-CompanyFinanceProfileViews = crud_views(model=CompanyFinanceProfile, form_class=CompanyFinanceProfileForm, base_url="finance:profiles", template_dir="profile")
-FiscalYearViews = crud_views(model=FiscalYear, form_class=FiscalYearForm, base_url="finance:fiscal_years", template_dir="fiscal_year", list_search_fields=("name",))
-AccountingPeriodViews = crud_views(model=AccountingPeriod, form_class=AccountingPeriodForm, base_url="finance:periods", template_dir="period", list_search_fields=("name",))
-AccountViews = crud_views(model=Account, form_class=AccountForm, base_url="finance:accounts", template_dir="account", list_search_fields=("code", "name"))
-JournalViews = crud_views(model=Journal, form_class=JournalForm, base_url="finance:journals", template_dir="journal", list_search_fields=("code", "name"))
+CompanyFinanceProfileViews = crud_views(model=CompanyFinanceProfile, form_class=CompanyFinanceProfileForm,
+                                        base_url="finance:profiles", template_dir="profile")
+FiscalYearViews = crud_views(model=FiscalYear, form_class=FiscalYearForm, base_url="finance:fiscal_years",
+                             template_dir="fiscal_year", list_search_fields=("name",))
+AccountingPeriodViews = crud_views(model=AccountingPeriod, form_class=AccountingPeriodForm, base_url="finance:periods",
+                                   template_dir="period", list_search_fields=("name",))
+AccountViews = crud_views(model=Account, form_class=AccountForm, base_url="finance:accounts", template_dir="account",
+                          list_search_fields=("code", "name"))
+JournalViews = crud_views(model=Journal, form_class=JournalForm, base_url="finance:journals", template_dir="journal",
+                          list_search_fields=("code", "name"))
 
 # JournalEntry uses custom master+lines create/update; list/detail/delete still generic:
 JournalEntryList, JournalEntryDetail, _, _, JournalEntryDelete = crud_views(
@@ -492,42 +562,87 @@ JournalEntryList, JournalEntryDetail, _, _, JournalEntryDelete = crud_views(
     list_search_fields=("reference", "label", "source_object_id"),
     ordering=("-entry_date", "-created_at"),
 )
-JournalLineViews = crud_views(model=JournalLine, form_class=TenantModelForm, base_url="finance:journal_lines", template_dir="journal_line")
+JournalLineViews = crud_views(model=JournalLine, form_class=TenantModelForm, base_url="finance:journal_lines",
+                              template_dir="journal_line")
 
-TaxViews = crud_views(model=Tax, form_class=TaxForm, base_url="finance:taxes", template_dir="tax", list_search_fields=("name",))
-FiscalClosingViews = crud_views(model=FiscalClosing, form_class=FiscalClosingForm, base_url="finance:closings", template_dir="closing")
+TaxViews = crud_views(model=Tax, form_class=TaxForm, base_url="finance:taxes", template_dir="tax",
+                      list_search_fields=("name",))
+FiscalClosingViews = crud_views(model=FiscalClosing, form_class=FiscalClosingForm, base_url="finance:closings",
+                                template_dir="closing")
 
-ExchangeRateViews = crud_views(model=ExchangeRate, form_class=ExchangeRateForm, base_url="finance:fx", template_dir="exchange_rate")
-PartnerViews = crud_views(model=Partner, form_class=PartnerForm, base_url="finance:partners", template_dir="partner", list_search_fields=("code", "name", "email"))
+ExchangeRateViews = crud_views(model=ExchangeRate, form_class=ExchangeRateForm, base_url="finance:fx",
+                               template_dir="exchange_rate")
+PartnerViews = crud_views(model=Partner, form_class=PartnerForm, base_url="finance:partners", template_dir="partner",
+                          list_search_fields=("code", "name", "email"))
 
 # Quote/Invoice use custom master+lines create/update; list/detail/delete generic:
-QuoteList, QuoteDetail, _, _, QuoteDelete = crud_views(model=Quote, form_class=QuoteForm, base_url="finance:quotes", template_dir="quote", list_search_fields=("number",))
-QuoteLineViews = crud_views(model=QuoteLine, form_class=TenantModelForm, base_url="finance:quote_lines", template_dir="quote_line")
-InvoiceList, InvoiceDetail, _, _, InvoiceDelete = crud_views(model=Invoice, form_class=InvoiceForm, base_url="finance:invoices", template_dir="invoice", list_search_fields=("number",))
-InvoiceLineViews = crud_views(model=InvoiceLine, form_class=TenantModelForm, base_url="finance:invoice_lines", template_dir="invoice_line")
+QuoteList, _AutoQuoteDetail, _, _AutoQuoteUpdate, _AutoQuoteDelete = crud_views(
+    model=Quote,
+    form_class=QuoteForm,
+    base_url="finance:quotes",
+    template_dir="quote",
+    list_search_fields=("number",),
+)
+QuoteDetail = QuoteDetail  # ta classe (ci-dessous)
+QuoteDelete = QuoteDelete  # ta classe (ci-dessous)
+QuoteLineViews = crud_views(model=QuoteLine, form_class=TenantModelForm, base_url="finance:quote_lines",
+                            template_dir="quote_line")
+InvoiceList, InvoiceDetail, _, _, InvoiceDelete = crud_views(model=Invoice, form_class=InvoiceForm,
+                                                             base_url="finance:invoices", template_dir="invoice",
+                                                             list_search_fields=("number",))
+InvoiceLineViews = crud_views(model=InvoiceLine, form_class=TenantModelForm, base_url="finance:invoice_lines",
+                              template_dir="invoice_line")
 
-PaymentViews = crud_views(model=Payment, form_class=PaymentForm, base_url="finance:payments", template_dir="payment", list_search_fields=("reference", "provider"))
+PaymentViews = crud_views(model=Payment, form_class=PaymentForm, base_url="finance:payments", template_dir="payment",
+                          list_search_fields=("reference", "provider"))
 
-SubscriptionPlanViews = crud_views(model=SubscriptionPlan, form_class=SubscriptionPlanForm, base_url="finance:subscription_plans", template_dir="subscription_plan", list_search_fields=("name",))
-SubscriptionViews = crud_views(model=Subscription, form_class=SubscriptionForm, base_url="finance:subscriptions", template_dir="subscription")
+SubscriptionPlanViews = crud_views(model=SubscriptionPlan, form_class=SubscriptionPlanForm,
+                                   base_url="finance:subscription_plans", template_dir="subscription_plan",
+                                   list_search_fields=("name",))
+SubscriptionViews = crud_views(model=Subscription, form_class=SubscriptionForm, base_url="finance:subscriptions",
+                               template_dir="subscription")
 
-DunningStageViews = crud_views(model=DunningStage, form_class=DunningStageForm, base_url="finance:dunning_stages", template_dir="dunning_stage", list_search_fields=("name",))
-DunningEventViews = crud_views(model=DunningEvent, form_class=DunningEventForm, base_url="finance:dunning_events", template_dir="dunning_event")
-CustomerPortalTokenViews = crud_views(model=CustomerPortalToken, form_class=CustomerPortalTokenForm, base_url="finance:portal_tokens", template_dir="portal_token")
+DunningStageViews = crud_views(model=DunningStage, form_class=DunningStageForm, base_url="finance:dunning_stages",
+                               template_dir="dunning_stage", list_search_fields=("name",))
+DunningEventViews = crud_views(model=DunningEvent, form_class=DunningEventForm, base_url="finance:dunning_events",
+                               template_dir="dunning_event")
+CustomerPortalTokenViews = crud_views(model=CustomerPortalToken, form_class=CustomerPortalTokenForm,
+                                      base_url="finance:portal_tokens", template_dir="portal_token")
 
 # VendorBill/ExpenseReport/PaymentOrder use custom master+lines create/update; list/detail/delete generic:
-VendorBillList, VendorBillDetail, _, _, VendorBillDelete = crud_views(model=VendorBill, form_class=VendorBillForm, base_url="finance:vendor_bills", template_dir="vendor_bill", list_search_fields=("number",))
-VendorBillLineViews = crud_views(model=VendorBillLine, form_class=TenantModelForm, base_url="finance:vendor_bill_lines", template_dir="vendor_bill_line")
+VendorBillList, VendorBillDetail, _, _, VendorBillDelete = crud_views(model=VendorBill, form_class=VendorBillForm,
+                                                                      base_url="finance:vendor_bills",
+                                                                      template_dir="vendor_bill",
+                                                                      list_search_fields=("number",))
+VendorBillLineViews = crud_views(model=VendorBillLine, form_class=TenantModelForm, base_url="finance:vendor_bill_lines",
+                                 template_dir="vendor_bill_line")
 
-ExpenseReportList, ExpenseReportDetail, _, _, ExpenseReportDelete = crud_views(model=ExpenseReport, form_class=ExpenseReportForm, base_url="finance:expense_reports", template_dir="expense_report", list_search_fields=("title", "employee_id"))
-ExpenseItemViews = crud_views(model=ExpenseItem, form_class=TenantModelForm, base_url="finance:expense_items", template_dir="expense_item")
+ExpenseReportList, ExpenseReportDetail, _, _, ExpenseReportDelete = crud_views(model=ExpenseReport,
+                                                                               form_class=ExpenseReportForm,
+                                                                               base_url="finance:expense_reports",
+                                                                               template_dir="expense_report",
+                                                                               list_search_fields=(
+                                                                               "title", "employee_id"))
+ExpenseItemViews = crud_views(model=ExpenseItem, form_class=TenantModelForm, base_url="finance:expense_items",
+                              template_dir="expense_item")
 
-PaymentOrderList, PaymentOrderDetail, _, _, PaymentOrderDelete = crud_views(model=PaymentOrder, form_class=PaymentOrderForm, base_url="finance:payment_orders", template_dir="payment_order", list_search_fields=("name",))
-PaymentOrderLineViews = crud_views(model=PaymentOrderLine, form_class=TenantModelForm, base_url="finance:payment_order_lines", template_dir="payment_order_line")
+PaymentOrderList, PaymentOrderDetail, _, _, PaymentOrderDelete = crud_views(model=PaymentOrder,
+                                                                            form_class=PaymentOrderForm,
+                                                                            base_url="finance:payment_orders",
+                                                                            template_dir="payment_order",
+                                                                            list_search_fields=("name",))
+PaymentOrderLineViews = crud_views(model=PaymentOrderLine, form_class=TenantModelForm,
+                                   base_url="finance:payment_order_lines", template_dir="payment_order_line")
 
-BankConnectorViews = crud_views(model=BankConnector, form_class=BankConnectorForm, base_url="finance:bank_connectors", template_dir="bank_connector", list_search_fields=("name",))
-BankAccountViews = crud_views(model=BankAccount, form_class=BankAccountForm, base_url="finance:bank_accounts", template_dir="bank_account", list_search_fields=("name", "iban", "external_id"))
-BankTransactionViews = crud_views(model=BankTransaction, form_class=BankTransactionForm, base_url="finance:bank_transactions", template_dir="bank_transaction", list_search_fields=("label", "external_id"))
-ReconciliationMatchViews = crud_views(model=ReconciliationMatch, form_class=ReconciliationMatchForm, base_url="finance:reconciliations", template_dir="reconciliation_match")
+BankConnectorViews = crud_views(model=BankConnector, form_class=BankConnectorForm, base_url="finance:bank_connectors",
+                                template_dir="bank_connector", list_search_fields=("name",))
+BankAccountViews = crud_views(model=BankAccount, form_class=BankAccountForm, base_url="finance:bank_accounts",
+                              template_dir="bank_account", list_search_fields=("name", "iban", "external_id"))
+BankTransactionViews = crud_views(model=BankTransaction, form_class=BankTransactionForm,
+                                  base_url="finance:bank_transactions", template_dir="bank_transaction",
+                                  list_search_fields=("label", "external_id"))
+ReconciliationMatchViews = crud_views(model=ReconciliationMatch, form_class=ReconciliationMatchForm,
+                                      base_url="finance:reconciliations", template_dir="reconciliation_match")
 
-ReportSnapshotViews = crud_views(model=ReportSnapshot, form_class=ReportSnapshotForm, base_url="finance:reports", template_dir="report_snapshot")
+ReportSnapshotViews = crud_views(model=ReportSnapshot, form_class=ReportSnapshotForm, base_url="finance:reports",
+                                 template_dir="report_snapshot")

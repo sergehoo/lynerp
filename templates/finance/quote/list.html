@@ -8,7 +8,9 @@
   theme: 'indigo',
   endpoint: '/finance/api/quotes/',
   createUrl: "{% url 'finance:quotes:create' %}",
-{#  detailUrlTpl: "{% url 'finance:quotes:detail' '0' %}",#}
+
+  {# ✅ IMPORTANT: pk est <uuid:pk> => il faut un UUID valide pour reverse #}
+  detailUrlTpl: "{% url 'finance:quotes:detail' '00000000-0000-0000-0000-000000000000' %}",
 
   columns: [
     {key:'number', label:'N°', mobile:true},
@@ -89,7 +91,7 @@
       </div>
 
       <div>
-        <label class="text-xs font-medium text-slate-500">Devise </label>
+        <label class="text-xs font-medium text-slate-500">Devise</label>
         <select x-model="filters.currency"
                 class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
           <option value="">Toutes</option>
@@ -146,7 +148,8 @@
           <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
             <td class="px-5 py-4">
               <div class="font-semibold text-slate-900 dark:text-white" x-text="r.number || ('QT-' + r.id)"></div>
-              <div class="text-xs text-slate-500 dark:text-slate-400" x-text="`${(r.lines_count||0)} ligne(s) • TVA ${formatMoney(r.tax_total, r.currency)} • HT ${formatMoney(r.subtotal, r.currency)}`"></div>
+              <div class="text-xs text-slate-500 dark:text-slate-400"
+                   x-text="`${(r.lines_count||0)} ligne(s) • TVA ${formatMoney(r.tax_total, r.currency)} • HT ${formatMoney(r.subtotal, r.currency)}`"></div>
             </td>
 
             <td class="px-5 py-4">
@@ -260,6 +263,9 @@ function financeListPage(cfg){
     // ✅ filtres pour Quote
     filters:{ q:'', status:'', currency:'', date_from:'', date_to:'' },
 
+    // ✅ placeholder UUID utilisé dans detailUrlTpl
+    _uuidZero: '00000000-0000-0000-0000-000000000000',
+
     get metaText(){ return `${this.rows.length} devis • page ${this.page}`; },
     get pageText(){ return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`; },
 
@@ -308,18 +314,11 @@ function financeListPage(cfg){
       const p = new URLSearchParams();
       p.set('page', String(this.page));
       p.set('page_size', String(this.pageSize));
-
-      // ✅ ton API DRF utilise search_fields => param "search"
       if(this.filters.q) p.set('search', this.filters.q);
-
-      // ✅ filterset_fields supposés: status, currency
       if(this.filters.status) p.set('status', this.filters.status);
       if(this.filters.currency) p.set('currency', this.filters.currency);
-
-      // ✅ si tu as ajouté le filtre dates dans get_queryset (optionnel)
       if(this.filters.date_from) p.set('date_from', this.filters.date_from);
       if(this.filters.date_to) p.set('date_to', this.filters.date_to);
-
       return p.toString();
     },
 
@@ -337,18 +336,14 @@ function financeListPage(cfg){
         if(token) headers['Authorization'] = `Bearer ${token}`;
 
         const url = `${this.cfg.endpoint}?${this.buildQuery()}`;
-        const res = await fetch(url, {headers});
+        const res = await fetch(url, {headers, credentials:'include'});
         const data = await res.json().catch(()=>null);
         if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
 
-        const list = Array.isArray(data?.results) ? data.results : [];
+        const list = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
 
         // ✅ enrichissement: totaux calculés depuis lines[]
-        this.rows = list.map(q => {
-          const t = this.computeTotals(q);
-          return { ...q, ...t };
-        });
-
+        this.rows = list.map(q => ({ ...q, ...this.computeTotals(q) }));
         this.hasNext = !!data?.next;
       }catch(e){
         console.error(e);
@@ -377,7 +372,6 @@ function financeListPage(cfg){
     nextPage(){ if(!this.hasNext) return; this.page++; this.fetchList(); },
 
     exportCsv(){
-      // ✅ export adapté aux quotes + totaux
       const cols = ['number','partner_name','issue_date','status','currency','subtotal','tax_total','total','lines_count'];
       const out=[cols.join(',')];
       for(const r of this.rows){
@@ -395,14 +389,13 @@ function financeListPage(cfg){
     goCreate(){ if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl); },
 
     goDetail(row){
-      if(!row) return;
+      if(!row?.id) return;
       const tpl = this.cfg.detailUrlTpl || '';
       if(!tpl || tpl==='#') return;
-      window.location.assign(tpl.replace('0', row.id));
+      window.location.assign(tpl.replace(this._uuidZero, row.id));
     },
 
     exportOne(row){
-      // ton API renvoie pdf_file: null ou chemin
       const url = row?.pdf_url || row?.pdf_file || '';
       if(url) return window.open(url,'_blank');
       if(window.hrToast) window.hrToast('PDF indisponible', 'warning');
