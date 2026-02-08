@@ -1,6 +1,8 @@
 # finance/views.py
 from __future__ import annotations
 from typing import Any, Type, Tuple
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.paginator import Paginator
