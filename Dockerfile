@@ -12,6 +12,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd curl wget gcc build-essential libpq-dev git \
  && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libglib2.0-0 \
+    libgobject-2.0-0 \
+    shared-mime-info \
+    fonts-dejavu-core \
+    fonts-liberation \
+ && rm -rf /var/lib/apt/lists/*
 # Entrypoint (copié depuis la racine du repo)
 COPY entrypoint.sh /entrypoint.sh
 # Normalise les fins de ligne si jamais le fichier a du CRLF
