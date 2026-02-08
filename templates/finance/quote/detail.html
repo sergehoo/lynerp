@@ -1,0 +1,431 @@
+{# templates/finance/quote/detail.html #}
+{% extends "hr/base.html" %}
+{% load humanize %}
+{% block page_content %}
+
+<div x-data="quoteDetailPage({
+  id: '{{ quote.id }}',
+  number: '{{ quote.number|default_if_none:"" }}',
+  status: '{{ quote.status|default_if_none:"" }}',
+  currency: '{{ quote.currency|default_if_none:"XOF" }}',
+  issue_date: '{{ quote.issue_date|date:"Y-m-d"|default_if_none:"" }}',
+  valid_until: '{{ quote.valid_until|date:"Y-m-d"|default_if_none:"" }}',
+  partner: {
+    name: '{{ quote.partner.name|default_if_none:""|escapejs }}',
+    phone: '{{ quote.partner.phone|default_if_none:""|escapejs }}',
+    email: '{{ quote.partner.email|default_if_none:""|escapejs }}',
+    address: '{{ quote.partner.address|default_if_none:""|escapejs }}',
+  },
+  notes: '{{ quote.notes|default_if_none:""|escapejs }}',
+
+  totals: {
+    subtotal: {{ subtotal|default:0 }},
+    tax_total: {{ tax_total|default:0 }},
+    total: {{ total|default:0 }},
+    lines_count: {{ lines_count|default:0 }},
+  },
+
+  urls: {
+    list: "{% url 'finance:quotes:list' %}",
+    edit: "{% url 'finance:quotes:update' quote.id %}",
+    delete: "{% url 'finance:quotes:delete' quote.id %}",
+  },
+
+  // lignes rendues côté serveur (déjà tenant-safe via queryset)
+  lines: [
+    {% for l in lines %}
+    {
+      id: '{{ l.id }}',
+      description: '{{ l.description|default_if_none:""|escapejs }}',
+      product: '{{ l.product.name|default_if_none:""|escapejs }}',
+      qty: {{ l.quantity|default:0 }},
+      unit_price: {{ l.unit_price|default:0 }},
+      discount: {{ l.discount|default:0 }},
+      tax_rate: {{ l.tax.rate|default:0 }},
+      line_total: {{ l.line_total|default:0 }},
+      tax_amount: {{ l.tax_amount|default:0 }},
+      total: {{ l.total|default:l.line_total|default:0 }},
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+})" x-init="init()" class="space-y-6">
+
+  <!-- Header / breadcrumb -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <a :href="urls.list"
+           class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-indigo-600 text-white">
+          <i class="fa-solid fa-file-signature text-[11px] opacity-90"></i>
+          <span>Finance • Devis</span>
+        </a>
+        <span class="text-xs text-slate-500 dark:text-slate-400 truncate">Détail du devis & lignes</span>
+      </div>
+
+      <h2 class="mt-3 text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate">
+        <span x-text="displayNumber"></span>
+      </h2>
+
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+              :class="statusPill(status).cls">
+          <span class="w-2 h-2 rounded-full" :class="statusPill(status).dot"></span>
+          <span x-text="statusPill(status).label"></span>
+        </span>
+
+        <span class="text-xs text-slate-500 dark:text-slate-400">
+          Émis le <span class="font-medium text-slate-700 dark:text-slate-200" x-text="fmtDate(issue_date)"></span>
+          <template x-if="valid_until">
+            <span> • Valable jusqu’au <span class="font-medium text-slate-700 dark:text-slate-200" x-text="fmtDate(valid_until)"></span></span>
+          </template>
+        </span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-wrap items-center gap-2">
+      <a :href="urls.edit"
+         class="h-10 px-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-soft inline-flex items-center gap-2">
+        <i class="fa-solid fa-pen-to-square text-xs"></i><span>Modifier</span>
+      </a>
+
+      <button @click="confirmDelete()"
+              class="h-10 px-4 rounded-full border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-200 text-sm font-medium inline-flex items-center gap-2">
+        <i class="fa-solid fa-trash text-xs"></i><span>Supprimer</span>
+      </button>
+
+      <a :href="urls.list"
+         class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-2">
+        <i class="fa-solid fa-arrow-left text-xs"></i><span>Retour</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Top cards -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- Client -->
+    <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+      <div class="flex items-center justify-between">
+        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-user text-slate-400"></i><span>Client</span>
+        </div>
+        <span class="text-xs text-slate-500 dark:text-slate-400" x-text="currency"></span>
+      </div>
+
+      <div class="mt-4">
+        <div class="text-lg font-semibold text-slate-900 dark:text-white" x-text="partner.name || '—'"></div>
+        <div class="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-300">
+          <div x-show="partner.phone" x-cloak class="flex items-center gap-2">
+            <i class="fa-solid fa-phone text-slate-400 text-xs"></i>
+            <span x-text="partner.phone"></span>
+          </div>
+          <div x-show="partner.email" x-cloak class="flex items-center gap-2">
+            <i class="fa-solid fa-envelope text-slate-400 text-xs"></i>
+            <span x-text="partner.email"></span>
+          </div>
+          <div x-show="partner.address" x-cloak class="flex items-center gap-2">
+            <i class="fa-solid fa-location-dot text-slate-400 text-xs"></i>
+            <span x-text="partner.address"></span>
+          </div>
+          <div x-show="!partner.phone && !partner.email && !partner.address" class="text-slate-400 text-sm">Aucune info de contact.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Totaux -->
+    <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+      <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+        <i class="fa-solid fa-receipt text-slate-400"></i><span>Totaux</span>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-slate-500 dark:text-slate-400">HT</span>
+          <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="money(totals.subtotal)"></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-slate-500 dark:text-slate-400">TVA</span>
+          <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="money(totals.tax_total)"></span>
+        </div>
+        <div class="pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Total TTC</span>
+          <span class="text-lg font-semibold text-slate-900 dark:text-white" x-text="money(totals.total)"></span>
+        </div>
+
+        <div class="text-xs text-slate-500 dark:text-slate-400">
+          <span x-text="totals.lines_count"></span> ligne(s)
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+      <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+        <i class="fa-solid fa-note-sticky text-slate-400"></i><span>Notes</span>
+      </div>
+
+      <div class="mt-4 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap" x-text="notes || '—'"></div>
+    </div>
+  </div>
+
+  <!-- Lignes -->
+  <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-2xl grid place-items-center bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/40">
+          <i class="fa-solid fa-list"></i>
+        </div>
+        <div>
+          <div class="font-semibold text-slate-900 dark:text-white">Lignes</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400" x-text="linesMeta"></div>
+        </div>
+      </div>
+
+      <!-- mini actions -->
+      <div class="flex items-center gap-2">
+        <input x-model.debounce.200ms="q"
+               class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+               placeholder="Rechercher une ligne…"/>
+        <button @click="exportLinesCsv()"
+                class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-2">
+          <i class="fa-solid fa-file-export text-xs"></i><span>Export</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="hidden lg:block">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
+          <tr>
+            <th class="font-semibold px-5 py-3 text-left">Désignation</th>
+            <th class="font-semibold px-5 py-3 text-right w-28">Qté</th>
+            <th class="font-semibold px-5 py-3 text-right w-40">PU</th>
+            <th class="font-semibold px-5 py-3 text-right w-40">HT</th>
+            <th class="font-semibold px-5 py-3 text-right w-32">TVA</th>
+            <th class="font-semibold px-5 py-3 text-right w-44">TTC</th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+          <template x-for="ln in filteredLines" :key="ln.id">
+            <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
+              <td class="px-5 py-4">
+                <div class="font-medium text-slate-900 dark:text-white" x-text="ln.description || ln.product || '—'"></div>
+                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="ln.product ? ('Produit: ' + ln.product) : ''"></div>
+              </td>
+
+              <td class="px-5 py-4 text-right text-slate-700 dark:text-slate-200" x-text="fmtQty(ln.qty)"></td>
+              <td class="px-5 py-4 text-right text-slate-700 dark:text-slate-200" x-text="money(ln.unit_price)"></td>
+              <td class="px-5 py-4 text-right">
+                <div class="font-semibold text-slate-900 dark:text-white" x-text="money(ln.line_total)"></div>
+                <div class="text-xs text-slate-400" x-show="toNum(ln.discount) > 0" x-cloak x-text="`Remise: ${ln.discount}%`"></div>
+              </td>
+              <td class="px-5 py-4 text-right text-slate-700 dark:text-slate-200">
+                <div x-text="money(ln.tax_amount)"></div>
+                <div class="text-xs text-slate-400" x-show="toNum(ln.tax_rate) > 0" x-cloak x-text="`${ln.tax_rate}%`"></div>
+              </td>
+              <td class="px-5 py-4 text-right">
+                <div class="font-semibold text-slate-900 dark:text-white" x-text="money(lineTTC(ln))"></div>
+              </td>
+            </tr>
+          </template>
+
+          <tr x-show="filteredLines.length===0" x-cloak>
+            <td colspan="6" class="px-5 py-12 text-center">
+              <div class="text-3xl mb-2">🧾</div>
+              <div class="font-semibold text-slate-900 dark:text-white">Aucune ligne</div>
+              <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ajustez la recherche.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile -->
+    <div class="lg:hidden divide-y divide-gray-100 dark:divide-slate-800">
+      <template x-for="ln in filteredLines" :key="'m:' + ln.id">
+        <div class="p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="font-semibold text-slate-900 dark:text-white truncate" x-text="ln.description || ln.product || '—'"></div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="ln.product || ''"></div>
+              <div class="mt-1 text-xs text-slate-400" x-text="`Qté ${fmtQty(ln.qty)} • PU ${money(ln.unit_price)}`"></div>
+            </div>
+            <div class="text-right">
+              <div class="font-semibold text-slate-900 dark:text-white" x-text="money(lineTTC(ln))"></div>
+              <div class="text-xs text-slate-400" x-text="`TVA ${money(ln.tax_amount)}`"></div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div x-show="filteredLines.length===0" x-cloak class="p-6 text-center">
+        <div class="text-3xl mb-2">🧾</div>
+        <div class="font-semibold text-slate-900 dark:text-white">Aucune ligne</div>
+      </div>
+    </div>
+
+    <!-- Footer totals -->
+    <div class="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-800">
+      <div class="max-w-md ml-auto space-y-2">
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-500 dark:text-slate-400">Sous-total (HT)</span>
+          <span class="font-semibold text-slate-900 dark:text-white" x-text="money(totals.subtotal)"></span>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-500 dark:text-slate-400">TVA</span>
+          <span class="font-semibold text-slate-900 dark:text-white" x-text="money(totals.tax_total)"></span>
+        </div>
+        <div class="pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Total TTC</span>
+          <span class="text-lg font-semibold text-slate-900 dark:text-white" x-text="money(totals.total)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal delete -->
+  <div x-show="showDelete" x-cloak class="fixed inset-0 z-[100]">
+    <div class="absolute inset-0 bg-slate-900/50" @click="showDelete=false"></div>
+    <div class="absolute inset-0 grid place-items-center p-4">
+      <div class="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-xl overflow-hidden">
+        <div class="p-5 border-b border-gray-100 dark:border-slate-800">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+            <span>Confirmer la suppression</span>
+          </div>
+          <div class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+            Voulez-vous supprimer ce devis ? Cette action est irréversible.
+          </div>
+        </div>
+
+        <div class="p-5 flex items-center justify-end gap-2">
+          <button @click="showDelete=false"
+                  class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+            Annuler
+          </button>
+
+          <form method="post" :action="urls.delete">
+            {% csrf_token %}
+            <button type="submit"
+                    class="h-10 px-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium inline-flex items-center gap-2">
+              <i class="fa-solid fa-trash text-xs"></i><span>Supprimer</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function quoteDetailPage(cfg){
+  return {
+    ...cfg,
+    q: '',
+    showDelete: false,
+
+    get displayNumber(){
+      return this.number ? `Devis ${this.number}` : `Devis ${String(this.id).slice(0,8).toUpperCase()}`;
+    },
+
+    get linesMeta(){
+      return `${(this.lines||[]).length} ligne(s) • HT ${this.money(this.totals.subtotal)} • TVA ${this.money(this.totals.tax_total)}`;
+    },
+
+    statusPill(s){
+      const m = {
+        DRAFT:{label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
+        SENT:{label:'Envoyé', cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},
+        ACCEPTED:{label:'Accepté', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
+        REJECTED:{label:'Rejeté', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
+        CANCELLED:{label:'Annulé', cls:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},
+      };
+      return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
+    },
+
+    init(){
+      // Si tu veux recalculer les totaux côté client à partir des lignes :
+      // this.recomputeTotals();
+    },
+
+    fmtDate(s){
+      if(!s) return '—';
+      try { return new Date(s).toLocaleDateString('fr-FR'); }
+      catch { return '—'; }
+    },
+
+    toNum(v){
+      const n = Number(String(v ?? '0').replace(',', '.'));
+      return Number.isFinite(n) ? n : 0;
+    },
+
+    fmtQty(v){
+      const n = this.toNum(v);
+      try { return new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2}).format(n); }
+      catch { return String(n); }
+    },
+
+    money(v){
+      const currency = this.currency || 'XOF';
+      const n = this.toNum(v);
+      try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency}).format(n); }
+      catch { return `${n.toLocaleString('fr-FR')} ${currency}`; }
+    },
+
+    lineTTC(ln){
+      // certains modèles ont ln.total, sinon HT + TVA
+      const t = this.toNum(ln?.total);
+      if(t) return t;
+      return this.toNum(ln?.line_total) + this.toNum(ln?.tax_amount);
+    },
+
+    recomputeTotals(){
+      const lines = Array.isArray(this.lines) ? this.lines : [];
+      let subtotal = 0, tax_total = 0;
+      for(const ln of lines){
+        subtotal += this.toNum(ln?.line_total);
+        tax_total += this.toNum(ln?.tax_amount);
+      }
+      this.totals.subtotal = subtotal;
+      this.totals.tax_total = tax_total;
+      this.totals.total = subtotal + tax_total;
+      this.totals.lines_count = lines.length;
+    },
+
+    get filteredLines(){
+      const lines = Array.isArray(this.lines) ? this.lines : [];
+      const q = (this.q || '').trim().toLowerCase();
+      if(!q) return lines;
+      return lines.filter(ln => {
+        const a = `${ln.description||''} ${ln.product||''}`.toLowerCase();
+        return a.includes(q);
+      });
+    },
+
+    exportLinesCsv(){
+      const cols = ['description','product','qty','unit_price','discount','tax_rate','line_total','tax_amount','total'];
+      const out = [cols.join(',')];
+      for(const ln of (this.lines||[])){
+        const row = cols.map(k => `"${String(ln?.[k] ?? '').replaceAll('"','""')}"`).join(',');
+        out.push(row);
+      }
+      const blob=new Blob([out.join('\n')],{type:'text/csv;charset=utf-8'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`quote_${(this.number||String(this.id).slice(0,8))}_lines.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+
+    confirmDelete(){
+      // Option: bloquer UI si non DRAFT (tu bloques déjà côté serveur)
+      this.showDelete = true;
+    },
+  }
+}
+</script>
+
+{% endblock %}
