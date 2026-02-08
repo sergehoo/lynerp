@@ -448,71 +448,78 @@ class QuoteDelete(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
             raise Http404("Suppression non autorisée pour ce statut.")
         return super().delete(request, *args, **kwargs)
 
-class QuotePDFView(LoginRequiredMixin, PermissionRequiredMixin, View):
+def build_absolute_url(request, url: str) -> str:
+    """WeasyPrint a besoin d'URL absolue pour charger images/css."""
+    if not url:
+        return ""
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    return request.build_absolute_uri(url)
+
+class QuotePdfView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = "finance.view_quote"
 
     def get(self, request, pk):
-        tenant = get_current_tenant(request)
+        try:
+            quote = Quote.objects.select_related("partner").prefetch_related("lines__tax").get(pk=pk)
+        except Quote.DoesNotExist:
+            raise Http404
 
-        quote = get_object_or_404(
-            Quote.objects.select_related("partner", "tenant")
-            .prefetch_related("lines", "lines__tax"),
-            pk=pk,
-            tenant=tenant,
-        )
+        lines = list(quote.lines.all().order_by("created_at") if hasattr(quote.lines.model, "created_at") else quote.lines.all())
 
-        lines = list(quote.lines.all())
+        subtotal = quote.subtotal()
+        tax_total = quote.total_tax()
+        total = quote.total()
 
-        # Totaux (si tu as déjà des champs calculés, remplace)
-        def to_num(v):
-            try:
-                return float(str(v or "0").replace(",", "."))
-            except Exception:
-                return 0.0
-
-        subtotal = sum(to_num(getattr(l, "line_total", 0)) for l in lines)
-        tax_total = sum(to_num(getattr(l, "tax_amount", 0)) for l in lines)
-        total = subtotal + tax_total
-
-        # Données entreprise (tenant) -> adapte aux champs de ton Tenant/settings
+        # ✅ Company = à adapter (tenant / settings)
+        # Exemple: si tu as un modèle Tenant/Company, remplace par tes champs.
         company = {
-            "name": getattr(tenant, "name", "") or "Votre entreprise",
-            "address": getattr(tenant, "address", "") or "",
-            "phone": getattr(tenant, "contact_phone", "") or "",
-            "email": getattr(tenant, "contact_email", "") or "",
-            # logo_url: idéalement un URL absolu (CDN / media)
-            "logo_url": getattr(getattr(tenant, "settings", {}), "get", lambda k, d=None: None)("logo_url", None)
-                        if hasattr(tenant, "settings") else None,
+            "name": getattr(request, "tenant", None).name if getattr(request, "tenant", None) else getattr(settings, "COMPANY_NAME", "—"),
+            "address": getattr(settings, "COMPANY_ADDRESS", ""),
+            "phone": getattr(settings, "COMPANY_PHONE", ""),
+            "email": getattr(settings, "COMPANY_EMAIL", ""),
+            "website": getattr(settings, "COMPANY_WEBSITE", ""),
+            "rc": getattr(settings, "COMPANY_RC", ""),
+            "cc": getattr(settings, "COMPANY_CC", ""),
+            # IMPORTANT: logo_url doit être une URL HTTP accessible par WeasyPrint (public ou presigned)
+            "logo_url": "",
         }
 
-        html_string = render_to_string(
-            "finance/quote/pdf.html",
-            {
-                "quote": quote,
-                "lines": lines,
-                "subtotal": subtotal,
-                "tax_total": tax_total,
-                "total": total,
-                "company": company,
-                "request": request,  # utile pour build_absolute_uri
-            },
-        )
+        # ✅ Si tu as un champ logo en FileField (stocké MinIO via django-storages):
+        # company["logo_url"] = build_absolute_url(request, tenant.logo.url)
 
-        # Base URL important pour résoudre /static, /media
+        # ✅ Si tu stockes l'URL presignée toi-même:
+        # company["logo_url"] = presign_minio_url(tenant.logo_key)
+
+        context = {
+            "request": request,
+            "quote": quote,
+            "lines": lines,
+            "subtotal": subtotal,
+            "tax_total": tax_total,
+            "total": total,
+            "company": company,
+        }
+
+        html = render_to_string("finance/quote/pdf.html", context)
+
+        # base_url important pour charger des assets relatifs (css/images)
         base_url = request.build_absolute_uri("/")
 
-        pdf = HTML(string=html_string, base_url=base_url).write_pdf(
-            stylesheets=[CSS(string="""
-                @page { size: A4; margin: 22mm 14mm 22mm 14mm; }
-                * { -weasy-hyphens: auto; }
-            """)]
+        pdf = HTML(string=html, base_url=base_url).write_pdf(
+            stylesheets=[
+                CSS(string="@page { size: A4; }")
+            ]
         )
 
-        filename = f"DEVIS_{getattr(quote, 'number', str(quote.pk)[:8])}.pdf"
-        response = HttpResponse(pdf, content_type="application/pdf")
-        response["Content-Disposition"] = f'inline; filename="{filename}"'
-        return response
+        # (Option) enregistrer dans pdf_file (MinIO via storages) :
+        # from django.core.files.base import ContentFile
+        # filename = f"devis_{quote.number}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        # quote.pdf_file.save(filename, ContentFile(pdf), save=True)
 
+        resp = HttpResponse(pdf, content_type="application/pdf")
+        resp["Content-Disposition"] = f'inline; filename="devis_{quote.number}.pdf"'
+        return resp
 class InvoiceCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, CreateView):
     model = Invoice
     form_class = InvoiceForm

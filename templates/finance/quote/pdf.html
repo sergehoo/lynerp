@@ -4,107 +4,135 @@
 <head>
   <meta charset="utf-8" />
   <title>Devis {{ quote.number }}</title>
+
   <style>
-    /* ====== Print base ====== */
+    /* ====== Page / print ====== */
+    @page {
+      size: A4;
+      margin: 26mm 14mm 22mm 14mm; /* top right bottom left */
+    }
+
     :root{
-      --ink:#0f172a;        /* slate-900 */
-      --muted:#64748b;      /* slate-500 */
-      --line:#e2e8f0;       /* slate-200 */
-      --soft:#f1f5f9;       /* slate-100 */
-      --brand:#4f46e5;      /* indigo-600 */
-    }
-    html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif; color:var(--ink); }
-    .wrap { }
-
-    /* ====== Header / Footer (fixed) ====== */
-    header {
-      position: fixed;
-      top: -14mm;
-      left: 0;
-      right: 0;
-      height: 18mm;
-      padding: 0 0 0 0;
-    }
-    footer {
-      position: fixed;
-      bottom: -14mm;
-      left: 0;
-      right: 0;
-      height: 18mm;
-      color: var(--muted);
-      font-size: 10px;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --line:#e2e8f0;
+      --soft:#f1f5f9;
+      --brand:#4f46e5;
+      --brand2:#22c55e;
     }
 
-    .header-bar {
-      display:flex; align-items:center; justify-content:space-between;
+    html, body{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
+      color: var(--ink);
+      font-size: 11px;
+    }
+
+    /* ====== Running header/footer (WeasyPrint) ====== */
+    header{ position: running(doc-header); }
+    footer{ position: running(doc-footer); }
+
+    @page {
+      @top-center { content: element(doc-header) }
+      @bottom-center { content: element(doc-footer) }
+    }
+
+    .header-bar{
       border-bottom: 1px solid var(--line);
-      padding-bottom: 6mm;
+      padding: 0 0 8mm 0;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
     }
-    .brand {
-      display:flex; align-items:center; gap:10px;
+
+    .brand{
+      display:flex;
+      gap: 10px;
+      align-items:flex-start;
+      min-width: 55%;
     }
-    .logo {
+
+    .logo{
       width: 46px; height: 46px;
-      border-radius: 10px;
+      border-radius: 12px;
       background: var(--soft);
       border: 1px solid var(--line);
       overflow:hidden;
       display:flex; align-items:center; justify-content:center;
+      flex: 0 0 auto;
     }
-    .logo img { width:100%; height:100%; object-fit:contain; }
-    .brand-name { font-weight: 800; font-size: 14px; letter-spacing: .2px; }
-    .brand-meta { font-size: 10px; color: var(--muted); margin-top:2px; line-height: 1.35; }
+    .logo img{ width:100%; height:100%; object-fit:contain; }
 
-    .doc-badge {
-      text-align:right;
+    .brand-name{ font-weight: 900; font-size: 14px; letter-spacing: .2px; }
+    .brand-meta{ margin-top: 2px; color: var(--muted); line-height: 1.35; font-size: 10px; }
+
+    .doc-badge{ text-align:right; }
+    .doc-title{ font-size: 16px; font-weight: 1000; color: var(--brand); letter-spacing: .6px; }
+    .doc-sub{ margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+    .pill{
+      display:inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      color: var(--ink);
     }
-    .doc-title { font-size: 16px; font-weight: 900; color: var(--brand); letter-spacing:.5px; }
-    .doc-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-    /* ====== Main ====== */
-    .content { margin-top: 6mm; }
-    .top-grid {
+    .content{ margin-top: 2mm; }
+
+    /* ====== Cards top ====== */
+    .top-grid{
       display:grid;
       grid-template-columns: 1.2fr .8fr;
-      gap: 12px;
-      margin: 10mm 0 6mm 0;
+      gap: 10px;
+      margin: 8mm 0 5mm 0;
     }
-    .card {
+    .card{
       border: 1px solid var(--line);
       border-radius: 14px;
-      padding: 12px 12px;
-      background: white;
+      padding: 10px 11px;
+      background: #fff;
     }
-    .card h3 { margin:0 0 6px 0; font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing:.6px; }
-    .card .big { font-size: 13px; font-weight: 800; margin: 2px 0 6px 0; }
-    .kv { font-size: 10.5px; color: var(--ink); line-height: 1.55; }
-    .kv .muted { color: var(--muted); }
-
-    /* ====== Lines table ====== */
-    table { width:100%; border-collapse: collapse; margin-top: 6mm; }
-    thead th {
+    .card h3{
+      margin:0 0 6px 0;
       font-size: 10px;
+      color: var(--muted);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+    .big{ font-size: 12.5px; font-weight: 900; margin: 2px 0 6px 0; }
+    .kv{ line-height: 1.55; }
+    .muted{ color: var(--muted); }
+
+    /* ====== Table ====== */
+    table{ width:100%; border-collapse: collapse; margin-top: 5mm; }
+    thead th{
       text-transform: uppercase;
       letter-spacing: .55px;
       color: var(--muted);
+      font-size: 9.5px;
       text-align: left;
       border-bottom: 1px solid var(--line);
-      padding: 10px 8px;
+      padding: 9px 8px;
       background: #fbfdff;
     }
-    tbody td {
-      font-size: 10.5px;
-      padding: 10px 8px;
+    tbody td{
+      padding: 9px 8px;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
+      font-size: 10.5px;
     }
-    .right { text-align:right; }
-    .desc { font-weight: 700; }
-    .subdesc { color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .right{ text-align:right; }
+    .desc{ font-weight: 900; }
+    tr{ page-break-inside: avoid; }
 
     /* ====== Totals ====== */
-    .totals {
-      margin-top: 6mm;
+    .totals{
+      margin-top: 5mm;
       display:flex;
       justify-content:flex-end;
     }
@@ -112,40 +140,28 @@
       width: 58%;
       border: 1px solid var(--line);
       border-radius: 14px;
-      padding: 12px;
-      background: white;
+      padding: 10px 11px;
+      background:#fff;
     }
-    .row { display:flex; justify-content:space-between; font-size: 11px; padding: 4px 0; }
-    .row .label { color: var(--muted); }
-    .row.total { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; font-size: 13px; font-weight: 900; }
-    .pill {
-      display:inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 10px;
-      font-weight: 800;
-      background: var(--soft);
-      border: 1px solid var(--line);
-      color: var(--ink);
-    }
+    .row{ display:flex; justify-content:space-between; padding: 4px 0; font-size: 11px; }
+    .row .label{ color: var(--muted); }
+    .row.total{ border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; font-size: 13px; font-weight: 1000; }
 
     /* ====== Footer ====== */
     .footer-bar{
       border-top: 1px solid var(--line);
-      padding-top: 5mm;
+      padding-top: 4mm;
       display:flex;
-      align-items:flex-start;
       justify-content:space-between;
       gap: 10px;
+      color: var(--muted);
+      font-size: 9.5px;
     }
-    .footer-left { line-height:1.4; }
-    .footer-right { text-align:right; }
-    .page:after { content: "Page " counter(page) " / " counter(pages); }
-
-    /* Avoid row cut */
-    tr { page-break-inside: avoid; }
+    .footer-right{ text-align:right; }
+    .page:after{ content: "Page " counter(page) " / " counter(pages); }
   </style>
 </head>
+
 <body>
 
 <header>
@@ -155,16 +171,19 @@
         {% if company.logo_url %}
           <img src="{{ company.logo_url }}" alt="Logo">
         {% else %}
-          <!-- fallback simple -->
-          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--brand);font-weight:900;">{{ company.name|slice:":1" }}</div>
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--brand);font-weight:1000;">
+            {{ company.name|default:"C"|slice:":1" }}
+          </div>
         {% endif %}
       </div>
       <div>
-        <div class="brand-name">{{ company.name }}</div>
+        <div class="brand-name">{{ company.name|default:"—" }}</div>
         <div class="brand-meta">
           {% if company.address %}{{ company.address }}<br>{% endif %}
           {% if company.phone %}{{ company.phone }}{% endif %}
           {% if company.email %}{% if company.phone %} • {% endif %}{{ company.email }}{% endif %}
+          {% if company.rc %}{% if company.phone or company.email %}<br>{% endif %}RC: {{ company.rc }}{% endif %}
+          {% if company.cc %}{% if company.rc %} • {% endif %}CC: {{ company.cc }}{% endif %}
         </div>
       </div>
     </div>
@@ -173,7 +192,11 @@
       <div class="doc-title">DEVIS</div>
       <div class="doc-sub">
         N° <strong>{{ quote.number|default:quote.id }}</strong>
-        • <span class="pill">{{ quote.status|default:"—" }}</span>
+        • <span class="pill">{{ quote.get_status_display|default:quote.status|default:"—" }}</span>
+      </div>
+      <div class="doc-sub">
+        Émis le <strong>{{ quote.issue_date|date:"d/m/Y"|default:"—" }}</strong>
+        {% if quote.valid_until %} • Valable jusqu’au <strong>{{ quote.valid_until|date:"d/m/Y" }}</strong>{% endif %}
       </div>
     </div>
   </div>
@@ -181,23 +204,23 @@
 
 <footer>
   <div class="footer-bar">
-    <div class="footer-left">
-      <strong>{{ company.name }}</strong>
+    <div>
+      <strong style="color:var(--ink);">{{ company.name|default:"—" }}</strong>
       {% if company.address %} • {{ company.address }}{% endif %}
       {% if company.phone %} • {{ company.phone }}{% endif %}
       {% if company.email %} • {{ company.email }}{% endif %}
-      <div style="margin-top:3px;color:var(--muted);">
+      <div style="margin-top:2px;">
         Document généré le {% now "d/m/Y H:i" %} • <span class="page"></span>
       </div>
     </div>
     <div class="footer-right">
-      <div style="font-weight:800;color:var(--ink);">Merci pour votre confiance.</div>
-      <div style="margin-top:3px;">{{ request.get_host }}</div>
+      <div style="font-weight:900;color:var(--ink);">Merci pour votre confiance.</div>
+      {% if company.website %}<div>{{ company.website }}</div>{% endif %}
     </div>
   </div>
 </footer>
 
-<div class="content wrap">
+<div class="content">
 
   <div class="top-grid">
     <div class="card">
@@ -216,10 +239,9 @@
     <div class="card">
       <h3>Informations</h3>
       <div class="kv">
-        <div><span class="muted">Date:</span> {{ quote.issue_date|date:"d/m/Y"|default:"—" }}</div>
-        <div><span class="muted">Validité:</span> {{ quote.valid_until|date:"d/m/Y"|default:"—" }}</div>
-        <div><span class="muted">Devise:</span> {{ quote.currency|default:"XOF" }}</div>
+        <div><span class="muted">Devise:</span> {{ quote.get_currency_display|default:quote.currency|default:"XOF" }}</div>
         <div><span class="muted">Lignes:</span> {{ lines|length }}</div>
+        <div><span class="muted">Référence:</span> {{ quote.id }}</div>
       </div>
     </div>
   </div>
@@ -239,21 +261,14 @@
       {% for l in lines %}
       <tr>
         <td>
-          <div class="desc">{{ l.description|default:"—" }}</div>
-          {% if l.product %}<div class="subdesc">Produit: {{ l.product.name }}</div>{% endif %}
+          <div class="desc">{{ l.label|default:"—" }}</div>
         </td>
         <td class="right">{{ l.quantity|default:0 }}</td>
         <td class="right">{{ l.unit_price|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</td>
         <td class="right">{{ l.line_total|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</td>
         <td class="right">{{ l.tax_amount|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}</td>
         <td class="right">
-          {% with t=l.total|default_if_none:0 %}
-            {% if t and t != 0 %}
-              {{ t|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}
-            {% else %}
-              {{ l.line_total|add:l.tax_amount|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}
-            {% endif %}
-          {% endwith %}
+          {{ l.line_total|add:l.tax_amount|floatformat:0|intcomma }} {{ quote.currency|default:"XOF" }}
         </td>
       </tr>
       {% empty %}
@@ -280,7 +295,7 @@
   </div>
 
   {% if quote.notes %}
-  <div class="card" style="margin-top:6mm;">
+  <div class="card" style="margin-top:5mm;">
     <h3>Notes</h3>
     <div class="kv">{{ quote.notes|linebreaksbr }}</div>
   </div>
