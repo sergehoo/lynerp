@@ -68,14 +68,14 @@ services:
       - traefik.http.routers.minio-api.rule=Host(`${MINIO_API_HOST}`)
       - traefik.http.routers.minio-api.entrypoints=websecure
       - traefik.http.routers.minio-api.tls.certresolver=${TRAEFIK_CERTRESOLVER}
-      - traefik.http.routers.minio-api.service=minio-api
+      - traefik.http.routers.minio-api.service=lyneminio-api
       - traefik.http.services.minio-api.loadbalancer.server.port=9000
 
       # Console
       - traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST}`)
       - traefik.http.routers.minio-console.entrypoints=websecure
       - traefik.http.routers.minio-console.tls.certresolver=${TRAEFIK_CERTRESOLVER}
-      - traefik.http.routers.minio-console.service=minio-console
+      - traefik.http.routers.minio-console.service=lyneminio-console
       - traefik.http.services.minio-console.loadbalancer.server.port=9001
 
   # === Keycloak (SSO) ===
