@@ -169,164 +169,166 @@
     </div>
 
     <!-- Lines -->
-   {# --- LINES (formset dynamique) --- #}
-<div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-  <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
-    <div class="flex items-center gap-2">
-      <div class="w-10 h-10 rounded-2xl grid place-items-center bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/40">
-        <i class="fa-solid fa-list"></i>
+    {# --- LINES (formset dynamique) --- #}
+    <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-2xl grid place-items-center bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-900/40">
+            <i class="fa-solid fa-list"></i>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-900 dark:text-white">Lignes</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400" x-text="linesMeta"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input x-model.debounce.200ms="q"
+                 class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                 placeholder="Filtrer…"/>
+
+          <button type="button"
+                  @click="addLine()"
+                  class="h-10 px-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-soft inline-flex items-center gap-2">
+            <i class="fa-solid fa-plus text-xs"></i><span>Ajouter</span>
+          </button>
+        </div>
       </div>
-      <div>
-        <div class="font-semibold text-slate-900 dark:text-white">Lignes</div>
-        <div class="text-xs text-slate-500 dark:text-slate-400" x-text="linesMeta"></div>
-      </div>
-    </div>
 
-    <div class="flex items-center gap-2">
-      <input x-model.debounce.200ms="q"
-             class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
-             placeholder="Filtrer…"/>
+      <div class="p-4 sm:p-5">
+        {{ formset.management_form }}
 
-      <button type="button"
-              @click="addLine()"
-              class="h-10 px-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-soft inline-flex items-center gap-2">
-        <i class="fa-solid fa-plus text-xs"></i><span>Ajouter</span>
-      </button>
-    </div>
-  </div>
+        {# conteneur des lignes #}
+        <div id="lines-container" class="space-y-3">
+          {% for f in formset.forms %}
+            <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4 js-line">
+              {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
 
-  <div class="p-4 sm:p-5">
-    {{ formset.management_form }}
-
-    {# conteneur des lignes #}
-    <div id="lines-container" class="space-y-3">
-      {% for f in formset.forms %}
-        <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4 js-line">
-          {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-
-          {% if f.non_field_errors %}
-            <div class="mb-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">
-              {{ f.non_field_errors }}
-            </div>
-          {% endif %}
-
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div class="md:col-span-4">
-              <div class="text-xs font-medium text-slate-500">Désignation</div>
-              <div class="mt-1">
-                {% if f.label %}{{ f.label }}{% elif f.description %}{{ f.description }}{% endif %}
-                {% if f.label and f.label.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.label.errors }}</div>{% endif %}
-                {% if f.description and f.description.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.description.errors }}</div>{% endif %}
-              </div>
-            </div>
-
-            {% if f.product %}
-            <div class="md:col-span-3">
-              <div class="text-xs font-medium text-slate-500">Produit</div>
-              <div class="mt-1">
-                {{ f.product }}
-                {% if f.product.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.product.errors }}</div>{% endif %}
-              </div>
-            </div>
-            {% endif %}
-
-            <div class="md:col-span-1">
-              <div class="text-xs font-medium text-slate-500">Qté</div>
-              <div class="mt-1">
-                {% if f.quantity %}{{ f.quantity }}{% elif f.qty %}{{ f.qty }}{% endif %}
-                {% if f.quantity and f.quantity.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.quantity.errors }}</div>{% endif %}
-                {% if f.qty and f.qty.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.qty.errors }}</div>{% endif %}
-              </div>
-            </div>
-
-            <div class="md:col-span-2">
-              <div class="text-xs font-medium text-slate-500">PU</div>
-              <div class="mt-1">
-                {% if f.unit_price %}{{ f.unit_price }}{% endif %}
-                {% if f.unit_price and f.unit_price.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.unit_price.errors }}</div>{% endif %}
-              </div>
-            </div>
-
-            <div class="md:col-span-2">
-              <div class="text-xs font-medium text-slate-500">TVA</div>
-              <div class="mt-1">
-                {% if f.tax %}{{ f.tax }}{% elif f.tax_rate %}{{ f.tax_rate }}{% endif %}
-              </div>
-            </div>
-
-            <div class="md:col-span-12 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
-              <div class="text-xs text-slate-500">
-                HT: <span class="font-semibold text-slate-900 dark:text-white js-ln-ht">—</span>
-                • TTC: <span class="font-semibold text-slate-900 dark:text-white js-ln-ttc">—</span>
-              </div>
-
-              {% if f.DELETE %}
-                <label class="inline-flex items-center gap-2 text-xs text-rose-700 dark:text-rose-200 cursor-pointer">
-                  {{ f.DELETE }} <span>Supprimer</span>
-                </label>
+              {% if f.non_field_errors %}
+                <div class="mb-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                  {{ f.non_field_errors }}
+                </div>
               {% endif %}
+
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-4">
+                  <div class="text-xs font-medium text-slate-500">Désignation</div>
+                  <div class="mt-1">
+                    {% if f.label %}{{ f.label }}{% elif f.description %}{{ f.description }}{% endif %}
+                    {% if f.label and f.label.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.label.errors }}</div>{% endif %}
+                    {% if f.description and f.description.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.description.errors }}</div>{% endif %}
+                  </div>
+                </div>
+
+                {% if f.product %}
+                <div class="md:col-span-3">
+                  <div class="text-xs font-medium text-slate-500">Produit</div>
+                  <div class="mt-1">
+                    {{ f.product }}
+                    {% if f.product.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.product.errors }}</div>{% endif %}
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="md:col-span-1">
+                  <div class="text-xs font-medium text-slate-500">Qté</div>
+                  <div class="mt-1">
+                    {% if f.quantity %}{{ f.quantity }}{% elif f.qty %}{{ f.qty }}{% endif %}
+                    {% if f.quantity and f.quantity.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.quantity.errors }}</div>{% endif %}
+                    {% if f.qty and f.qty.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.qty.errors }}</div>{% endif %}
+                  </div>
+                </div>
+
+                <div class="md:col-span-2">
+                  <div class="text-xs font-medium text-slate-500">PU</div>
+                  <div class="mt-1">
+                    {% if f.unit_price %}{{ f.unit_price }}{% endif %}
+                    {% if f.unit_price and f.unit_price.errors %}<div class="text-xs text-rose-600 mt-1">{{ f.unit_price.errors }}</div>{% endif %}
+                  </div>
+                </div>
+
+                <div class="md:col-span-2">
+                  <div class="text-xs font-medium text-slate-500">TVA</div>
+                  <div class="mt-1">
+                    {% if f.tax %}{{ f.tax }}{% elif f.tax_rate %}{{ f.tax_rate }}{% endif %}
+                  </div>
+                </div>
+
+                <div class="md:col-span-12 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
+                  <div class="text-xs text-slate-500">
+                    HT: <span class="font-semibold text-slate-900 dark:text-white js-ln-ht">—</span>
+                    • TTC: <span class="font-semibold text-slate-900 dark:text-white js-ln-ttc">—</span>
+                  </div>
+
+                  {% if f.DELETE %}
+                    <label class="inline-flex items-center gap-2 text-xs text-rose-700 dark:text-rose-200 cursor-pointer">
+                      {{ f.DELETE }} <span>Supprimer</span>
+                    </label>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        {# --- TEMPLATE: empty_form (servira à addLine) --- #}
+        <template id="empty-line-template">
+          <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4 js-line">
+            {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div class="md:col-span-4">
+                <div class="text-xs font-medium text-slate-500">Désignation</div>
+                <div class="mt-1">
+                  {% if formset.empty_form.label %}{{ formset.empty_form.label }}{% elif formset.empty_form.description %}{{ formset.empty_form.description }}{% endif %}
+                </div>
+              </div>
+
+              {% if formset.empty_form.product %}
+              <div class="md:col-span-3">
+                <div class="text-xs font-medium text-slate-500">Produit</div>
+                <div class="mt-1">{{ formset.empty_form.product }}</div>
+              </div>
+              {% endif %}
+
+              <div class="md:col-span-1">
+                <div class="text-xs font-medium text-slate-500">Qté</div>
+                <div class="mt-1">
+                  {% if formset.empty_form.quantity %}{{ formset.empty_form.quantity }}{% elif formset.empty_form.qty %}{{ formset.empty_form.qty }}{% endif %}
+                </div>
+              </div>
+
+              <div class="md:col-span-2">
+                <div class="text-xs font-medium text-slate-500">PU</div>
+                <div class="mt-1">{% if formset.empty_form.unit_price %}{{ formset.empty_form.unit_price }}{% endif %}</div>
+              </div>
+
+              <div class="md:col-span-2">
+                <div class="text-xs font-medium text-slate-500">TVA</div>
+                <div class="mt-1">
+                  {% if formset.empty_form.tax %}{{ formset.empty_form.tax }}{% elif formset.empty_form.tax_rate %}{{ formset.empty_form.tax_rate }}{% endif %}
+                </div>
+              </div>
+
+              <div class="md:col-span-12 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
+                <div class="text-xs text-slate-500">
+                  HT: <span class="font-semibold text-slate-900 dark:text-white js-ln-ht">—</span>
+                  • TTC: <span class="font-semibold text-slate-900 dark:text-white js-ln-ttc">—</span>
+                </div>
+
+                {% if formset.empty_form.DELETE %}
+                  <label class="inline-flex items-center gap-2 text-xs text-rose-700 dark:text-rose-200 cursor-pointer">
+                    {{ formset.empty_form.DELETE }} <span>Supprimer</span>
+                  </label>
+                {% endif %}
+              </div>
             </div>
           </div>
-        </div>
-      {% endfor %}
+        </template>
+
+      </div>
     </div>
 
-    {# --- TEMPLATE: empty_form (servira à addLine) --- #}
-    <template id="empty-line-template">
-      <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4 js-line">
-        {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
-
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-          <div class="md:col-span-4">
-            <div class="text-xs font-medium text-slate-500">Désignation</div>
-            <div class="mt-1">
-              {% if formset.empty_form.label %}{{ formset.empty_form.label }}{% elif formset.empty_form.description %}{{ formset.empty_form.description }}{% endif %}
-            </div>
-          </div>
-
-          {% if formset.empty_form.product %}
-          <div class="md:col-span-3">
-            <div class="text-xs font-medium text-slate-500">Produit</div>
-            <div class="mt-1">{{ formset.empty_form.product }}</div>
-          </div>
-          {% endif %}
-
-          <div class="md:col-span-1">
-            <div class="text-xs font-medium text-slate-500">Qté</div>
-            <div class="mt-1">
-              {% if formset.empty_form.quantity %}{{ formset.empty_form.quantity }}{% elif formset.empty_form.qty %}{{ formset.empty_form.qty }}{% endif %}
-            </div>
-          </div>
-
-          <div class="md:col-span-2">
-            <div class="text-xs font-medium text-slate-500">PU</div>
-            <div class="mt-1">{% if formset.empty_form.unit_price %}{{ formset.empty_form.unit_price }}{% endif %}</div>
-          </div>
-
-          <div class="md:col-span-2">
-            <div class="text-xs font-medium text-slate-500">TVA</div>
-            <div class="mt-1">
-              {% if formset.empty_form.tax %}{{ formset.empty_form.tax }}{% elif formset.empty_form.tax_rate %}{{ formset.empty_form.tax_rate }}{% endif %}
-            </div>
-          </div>
-
-          <div class="md:col-span-12 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
-            <div class="text-xs text-slate-500">
-              HT: <span class="font-semibold text-slate-900 dark:text-white js-ln-ht">—</span>
-              • TTC: <span class="font-semibold text-slate-900 dark:text-white js-ln-ttc">—</span>
-            </div>
-
-            {% if formset.empty_form.DELETE %}
-              <label class="inline-flex items-center gap-2 text-xs text-rose-700 dark:text-rose-200 cursor-pointer">
-                {{ formset.empty_form.DELETE }} <span>Supprimer</span>
-              </label>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    </template>
-  </div>
-</div>
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div class="text-xs text-slate-500 dark:text-slate-400">
         Total recalculé automatiquement quand vous modifiez Qté / PU / TVA.
@@ -353,14 +355,17 @@ function quoteFormPage(){
       this.applyClasses();
       this.currency = (document.querySelector('[name="currency"]')?.value) || this.currency;
 
-      document.addEventListener('input', (e) => {
+      // capture input + change (select) au niveau document, y compris lignes ajoutées dynamiquement
+      const handler = (e) => {
         const el = e.target;
         if(!el) return;
         if(el.matches('input,select,textarea')){
           if(el.name === 'currency') this.currency = el.value || this.currency;
           this.recompute();
         }
-      });
+      };
+      document.addEventListener('input', handler, true);
+      document.addEventListener('change', handler, true);
 
       this.recompute();
     },
@@ -374,22 +379,6 @@ function quoteFormPage(){
       });
 
       // tag line inputs for JS calculations
-      const rows = document.querySelectorAll('.js-row, .js-card');
-      rows.forEach(container => {
-        // best-effort: detect by name endings from formset
-        const qty = container.querySelector('input[name$="-quantity"], input[name$="-qty"]');
-        const unit = container.querySelector('input[name$="-unit_price"]');
-        const taxrate = container.querySelector('input[name$="-tax_rate"]');
-        const label = container.querySelector('input[name$="-label"], input[name$="-description"], textarea[name$="-description"]');
-
-        if(qty) qty.classList.add('js-ln-qty');
-        if(unit) unit.classList.add('js-ln-unit');
-        if(taxrate) taxrate.classList.add('js-ln-taxrate');
-        if(label) label.classList.add('js-ln-label');
-
-        const tax = container.querySelector('select[name$="-tax"]');
-        if(tax) tax.classList.add('js-ln-tax');
-      });
       document.querySelectorAll('.js-line').forEach(el => this._tagLineInputs(el));
     },
 
@@ -427,10 +416,19 @@ function quoteFormPage(){
       const qty = container.querySelector('.js-ln-qty');
       const unit = container.querySelector('.js-ln-unit');
       const taxrate = container.querySelector('.js-ln-taxrate');
+      const tax = container.querySelector('.js-ln-tax');
 
       const q = this.toNum(qty?.value);
       const pu = this.toNum(unit?.value);
-      const rate = this.toNum(taxrate?.value); // si tu utilises un FK tax, alors rate=0 ici
+
+      let rate = this.toNum(taxrate?.value);
+
+      // fallback: si tu utilises un FK tax et que tu as data-rate sur l'option
+      if(!rate && tax){
+        const opt = tax.options?.[tax.selectedIndex];
+        const dr = opt?.getAttribute('data-rate');
+        rate = this.toNum(dr);
+      }
 
       const ht = q * pu;
       const tva = ht * (rate/100);
@@ -441,11 +439,16 @@ function quoteFormPage(){
     recompute(){
       let subtotal=0, tax_total=0, total=0, count=0;
 
-      const containers = document.querySelectorAll('.js-row, .js-card');
+      const containers = document.querySelectorAll('.js-line');
       containers.forEach(c => {
         if(this._isDeleted(c)) return;
         const v = this._vals(c);
-        subtotal += v.ht; tax_total += v.tva; total += v.ttc; count += 1;
+
+        // si ligne vide, ne pas compter
+        const isEmpty = v.ht === 0 && this.toNum(c.querySelector('.js-ln-qty')?.value) === 0 && this.toNum(c.querySelector('.js-ln-unit')?.value) === 0;
+        if(!isEmpty) count += 1;
+
+        subtotal += v.ht; tax_total += v.tva; total += v.ttc;
 
         const htEl = c.querySelector('.js-ln-ht');
         const ttcEl = c.querySelector('.js-ln-ttc');
@@ -457,76 +460,75 @@ function quoteFormPage(){
     },
 
     addLine(){
-  const totalEl = document.querySelector('input[name$="-TOTAL_FORMS"]');
-  const container = document.getElementById('lines-container');
-  const tpl = document.getElementById('empty-line-template');
+      const totalEl = document.querySelector('input[name$="-TOTAL_FORMS"]');
+      const container = document.getElementById('lines-container');
+      const tpl = document.getElementById('empty-line-template');
 
-  if(!totalEl || !container || !tpl){
-    alert("Formset template manquant (TOTAL_FORMS / empty_form).");
-    return;
-  }
-
-  const index = Number(totalEl.value || "0");
-
-  // clone template
-  const fragment = tpl.content.cloneNode(true);
-
-  // remplace __prefix__ dans tous les name/id/for
-  this._replacePrefix(fragment, index);
-
-  // ajoute dans le DOM
-  container.appendChild(fragment);
-
-  // incrémente TOTAL_FORMS
-  totalEl.value = String(index + 1);
-
-  // applique classes + tags JS sur la nouvelle ligne uniquement
-  const last = container.querySelectorAll('.js-line');
-  const lastEl = last[last.length - 1];
-  if(lastEl){
-    this._applyClassesTo(lastEl);
-    this._tagLineInputs(lastEl);
-  }
-
-  // recalcul + focus
-  this.recompute();
-  const focusEl = lastEl?.querySelector('input,select,textarea');
-  if(focusEl) focusEl.focus();
-},
-
-_replacePrefix(root, index){
-  const walk = root.querySelectorAll('*');
-  walk.forEach(el => {
-    // attributes that can contain __prefix__
-    ['name','id','for'].forEach(attr => {
-      if(el.hasAttribute && el.hasAttribute(attr)){
-        el.setAttribute(attr, el.getAttribute(attr).replaceAll('__prefix__', String(index)));
+      if(!totalEl || !container || !tpl){
+        alert("Formset template manquant (TOTAL_FORMS / empty_form).");
+        return;
       }
-    });
-  });
-},
 
-_applyClassesTo(scope){
-  const controls = scope.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]), select, textarea');
-  controls.forEach(el => {
-    el.classList.add('fld');
-    if(el.tagName === 'TEXTAREA') el.classList.add('fld-area');
-  });
-},
+      const index = Number(totalEl.value || "0");
 
-_tagLineInputs(scope){
-  const qty = scope.querySelector('input[name$="-quantity"], input[name$="-qty"]');
-  const unit = scope.querySelector('input[name$="-unit_price"]');
-  const taxrate = scope.querySelector('input[name$="-tax_rate"]');
-  const tax = scope.querySelector('select[name$="-tax"]');
-  const label = scope.querySelector('input[name$="-label"], input[name$="-description"], textarea[name$="-description"]');
+      // clone template
+      const fragment = tpl.content.cloneNode(true);
 
-  if(qty) qty.classList.add('js-ln-qty');
-  if(unit) unit.classList.add('js-ln-unit');
-  if(taxrate) taxrate.classList.add('js-ln-taxrate');
-  if(tax) tax.classList.add('js-ln-tax');
-  if(label) label.classList.add('js-ln-label');
-},
+      // remplace __prefix__ dans tous les name/id/for
+      this._replacePrefix(fragment, index);
+
+      // ajoute dans le DOM
+      container.appendChild(fragment);
+
+      // incrémente TOTAL_FORMS
+      totalEl.value = String(index + 1);
+
+      // applique classes + tags JS sur la nouvelle ligne uniquement
+      const lines = container.querySelectorAll('.js-line');
+      const lastEl = lines[lines.length - 1];
+      if(lastEl){
+        this._applyClassesTo(lastEl);
+        this._tagLineInputs(lastEl);
+      }
+
+      // recalcul + focus
+      this.recompute();
+      const focusEl = lastEl?.querySelector('input:not([type="hidden"]):not([type="checkbox"]),select,textarea');
+      if(focusEl) focusEl.focus();
+    },
+
+    _replacePrefix(root, index){
+      const walk = root.querySelectorAll('*');
+      walk.forEach(el => {
+        ['name','id','for'].forEach(attr => {
+          if(el.hasAttribute && el.hasAttribute(attr)){
+            el.setAttribute(attr, el.getAttribute(attr).replaceAll('__prefix__', String(index)));
+          }
+        });
+      });
+    },
+
+    _applyClassesTo(scope){
+      const controls = scope.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]), select, textarea');
+      controls.forEach(el => {
+        el.classList.add('fld');
+        if(el.tagName === 'TEXTAREA') el.classList.add('fld-area');
+      });
+    },
+
+    _tagLineInputs(scope){
+      const qty = scope.querySelector('input[name$="-quantity"], input[name$="-qty"]');
+      const unit = scope.querySelector('input[name$="-unit_price"]');
+      const taxrate = scope.querySelector('input[name$="-tax_rate"]');
+      const tax = scope.querySelector('select[name$="-tax"]');
+      const label = scope.querySelector('input[name$="-label"], input[name$="-description"], textarea[name$="-description"]');
+
+      if(qty) qty.classList.add('js-ln-qty');
+      if(unit) unit.classList.add('js-ln-unit');
+      if(taxrate) taxrate.classList.add('js-ln-taxrate');
+      if(tax) tax.classList.add('js-ln-tax');
+      if(label) label.classList.add('js-ln-label');
+    },
   }
 }
 </script>
