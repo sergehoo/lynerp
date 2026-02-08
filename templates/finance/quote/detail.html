@@ -56,7 +56,7 @@
 <script id="quote-detail-payload" type="application/json">
 {
   "id": "{{ quote.id }}",
-  "api_detail": "{% url 'finance:api-quotes-detail' quote.id %}",
+  "api_detail": "{% url 'finance:finance-quotes-detail' quote.id %}",
   "urls": {
     "list": "{% url 'finance:quotes:list' %}",
     "edit": "{% url 'finance:quotes:update' quote.id %}",
