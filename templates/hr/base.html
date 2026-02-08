@@ -119,13 +119,11 @@
     </style>
 </head>
 
-<body
-        class="h-full bg-gray-50 text-slate-600 dark:bg-slate-900 dark:text-slate-100 antialiased selection:bg-brand-100 selection:text-brand-700"
+<body  class="h-full bg-gray-50 text-slate-600 dark:bg-slate-900 dark:text-slate-100 antialiased selection:bg-brand-100 selection:text-brand-700"
         @keydown.window.prevent.cmd.k="openCmd=true"
         @keydown.window.prevent.ctrl.k="openCmd=true"
         @keydown.window.prevent.cmd.j="toggleDark()"
-        @keydown.window.prevent.ctrl.j="toggleDark()"
->
+        @keydown.window.prevent.ctrl.j="toggleDark()">
 <div class="flex min-h-screen relative">
 
     <!-- Sidebar -->
@@ -457,7 +455,9 @@
                 <div x-show="currentView === 'attendance' && !authHint && !licenseBlocker.visible" x-cloak>
                     {% include "hr/partials/attendance.html" %}
                 </div>
-
+<div x-show="!authHint && !licenseBlocker.visible">
+  {% block page_content %}{% endblock %}
+</div>
                 <!-- Blocage licence -->
                 <div x-show="licenseBlocker.visible" x-cloak class="max-w-xl mx-auto">
                     <div class="rounded-3xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 p-6 text-center shadow-soft">

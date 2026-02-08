@@ -6,12 +6,9 @@
   subtitle: 'Propositions commerciales, lignes, totaux, statut',
   icon: 'fa-solid fa-file-signature',
   theme: 'indigo',
-
-  // ✅ utilise l’URL absolue du endpoint que tu as testé
-  endpoint: 'https://rh.lyneerp.com/finance/api/quotes/',
-
+  endpoint: '/finance/api/quotes/',
   createUrl: "{% url 'finance:quotes:create' %}",
-  detailUrlTpl: "{% url 'finance:quotes:detail' '0' %}",
+{#  detailUrlTpl: "{% url 'finance:quotes:detail' '0' %}",#}
 
   columns: [
     {key:'number', label:'N°', mobile:true},
@@ -115,19 +112,7 @@
       </div>
     </div>
   </div>
-<div x-show="debug.enabled" class="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-  <div class="flex items-center justify-between">
-    <div class="font-semibold text-slate-900 dark:text-white">Debug API</div>
-    <button @click="debug.enabled=false" class="text-xs px-3 py-1 rounded-full border">Fermer</button>
-  </div>
-  <div class="mt-2 text-xs text-slate-600 dark:text-slate-300 space-y-1">
-    <div><b>endpoint</b> : <span x-text="cfg.endpoint"></span></div>
-    <div><b>lastUrl</b> : <span x-text="debug.lastUrl"></span></div>
-    <div><b>status</b> : <span x-text="debug.lastStatus"></span></div>
-    <div><b>error</b> : <span class="text-rose-600" x-text="debug.lastError"></span></div>
-    <div><b>rows</b> : <span x-text="rows.length"></span></div>
-  </div>
-</div>
+
   <!-- Table -->
   <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
     <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
@@ -271,15 +256,9 @@ function financeListPage(cfg){
     page:1,
     pageSize:20,
     hasNext:false,
-    filters:{ q:'', status:'', currency:'', date_from:'', date_to:'' },
 
-    debug:{
-      enabled:true,           // ✅ tu peux mettre false après
-      lastUrl:'',
-      lastStatus:'',
-      lastError:'',
-      lastPayload:null,
-    },
+    // ✅ filtres pour Quote
+    filters:{ q:'', status:'', currency:'', date_from:'', date_to:'' },
 
     get metaText(){ return `${this.rows.length} devis • page ${this.page}`; },
     get pageText(){ return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`; },
@@ -297,7 +276,8 @@ function financeListPage(cfg){
 
     fmtDate(s){
       if(!s) return '—';
-      try { return new Date(s).toLocaleDateString('fr-FR'); } catch { return '—'; }
+      try { return new Date(s).toLocaleDateString('fr-FR'); }
+      catch { return '—'; }
     },
 
     toNum(v){
@@ -305,14 +285,16 @@ function financeListPage(cfg){
       return Number.isFinite(n) ? n : 0;
     },
 
-    computeTotals(q){
-      const lines = Array.isArray(q?.lines) ? q.lines : [];
-      let subtotal = 0, tax_total = 0;
+    computeTotals(quote){
+      const lines = Array.isArray(quote?.lines) ? quote.lines : [];
+      let subtotal = 0;
+      let tax_total = 0;
       for(const ln of lines){
         subtotal += this.toNum(ln?.line_total);
         tax_total += this.toNum(ln?.tax_amount);
       }
-      return { subtotal, tax_total, total: subtotal + tax_total, lines_count: lines.length };
+      const total = subtotal + tax_total;
+      return { subtotal, tax_total, total, lines_count: lines.length };
     },
 
     formatMoney(v, cur){
@@ -326,76 +308,57 @@ function financeListPage(cfg){
       const p = new URLSearchParams();
       p.set('page', String(this.page));
       p.set('page_size', String(this.pageSize));
+
+      // ✅ ton API DRF utilise search_fields => param "search"
       if(this.filters.q) p.set('search', this.filters.q);
+
+      // ✅ filterset_fields supposés: status, currency
       if(this.filters.status) p.set('status', this.filters.status);
       if(this.filters.currency) p.set('currency', this.filters.currency);
+
+      // ✅ si tu as ajouté le filtre dates dans get_queryset (optionnel)
       if(this.filters.date_from) p.set('date_from', this.filters.date_from);
       if(this.filters.date_to) p.set('date_to', this.filters.date_to);
+
       return p.toString();
     },
 
     async fetchList(){
       this.loading = true;
-      this.debug.lastError = '';
-      this.debug.lastStatus = '';
       try{
         const headers = {'Accept':'application/json'};
 
-        // ✅ tenant header
+        // tenant header (si ton backend le supporte)
         const tid = localStorage.getItem('lyneerp_tenant') || '';
         if(tid) headers['X-Tenant-Id'] = tid;
 
-        // ✅ auth token (si API protégée)
+        // auth
         const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
         if(token) headers['Authorization'] = `Bearer ${token}`;
 
         const url = `${this.cfg.endpoint}?${this.buildQuery()}`;
-        this.debug.lastUrl = url;
+        const res = await fetch(url, {headers});
+        const data = await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
 
-        console.log('[quotes] GET', url, headers);
+        const list = Array.isArray(data?.results) ? data.results : [];
 
-        // ✅ credentials include (si API utilise session/cookies)
-        const res = await fetch(url, {
-          headers,
-          credentials: 'include',
-          redirect: 'follow',
+        // ✅ enrichissement: totaux calculés depuis lines[]
+        this.rows = list.map(q => {
+          const t = this.computeTotals(q);
+          return { ...q, ...t };
         });
 
-        this.debug.lastStatus = `${res.status} ${res.statusText}`;
-
-        const text = await res.text(); // ✅ on lit en texte d’abord
-        let data = null;
-        try { data = text ? JSON.parse(text) : null; } catch(e){}
-
-        this.debug.lastPayload = data;
-
-        if(!res.ok){
-          const msg = data?.detail || `HTTP ${res.status}`;
-          throw new Error(msg);
-        }
-
-        // ✅ support pagination DRF ou liste brute
-        const list = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
-        this.rows = list.map(q => ({ ...q, ...this.computeTotals(q) }));
         this.hasNext = !!data?.next;
-
-        console.log('[quotes] rows:', this.rows);
-
       }catch(e){
-        console.error('[quotes] error:', e);
-        this.debug.lastError = e?.message || String(e);
-        if(window.hrToast) window.hrToast(this.debug.lastError, 'error');
+        console.error(e);
+        if(window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
       }finally{
         this.loading = false;
       }
     },
 
-    init(){
-      // ✅ vérifie Alpine
-      console.log('[quotes] alpine init', {Alpine: !!window.Alpine});
-      this.fetchList();
-    },
-
+    init(){ this.fetchList(); },
     refresh(){ this.fetchList(); },
 
     resetFilters(){
@@ -414,10 +377,12 @@ function financeListPage(cfg){
     nextPage(){ if(!this.hasNext) return; this.page++; this.fetchList(); },
 
     exportCsv(){
+      // ✅ export adapté aux quotes + totaux
       const cols = ['number','partner_name','issue_date','status','currency','subtotal','tax_total','total','lines_count'];
       const out=[cols.join(',')];
       for(const r of this.rows){
-        out.push(cols.map(k => `"${String(r[k] ?? '').replaceAll('"','""')}"`).join(','));
+        const row = cols.map(k => `"${String(r[k] ?? '').replaceAll('"','""')}"`).join(',');
+        out.push(row);
       }
       const blob=new Blob([out.join('\n')],{type:'text/csv;charset=utf-8'});
       const a=document.createElement('a');
@@ -430,12 +395,14 @@ function financeListPage(cfg){
     goCreate(){ if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl); },
 
     goDetail(row){
+      if(!row) return;
       const tpl = this.cfg.detailUrlTpl || '';
-      if(!row || !tpl || tpl==='#') return;
+      if(!tpl || tpl==='#') return;
       window.location.assign(tpl.replace('0', row.id));
     },
 
     exportOne(row){
+      // ton API renvoie pdf_file: null ou chemin
       const url = row?.pdf_url || row?.pdf_file || '';
       if(url) return window.open(url,'_blank');
       if(window.hrToast) window.hrToast('PDF indisponible', 'warning');
