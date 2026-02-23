@@ -104,7 +104,7 @@ urlpatterns = [
         path("<uuid:pk>/", views.InvoiceDetail.as_view(), name="detail"),
         path("<uuid:pk>/edit/", views.InvoiceUpdate.as_view(), name="update"),
         path("<uuid:pk>/delete/", views.InvoiceDelete.as_view(), name="delete"),
-        path("invoices/<uuid:pk>/pdf/", invoice_pdf, name="invoices:pdf"),
+        path("<uuid:pk>/pdf/", invoice_pdf, name="pdf"),
 
     ]),
 
