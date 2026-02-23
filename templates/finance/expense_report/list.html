@@ -1,23 +1,83 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
-<div x-data="genericList({
-  title:'Notes de frais',
-  subtitle:'Dépenses internes, validation, remboursement',
-  icon:'fa-solid fa-receipt',
-  theme:'orange',
-  endpoint:'/api/finance/expense-reports/',
-  createUrl:"{% url 'finance:expense_reports:create' %}",
-  detailUrlTpl:"{% url 'finance:expense_reports:detail' '0' %}",
-  columns:[
-    {key:'reference', label:'Référence', mobile:true},
-    {key:'employee', label:'Employé', mobile:true},
-    {key:'submitted_at', label:'Soumise', mobile:true},
-    {key:'status', label:'Statut', mobile:true},
-    {key:'total', label:'Total', align:'right', mobile:true},
-    {key:'approved_at', label:'Validée', mobile:false},
-  ]
-})" x-init="init()" class="space-y-6">
+
+<script>
+  // URLs sûres (pas de pk factice)
+  const EXPENSE_REPORTS_BASE_URL   = "{% url 'finance:expense_reports:list' %}";   // ex: "/finance/expense-reports/"
+  const EXPENSE_REPORTS_CREATE_URL = "{% url 'finance:expense_reports:create' %}";
+</script>
+
+<div
+  x-data="genericList({
+    title:'Notes de frais',
+    subtitle:'Dépenses internes, validation, remboursement',
+    icon:'fa-solid fa-receipt',
+    theme:'orange',
+    endpoint:'/api/finance/expense-reports/',
+    createUrl: EXPENSE_REPORTS_CREATE_URL,
+    baseDetailUrl: EXPENSE_REPORTS_BASE_URL,   // ✅ remplace detailUrlTpl
+    columns:[
+      {key:'reference', label:'Référence', mobile:true},
+      {key:'employee', label:'Employé', mobile:true},
+      {key:'submitted_at', label:'Soumise', mobile:true},
+      {key:'status', label:'Statut', mobile:true},
+      {key:'total', label:'Total', align:'right', mobile:true},
+      {key:'approved_at', label:'Validée', mobile:false},
+    ]
+  })"
+  x-init="init()"
+  class="space-y-6"
+>
   {% include "finance/shared/list_skeleton.html" %}
 </div>
+
 {% include "finance/shared/list_skeleton_script.html" %}
+
+<script>
+/**
+ * Patch UUID-safe (sans "{#% url ... '0' %#}") :
+ * - goDetail utilise baseDetailUrl + row.id + '/'
+ * - goCreate utilise createUrl
+ *
+ * Si tu as déjà appliqué ce patch sur d'autres pages,
+ * tu peux le supprimer et corriger directement list_skeleton_script.html.
+ */
+(function(){
+  if (typeof window.genericList !== "function") return;
+
+  const _orig = window.genericList;
+
+  window.genericList = function(cfg){
+    const api = _orig(cfg);
+
+    const toast = (msg, type='info') => {
+      if (window.hrToast) return window.hrToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](msg);
+    };
+
+    const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
+    api.goDetail = function(row){
+      if (!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(cfg.baseDetailUrl || '');
+      if (!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    };
+
+    api.goCreate = function(){
+      if (cfg.createUrl && cfg.createUrl !== '#') window.location.assign(cfg.createUrl);
+      else toast("createUrl non configuré", "error");
+    };
+
+    return api;
+  };
+})();
+</script>
+
 {% endblock %}

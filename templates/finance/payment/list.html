@@ -1,22 +1,33 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
-<div x-data="financeListPage({
-  title: 'Paiements',
-  subtitle: 'Encaissements, rapprochement, statut',
-  icon: 'fa-solid fa-credit-card',
-  theme: 'orange',
-  endpoint: '/api/finance/payments/',
-  createUrl: "{% url 'finance:payments:create' %}",
-  detailUrlTpl: "{% url 'finance:payments:detail' '0' %}",
-  columns: [
-    {key:'reference', label:'Référence', mobile:true},
-    {key:'customer', label:'Client', mobile:true},
-    {key:'date', label:'Date', mobile:true},
-    {key:'method', label:'Méthode', mobile:false},
-    {key:'status', label:'Statut', mobile:true},
-    {key:'amount', label:'Montant', align:'right', mobile:true},
-  ]
-})" x-init="init()" class="space-y-6">
+
+{# On expose des URLs sûres (pas de pk factice) #}
+<script>
+  const PAYMENTS_BASE_URL  = "{% url 'finance:payments:list' %}";   // ex: "/finance/payments/"
+  const PAYMENTS_CREATE_URL = "{% url 'finance:payments:create' %}";
+</script>
+
+<div
+  x-data="financeListPage({
+    title: 'Paiements',
+    subtitle: 'Encaissements, rapprochement, statut',
+    icon: 'fa-solid fa-credit-card',
+    theme: 'orange',
+    endpoint: '/api/finance/payments/',
+    createUrl: PAYMENTS_CREATE_URL,
+    baseDetailUrl: PAYMENTS_BASE_URL,   // IMPORTANT: base URL, pas un template url avec '0'
+    columns: [
+      {key:'reference', label:'Référence', mobile:true},
+      {key:'customer', label:'Client', mobile:true},
+      {key:'date', label:'Date', mobile:true},
+      {key:'method', label:'Méthode', mobile:false},
+      {key:'status', label:'Statut', mobile:true},
+      {key:'amount', label:'Montant', align:'right', mobile:true},
+    ]
+  })"
+  x-init="init()"
+  class="space-y-6"
+>
 
   <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
     <div class="min-w-0">
@@ -241,6 +252,13 @@
 
 <script>
 function financeListPage(cfg){
+  const toast = (msg, type='info') => {
+    if (window.hrToast) return window.hrToast(msg, type);
+    console[type === 'error' ? 'error' : 'log'](msg);
+  };
+
+  const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
   return {
     cfg,
     loading:false,
@@ -263,11 +281,16 @@ function financeListPage(cfg){
       };
       return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
     },
-    fmtDate(s){ if(!s) return '—'; try{return new Date(s).toLocaleDateString('fr-FR');}catch{return '—'}; },
+
+    fmtDate(s){
+      if(!s) return '—';
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR');
+    },
+
     formatMoney(v){
-      const n=Number(v||0);
-      try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:this.currency}).format(n); }
-      catch { return `${n.toLocaleString('fr-FR')} ${this.currency}`; }
+      const n = Number(v||0);
+      return new Intl.NumberFormat('fr-FR',{style:'currency',currency:this.currency}).format(n);
     },
 
     buildQuery(){
@@ -293,7 +316,13 @@ function financeListPage(cfg){
 
         const url = `${this.cfg.endpoint}?${this.buildQuery()}`;
         const res = await fetch(url, {headers});
-        const data = await res.json().catch(()=>null);
+
+        // pas d'exception silencieuse: si JSON invalide -> erreur claire
+        const txt = await res.text();
+        let data = null;
+        try { data = txt ? JSON.parse(txt) : null; }
+        catch { throw new Error("Réponse API invalide (JSON attendu)"); }
+
         if(!res.ok) throw new Error(data?.detail || `Erreur ${res.status}`);
 
         const list = data?.results || data || [];
@@ -301,7 +330,7 @@ function financeListPage(cfg){
         this.hasNext = !!data?.next;
         this.currency = data?.currency || this.rows?.[0]?.currency || this.currency;
       }catch(e){
-        if(window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
+        toast(e.message || 'Erreur chargement', 'error');
       }finally{
         this.loading=false;
       }
@@ -310,7 +339,7 @@ function financeListPage(cfg){
     init(){ this.fetchList(); },
     refresh(){ this.fetchList(); },
     resetFilters(){ this.filters={q:'',status:'',method:'',date_from:'',date_to:''}; this.page=1; this.fetchList(); },
-    applyFilters(){ this.page=1; this.fetchList(); if(window.hrToast) window.hrToast('Filtres appliqués','success'); },
+    applyFilters(){ this.page=1; this.fetchList(); toast('Filtres appliqués','success'); },
 
     prevPage(){ if(this.page<=1) return; this.page--; this.fetchList(); },
     nextPage(){ if(!this.hasNext) return; this.page++; this.fetchList(); },
@@ -330,20 +359,30 @@ function financeListPage(cfg){
       URL.revokeObjectURL(a.href);
     },
 
-    goCreate(){ if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl); },
-    goDetail(row){
-      if(!row) return;
-      const tpl=this.cfg.detailUrlTpl||'';
-      if(!tpl || tpl==='0' || tpl==='#'){ return; }
-      window.location.assign(tpl.replace('0', row.id));
+    goCreate(){
+      if(this.cfg.createUrl && this.cfg.createUrl !== '#') window.location.assign(this.cfg.createUrl);
     },
+
+    goDetail(row){
+      if(!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(this.cfg.baseDetailUrl || '');
+      if(!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    },
+
     exportOne(row){
-      // démo: si API expose receipt_url
       const url = row?.receipt_url || row?.pdf_url || '';
       if(url) return window.open(url,'_blank');
-      if(window.hrToast) window.hrToast('Reçu indisponible', 'warning');
+      toast('Reçu indisponible', 'warning');
     }
   }
 }
 </script>
+
 {% endblock %}

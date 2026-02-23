@@ -1,23 +1,82 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
-<div x-data="genericList({
-  title:'Exercices',
-  subtitle:'Années fiscales, ouverture, clôture',
-  icon:'fa-solid fa-calendar-days',
-  theme:'orange',
-  endpoint:'/api/finance/fiscal-years/',
-  createUrl:"{% url 'finance:fiscal_years:create' %}",
-  detailUrlTpl:"{% url 'finance:fiscal_years:detail' '0' %}",
-  columns:[
-    {key:'name', label:'Exercice', mobile:true},
-    {key:'date_start', label:'Début', mobile:true},
-    {key:'date_end', label:'Fin', mobile:true},
-    {key:'status', label:'Statut', mobile:true},
-    {key:'is_current', label:'Courant', mobile:true},
-    {key:'closed_at', label:'Clôturé', mobile:false},
-  ]
-})" x-init="init()" class="space-y-6">
+
+<script>
+  // URLs sûres (pas de pk factice)
+  const FISCAL_YEARS_BASE_URL   = "{% url 'finance:fiscal_years:list' %}";   // ex: "/finance/fiscal-years/"
+  const FISCAL_YEARS_CREATE_URL = "{% url 'finance:fiscal_years:create' %}";
+</script>
+
+<div
+  x-data="genericList({
+    title:'Exercices',
+    subtitle:'Années fiscales, ouverture, clôture',
+    icon:'fa-solid fa-calendar-days',
+    theme:'orange',
+    endpoint:'/api/finance/fiscal-years/',
+    createUrl: FISCAL_YEARS_CREATE_URL,
+    baseDetailUrl: FISCAL_YEARS_BASE_URL,   // ✅ remplace detailUrlTpl
+    columns:[
+      {key:'name', label:'Exercice', mobile:true},
+      {key:'date_start', label:'Début', mobile:true},
+      {key:'date_end', label:'Fin', mobile:true},
+      {key:'status', label:'Statut', mobile:true},
+      {key:'is_current', label:'Courant', mobile:true},
+      {key:'closed_at', label:'Clôturé', mobile:false},
+    ]
+  })"
+  x-init="init()"
+  class="space-y-6"
+>
   {% include "finance/shared/list_skeleton.html" %}
 </div>
+
 {% include "finance/shared/list_skeleton_script.html" %}
+
+<script>
+/**
+ * Patch UUID-safe (sans "{#% url ... '0' %#}") :
+ * - goDetail utilise baseDetailUrl + row.id + '/'
+ * - goCreate utilise createUrl
+ *
+ * Idéalement: déplacer ce correctif dans list_skeleton_script.html une seule fois.
+ */
+(function(){
+  if (typeof window.genericList !== "function") return;
+
+  const _orig = window.genericList;
+
+  window.genericList = function(cfg){
+    const api = _orig(cfg);
+
+    const toast = (msg, type='info') => {
+      if (window.hrToast) return window.hrToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](msg);
+    };
+
+    const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
+    api.goDetail = function(row){
+      if (!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(cfg.baseDetailUrl || '');
+      if (!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    };
+
+    api.goCreate = function(){
+      if (cfg.createUrl && cfg.createUrl !== '#') window.location.assign(cfg.createUrl);
+      else toast("createUrl non configuré", "error");
+    };
+
+    return api;
+  };
+})();
+</script>
+
 {% endblock %}

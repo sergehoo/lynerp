@@ -2,761 +2,823 @@
 {% load humanize %}
 
 {% block page_content %}
-<div
-  x-data="invoiceListPage()"
-  x-init="init()"
-  class="space-y-6"
->
+    <div
+            x-data="invoiceListPage()"
+            x-init="init()"
+            class="space-y-6"
+    >
 
-  <!-- Header -->
-  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-    <div class="min-w-0">
-      <div class="flex items-center gap-2">
+        <!-- Header -->
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
         <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-orange-600 text-white">
           <i class="fa-solid fa-file-invoice-dollar text-[11px] opacity-90"></i>
           <span>Finance • Factures</span>
         </span>
-        <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
           Liste des factures clients, suivi des statuts et paiements
         </span>
-      </div>
+                </div>
 
-      <div class="mt-3 flex items-end justify-between gap-3">
-        <h2 class="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate">
-          Factures
-        </h2>
-        <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <i class="fa-solid fa-filter"></i>
-          <span x-text="filtersSummary"></span>
+                <div class="mt-3 flex items-end justify-between gap-3">
+                    <h2 class="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate">
+                        Factures
+                    </h2>
+                    <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <i class="fa-solid fa-filter"></i>
+                        <span x-text="filtersSummary"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                        @click="openCreate()"
+                        class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2"
+                >
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Nouvelle facture</span>
+                </button>
+
+                <button
+                        @click="refresh()"
+                        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
+                >
+                    <i class="fa-solid fa-rotate text-xs"></i>
+                    <span>Actualiser</span>
+                </button>
+
+                <button
+                        @click="exportCsv()"
+                        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
+                        title="Exporter la liste"
+                >
+                    <i class="fa-solid fa-file-export text-xs"></i>
+                    <span>Export</span>
+                </button>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <div class="flex flex-wrap items-center gap-2">
-      <button
-        @click="openCreate()"
-        class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2"
-      >
-        <i class="fa-solid fa-plus text-xs"></i>
-        <span>Nouvelle facture</span>
-      </button>
+        <!-- KPI Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">Total factures</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="kpis.count"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-clock text-[11px]"></i>
+                    <span x-text="'Dernière sync: ' + (kpis.lastSync || '-')"></span>
+                </div>
+            </div>
 
-      <button
-        @click="refresh()"
-        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
-      >
-        <i class="fa-solid fa-rotate text-xs"></i>
-        <span>Actualiser</span>
-      </button>
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">Montant HT</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white"
+                     x-text="formatMoney(kpis.subtotal)"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Somme des factures filtrées</div>
+            </div>
 
-      <button
-        @click="exportCsv()"
-        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
-        title="Exporter la liste"
-      >
-        <i class="fa-solid fa-file-export text-xs"></i>
-        <span>Export</span>
-      </button>
-    </div>
-  </div>
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">TVA</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white"
+                     x-text="formatMoney(kpis.tax)"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Taxes estimées</div>
+            </div>
 
-  <!-- KPI Row -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-      <div class="text-xs text-slate-500 dark:text-slate-400">Total factures</div>
-      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="kpis.count"></div>
-      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-        <i class="fa-solid fa-clock text-[11px]"></i>
-        <span x-text="'Dernière sync: ' + (kpis.lastSync || '-')"></span>
-      </div>
-    </div>
-
-    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-      <div class="text-xs text-slate-500 dark:text-slate-400">Montant HT</div>
-      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(kpis.subtotal)"></div>
-      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Somme des factures filtrées</div>
-    </div>
-
-    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-      <div class="text-xs text-slate-500 dark:text-slate-400">TVA</div>
-      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(kpis.tax)"></div>
-      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Taxes estimées</div>
-    </div>
-
-    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-      <div class="text-xs text-slate-500 dark:text-slate-400">TTC</div>
-      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(kpis.total)"></div>
-      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Total TTC facturé</div>
-    </div>
-  </div>
-
-  <!-- Filters -->
-  <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-        <i class="fa-solid fa-sliders text-slate-400"></i>
-        <span>Filtres</span>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button
-          @click="resetFilters()"
-          class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs hover:bg-gray-50 dark:hover:bg-slate-800"
-        >
-          Réinitialiser
-        </button>
-        <button
-          @click="applyFilters()"
-          class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium"
-        >
-          Appliquer
-        </button>
-      </div>
-    </div>
-
-    <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-      <div class="lg:col-span-2">
-        <label class="text-xs font-medium text-slate-500">Recherche</label>
-        <div class="mt-1 relative">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-          <input
-            type="text"
-            x-model.debounce.300ms="filters.q"
-            placeholder="N° facture, client, note…"
-            class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200"
-          />
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">TTC</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white"
+                     x-text="formatMoney(kpis.total)"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Total TTC facturé</div>
+            </div>
         </div>
-      </div>
 
-      <div>
-        <label class="text-xs font-medium text-slate-500">Statut</label>
-        <select x-model="filters.status"
-                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
-          <option value="">Tous</option>
-          <option value="DRAFT">Brouillon</option>
-          <option value="ISSUED">Émise</option>
-          <option value="PARTIAL">Partielle</option>
-          <option value="PAID">Payée</option>
-          <option value="OVERDUE">En retard</option>
-          <option value="CANCELLED">Annulée</option>
-        </select>
-      </div>
+        <!-- Filters -->
+        <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-slate-400"></i>
+                    <span>Filtres</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button
+                            @click="resetFilters()"
+                            class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs hover:bg-gray-50 dark:hover:bg-slate-800"
+                    >
+                        Réinitialiser
+                    </button>
+                    <button
+                            @click="applyFilters()"
+                            class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium"
+                    >
+                        Appliquer
+                    </button>
+                </div>
+            </div>
 
-      <div>
-        <label class="text-xs font-medium text-slate-500">Période</label>
-        <select x-model="filters.period"
-                class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
-          <option value="">Toutes</option>
-          <option value="this_month">Ce mois</option>
-          <option value="last_month">Mois dernier</option>
-          <option value="this_quarter">Ce trimestre</option>
-          <option value="this_year">Cette année</option>
-          <option value="custom">Personnalisée</option>
-        </select>
-      </div>
+            <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div class="lg:col-span-2">
+                    <label class="text-xs font-medium text-slate-500">Recherche</label>
+                    <div class="mt-1 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input
+                                type="text"
+                                x-model.debounce.300ms="filters.q"
+                                placeholder="N° facture, client, note…"
+                                class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200"
+                        />
+                    </div>
+                </div>
 
-      <div x-show="filters.period==='custom'" x-cloak>
-        <label class="text-xs font-medium text-slate-500">Du</label>
-        <input type="date" x-model="filters.date_from"
-               class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
-      </div>
+                <div>
+                    <label class="text-xs font-medium text-slate-500">Statut</label>
+                    <select x-model="filters.status"
+                            class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+                        <option value="">Tous</option>
+                        <option value="DRAFT">Brouillon</option>
+                        <option value="ISSUED">Émise</option>
+                        <option value="PARTIAL">Partielle</option>
+                        <option value="PAID">Payée</option>
+                        <option value="OVERDUE">En retard</option>
+                        <option value="CANCELLED">Annulée</option>
+                    </select>
+                </div>
 
-      <div x-show="filters.period==='custom'" x-cloak>
-        <label class="text-xs font-medium text-slate-500">Au</label>
-        <input type="date" x-model="filters.date_to"
-               class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
-      </div>
-    </div>
-  </div>
+                <div>
+                    <label class="text-xs font-medium text-slate-500">Période</label>
+                    <select x-model="filters.period"
+                            class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+                        <option value="">Toutes</option>
+                        <option value="this_month">Ce mois</option>
+                        <option value="last_month">Mois dernier</option>
+                        <option value="this_quarter">Ce trimestre</option>
+                        <option value="this_year">Cette année</option>
+                        <option value="custom">Personnalisée</option>
+                    </select>
+                </div>
 
-  <!-- Table -->
-  <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <div class="w-10 h-10 rounded-2xl grid place-items-center bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/40">
-          <i class="fa-solid fa-table"></i>
+                <div x-show="filters.period==='custom'" x-cloak>
+                    <label class="text-xs font-medium text-slate-500">Du</label>
+                    <input type="date" x-model="filters.date_from"
+                           class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                </div>
+
+                <div x-show="filters.period==='custom'" x-cloak>
+                    <label class="text-xs font-medium text-slate-500">Au</label>
+                    <input type="date" x-model="filters.date_to"
+                           class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                </div>
+            </div>
         </div>
-        <div>
-          <div class="font-semibold text-slate-900 dark:text-white">Liste des factures</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400" x-text="metaText"></div>
-        </div>
-      </div>
 
-      <div class="flex items-center gap-2">
-        <button
-          class="h-10 px-3 rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
-          @click="toggleCompact()"
-          :title="compact ? 'Mode confortable' : 'Mode compact'"
-        >
-          <i class="fa-solid" :class="compact ? 'fa-up-right-and-down-left-from-center' : 'fa-down-left-and-up-right-to-center'"></i>
-        </button>
+        <!-- Table -->
+        <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 rounded-2xl grid place-items-center bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-900/40">
+                        <i class="fa-solid fa-table"></i>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-slate-900 dark:text-white">Liste des factures</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400" x-text="metaText"></div>
+                    </div>
+                </div>
 
-        <button
-          class="h-10 px-3 rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
-          @click="openColumns=true"
-          title="Colonnes"
-        >
-          <i class="fa-solid fa-columns"></i>
-        </button>
-      </div>
-    </div>
+                <div class="flex items-center gap-2">
+                    <button
+                            class="h-10 px-3 rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
+                            @click="toggleCompact()"
+                            :title="compact ? 'Mode confortable' : 'Mode compact'"
+                    >
+                        <i class="fa-solid"
+                           :class="compact ? 'fa-up-right-and-down-left-from-center' : 'fa-down-left-and-up-right-to-center'"></i>
+                    </button>
 
-    <!-- Desktop table -->
-    <div class="hidden lg:block">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
-        <tr>
-          <th class="text-left font-semibold px-5 py-3">Facture</th>
-          <th class="text-left font-semibold px-5 py-3">Client</th>
-          <th class="text-left font-semibold px-5 py-3">Émise le</th>
-          <th class="text-left font-semibold px-5 py-3">Échéance</th>
-          <th class="text-left font-semibold px-5 py-3">Statut</th>
-          <th class="text-right font-semibold px-5 py-3">Total</th>
-          <th class="text-right font-semibold px-5 py-3 w-40">Actions</th>
-        </tr>
-        </thead>
+                    <button
+                            class="h-10 px-3 rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
+                            @click="openColumns=true"
+                            title="Colonnes"
+                    >
+                        <i class="fa-solid fa-columns"></i>
+                    </button>
+                </div>
+            </div>
 
-        <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
-        <template x-for="row in rows" :key="row.id">
-          <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition"
-              :class="compact ? 'text-[13px]' : ''">
-            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
-              <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <span x-text="row.number || ('INV-' + row.id)"></span>
-                <span x-show="row.is_recurring" x-cloak
-                      class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <!-- Desktop table -->
+            <div class="hidden lg:block">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
+                    <tr>
+                        <th class="text-left font-semibold px-5 py-3">Facture</th>
+                        <th class="text-left font-semibold px-5 py-3">Client</th>
+                        <th class="text-left font-semibold px-5 py-3">Émise le</th>
+                        <th class="text-left font-semibold px-5 py-3">Échéance</th>
+                        <th class="text-left font-semibold px-5 py-3">Statut</th>
+                        <th class="text-right font-semibold px-5 py-3">Total</th>
+                        <th class="text-right font-semibold px-5 py-3 w-40">Actions</th>
+                    </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+                    <template x-for="row in rows" :key="row.id">
+                        <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition"
+                            :class="compact ? 'text-[13px]' : ''">
+                            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
+                                <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span x-text="row.number || ('INV-' + row.id)"></span>
+                                    <span x-show="row.is_recurring" x-cloak
+                                          class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                   Récurrente
                 </span>
-              </div>
-              <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="row.memo || row.note || ''"></div>
-            </td>
+                                </div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400 truncate"
+                                     x-text="row.memo || row.note || ''"></div>
+                            </td>
 
-            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
-              <div class="font-medium text-slate-700 dark:text-slate-200 truncate" x-text="row.customer_name || row.customer?.name || '-'"></div>
-              <div class="text-xs text-slate-400 truncate" x-text="row.customer_email || row.customer?.email || ''"></div>
-            </td>
+                            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
+                                <div class="font-medium text-slate-700 dark:text-slate-200 truncate"
+                                     x-text="row.customer_name || row.customer?.name || '-'"></div>
+                                <div class="text-xs text-slate-400 truncate"
+                                     x-text="row.customer_email || row.customer?.email || ''"></div>
+                            </td>
 
-            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
-              <div class="text-slate-700 dark:text-slate-200" x-text="fmtDate(row.issued_at || row.issue_date)"></div>
-            </td>
+                            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
+                                <div class="text-slate-700 dark:text-slate-200"
+                                     x-text="fmtDate(row.issued_at || row.issue_date)"></div>
+                            </td>
 
-            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
-              <div class="text-slate-700 dark:text-slate-200" x-text="fmtDate(row.due_date)"></div>
-              <div x-show="row.is_overdue" x-cloak class="text-xs text-rose-600 dark:text-rose-300">En retard</div>
-            </td>
+                            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
+                                <div class="text-slate-700 dark:text-slate-200" x-text="fmtDate(row.due_date)"></div>
+                                <div x-show="row.is_overdue" x-cloak class="text-xs text-rose-600 dark:text-rose-300">En
+                                    retard
+                                </div>
+                            </td>
 
-            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
+                            <td class="px-5" :class="compact ? 'py-2.5' : 'py-4'">
               <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
                     :class="statusPill(row.status).cls">
                 <span class="w-2 h-2 rounded-full" :class="statusPill(row.status).dot"></span>
                 <span x-text="statusPill(row.status).label"></span>
               </span>
-            </td>
+                            </td>
 
-            <td class="px-5 text-right" :class="compact ? 'py-2.5' : 'py-4'">
-              <div class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(row.total_amount || row.total)"></div>
-              <div class="text-xs text-slate-400" x-text="row.currency || currency"></div>
-            </td>
+                            <td class="px-5 text-right" :class="compact ? 'py-2.5' : 'py-4'">
+                                <div class="font-semibold text-slate-900 dark:text-white"
+                                     x-text="formatMoney(row.total_amount || row.total)"></div>
+                                <div class="text-xs text-slate-400" x-text="row.currency || currency"></div>
+                            </td>
 
-            <td class="px-5 text-right" :class="compact ? 'py-2.5' : 'py-4'">
-              <div class="inline-flex items-center justify-end gap-2">
-                <button @click="openPreview(row)"
-                        class="h-9 px-3 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs">
-                  <i class="fa-solid fa-eye mr-1"></i> Voir
-                </button>
-                <button @click="openEdit(row)"
-                        class="h-9 px-3 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs">
-                  <i class="fa-solid fa-pen mr-1"></i> Éditer
-                </button>
+                            <td class="px-5 text-right" :class="compact ? 'py-2.5' : 'py-4'">
+                                <div class="inline-flex items-center justify-end gap-2">
+                                    <button @click="openPreview(row)"
+                                            class="h-9 px-3 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs">
+                                        <i class="fa-solid fa-eye mr-1"></i> Voir
+                                    </button>
+                                    <button @click="openEdit(row)"
+                                            class="h-9 px-3 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs">
+                                        <i class="fa-solid fa-pen mr-1"></i> Éditer
+                                    </button>
 
-                <div class="relative" x-data="{open:false}">
-                  <button @click="open=!open"
-                          class="h-9 w-9 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs"
-                          aria-label="Plus">
-                    <i class="fa-solid fa-ellipsis"></i>
-                  </button>
-                  <div x-show="open" x-cloak @click.outside="open=false"
-                       class="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left">
-                    <button @click="open=false; markIssued(row)"
-                            class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
-                      <i class="fa-solid fa-paper-plane text-slate-400"></i>
-                      <span>Marquer comme émise</span>
-                    </button>
-                    <button @click="open=false; recordPayment(row)"
-                            class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
-                      <i class="fa-solid fa-credit-card text-slate-400"></i>
-                      <span>Enregistrer un paiement</span>
-                    </button>
-                    <button @click="open=false; downloadPdf(row)"
-                            class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
-                      <i class="fa-solid fa-file-pdf text-slate-400"></i>
-                      <span>Télécharger PDF</span>
-                    </button>
-                    <div class="h-px bg-gray-100 dark:bg-slate-800"></div>
-                    <button @click="open=false; cancel(row)"
-                            class="w-full px-4 py-3 text-sm hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                      <i class="fa-solid fa-ban"></i>
-                      <span>Annuler</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </td>
-          </tr>
-        </template>
+                                    <div class="relative" x-data="{open:false}">
+                                        <button @click="open=!open"
+                                                class="h-9 w-9 rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs"
+                                                aria-label="Plus">
+                                            <i class="fa-solid fa-ellipsis"></i>
+                                        </button>
+                                        <div x-show="open" x-cloak @click.outside="open=false"
+                                             class="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left">
+                                            <button @click="open=false; markIssued(row)"
+                                                    class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                                                <i class="fa-solid fa-paper-plane text-slate-400"></i>
+                                                <span>Marquer comme émise</span>
+                                            </button>
+                                            <button @click="open=false; recordPayment(row)"
+                                                    class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                                                <i class="fa-solid fa-credit-card text-slate-400"></i>
+                                                <span>Enregistrer un paiement</span>
+                                            </button>
+                                            <button @click="open=false; downloadPdf(row)"
+                                                    class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                                                <i class="fa-solid fa-file-pdf text-slate-400"></i>
+                                                <span>Télécharger PDF</span>
+                                            </button>
+                                            <div class="h-px bg-gray-100 dark:bg-slate-800"></div>
+                                            <button @click="open=false; cancel(row)"
+                                                    class="w-full px-4 py-3 text-sm hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                                                <i class="fa-solid fa-ban"></i>
+                                                <span>Annuler</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
 
-        <tr x-show="!loading && rows.length===0" x-cloak>
-          <td colspan="7" class="px-5 py-12 text-center">
-            <div class="text-3xl mb-2">🧾</div>
-            <div class="font-semibold text-slate-900 dark:text-white">Aucune facture</div>
-            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Essayez de modifier les filtres ou créez une facture.</div>
-            <button @click="openCreate()"
-                    class="mt-4 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
-              Créer une facture
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Mobile cards -->
-    <div class="lg:hidden divide-y divide-gray-100 dark:divide-slate-800">
-      <template x-for="row in rows" :key="'m:'+row.id">
-        <div class="p-4">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="font-semibold text-slate-900 dark:text-white truncate" x-text="row.number || ('INV-' + row.id)"></div>
-              <div class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="row.customer_name || row.customer?.name || '-'"></div>
+                    <tr x-show="!loading && rows.length===0" x-cloak>
+                        <td colspan="7" class="px-5 py-12 text-center">
+                            <div class="text-3xl mb-2">🧾</div>
+                            <div class="font-semibold text-slate-900 dark:text-white">Aucune facture</div>
+                            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Essayez de modifier les filtres
+                                ou créez une facture.
+                            </div>
+                            <button @click="openCreate()"
+                                    class="mt-4 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
+                                Créer une facture
+                            </button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
             </div>
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
-                  :class="statusPill(row.status).cls">
+
+            <!-- Mobile cards -->
+            <div class="lg:hidden divide-y divide-gray-100 dark:divide-slate-800">
+                <template x-for="row in rows" :key="'m:'+row.id">
+                    <div class="p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="font-semibold text-slate-900 dark:text-white truncate"
+                                     x-text="row.number || ('INV-' + row.id)"></div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400 truncate"
+                                     x-text="row.customer_name || row.customer?.name || '-'"></div>
+                            </div>
+                            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                                  :class="statusPill(row.status).cls">
               <span class="w-2 h-2 rounded-full" :class="statusPill(row.status).dot"></span>
               <span x-text="statusPill(row.status).label"></span>
             </span>
-          </div>
+                        </div>
 
-          <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
-              <div class="text-xs text-slate-500 dark:text-slate-400">Émise</div>
-              <div class="font-medium text-slate-900 dark:text-white" x-text="fmtDate(row.issued_at || row.issue_date)"></div>
+                        <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+                                <div class="text-xs text-slate-500 dark:text-slate-400">Émise</div>
+                                <div class="font-medium text-slate-900 dark:text-white"
+                                     x-text="fmtDate(row.issued_at || row.issue_date)"></div>
+                            </div>
+                            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+                                <div class="text-xs text-slate-500 dark:text-slate-400">Échéance</div>
+                                <div class="font-medium text-slate-900 dark:text-white"
+                                     x-text="fmtDate(row.due_date)"></div>
+                            </div>
+                            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 col-span-2">
+                                <div class="text-xs text-slate-500 dark:text-slate-400">Total</div>
+                                <div class="text-lg font-semibold text-slate-900 dark:text-white"
+                                     x-text="formatMoney(row.total_amount || row.total)"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button @click="openPreview(row)"
+                                    class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
+                                <i class="fa-solid fa-eye mr-1"></i> Voir
+                            </button>
+                            <button @click="openEdit(row)"
+                                    class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
+                                <i class="fa-solid fa-pen mr-1"></i> Éditer
+                            </button>
+                            <button @click="downloadPdf(row)"
+                                    class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
+                                <i class="fa-solid fa-file-pdf mr-1"></i> PDF
+                            </button>
+                            <button @click="recordPayment(row)"
+                                    class="px-3 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs">
+                                <i class="fa-solid fa-credit-card mr-1"></i> Paiement
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <div x-show="!loading && rows.length===0" x-cloak class="p-8 text-center">
+                    <div class="text-3xl mb-2">🧾</div>
+                    <div class="font-semibold text-slate-900 dark:text-white">Aucune facture</div>
+                    <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Modifiez les filtres ou créez une
+                        facture.
+                    </div>
+                    <button @click="openCreate()"
+                            class="mt-4 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
+                        Créer une facture
+                    </button>
+                </div>
             </div>
-            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
-              <div class="text-xs text-slate-500 dark:text-slate-400">Échéance</div>
-              <div class="font-medium text-slate-900 dark:text-white" x-text="fmtDate(row.due_date)"></div>
+
+            <!-- Pagination -->
+            <div class="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="pageText"></div>
+
+                <div class="flex items-center gap-2">
+                    <button @click="prevPage()"
+                            :disabled="page<=1 || loading"
+                            class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Précédent
+                    </button>
+
+                    <div class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 grid place-items-center text-sm">
+                        <span x-text="page"></span>
+                    </div>
+
+                    <button @click="nextPage()"
+                            :disabled="!hasNext || loading"
+                            class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+                        Suivant <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
             </div>
-            <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 col-span-2">
-              <div class="text-xs text-slate-500 dark:text-slate-400">Total</div>
-              <div class="text-lg font-semibold text-slate-900 dark:text-white" x-text="formatMoney(row.total_amount || row.total)"></div>
+        </div>
+
+        <!-- Columns Drawer -->
+        <div x-show="openColumns" x-cloak class="fixed inset-0 z-40 bg-slate-900/40" @click.self="openColumns=false">
+            <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl">
+                <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-slate-800">
+                    <div class="font-semibold text-slate-900 dark:text-white">Colonnes</div>
+                    <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                            @click="openColumns=false">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4 text-sm">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Affiche/masque les colonnes (démo UI).</p>
+
+                    <div class="space-y-2">
+                        <template x-for="c in columns" :key="c.key">
+                            <label class="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 dark:border-slate-800 px-4 py-3 bg-white dark:bg-slate-900">
+                                <div class="min-w-0">
+                                    <div class="font-medium text-slate-900 dark:text-white" x-text="c.label"></div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400" x-text="c.desc"></div>
+                                </div>
+                                <input type="checkbox" class="rounded border-gray-300 dark:border-slate-600"
+                                       x-model="c.enabled">
+                            </label>
+                        </template>
+                    </div>
+
+                    <div class="pt-2 flex items-center gap-2">
+                        <button @click="openColumns=false"
+                                class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
+                            OK
+                        </button>
+                        <button @click="resetColumns()"
+                                class="px-4 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-sm">
+                            Réinitialiser
+                        </button>
+                    </div>
+                </div>
             </div>
-          </div>
-
-          <div class="mt-4 flex flex-wrap gap-2">
-            <button @click="openPreview(row)"
-                    class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
-              <i class="fa-solid fa-eye mr-1"></i> Voir
-            </button>
-            <button @click="openEdit(row)"
-                    class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
-              <i class="fa-solid fa-pen mr-1"></i> Éditer
-            </button>
-            <button @click="downloadPdf(row)"
-                    class="px-3 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-xs">
-              <i class="fa-solid fa-file-pdf mr-1"></i> PDF
-            </button>
-            <button @click="recordPayment(row)"
-                    class="px-3 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-xs">
-              <i class="fa-solid fa-credit-card mr-1"></i> Paiement
-            </button>
-          </div>
         </div>
-      </template>
 
-      <div x-show="!loading && rows.length===0" x-cloak class="p-8 text-center">
-        <div class="text-3xl mb-2">🧾</div>
-        <div class="font-semibold text-slate-900 dark:text-white">Aucune facture</div>
-        <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Modifiez les filtres ou créez une facture.</div>
-        <button @click="openCreate()"
-                class="mt-4 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
-          Créer une facture
-        </button>
-      </div>
+        <!-- Preview Modal -->
+        <div x-show="preview.open" x-cloak class="fixed inset-0 z-40 bg-slate-900/50 grid place-items-center p-4"
+             @click.self="closePreview()">
+            <div class="w-full max-w-3xl rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-2xl">
+                <div class="px-5 h-14 flex items-center justify-between border-b border-gray-200 dark:border-slate-800">
+                    <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-eye text-slate-400"></i>
+                        <span x-text="preview.title"></span>
+                    </div>
+                    <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                            @click="closePreview()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Client</div>
+                            <div class="font-semibold text-slate-900 dark:text-white"
+                                 x-text="preview.row?.customer_name || '-'"></div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400"
+                                 x-text="preview.row?.customer_email || ''"></div>
+                        </div>
+                        <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Total</div>
+                            <div class="text-2xl font-semibold text-slate-900 dark:text-white"
+                                 x-text="formatMoney(preview.row?.total_amount || preview.row?.total)"></div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400"
+                                 x-text="preview.row?.currency || currency"></div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                        <div class="text-xs text-slate-500 dark:text-slate-400">Note</div>
+                        <div class="text-sm text-slate-700 dark:text-slate-200 mt-1"
+                             x-text="preview.row?.memo || preview.row?.note || '-'"></div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2">
+                        <button @click="downloadPdf(preview.row)"
+                                class="px-4 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-sm">
+                            <i class="fa-solid fa-file-pdf mr-2"></i> PDF
+                        </button>
+                        <button @click="openEdit(preview.row)"
+                                class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
+                            <i class="fa-solid fa-pen mr-2"></i> Éditer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Pagination -->
-    <div class="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="text-xs text-slate-500 dark:text-slate-400" x-text="pageText"></div>
+    <script>
+        const INVOICE_BASE_URL = "{% url 'finance:invoices:list' %}";  // ex: "/finance/invoices/"
+        const INVOICE_CREATE_URL = "{% url 'finance:invoices:create' %}";
 
-      <div class="flex items-center gap-2">
-        <button @click="prevPage()"
-                :disabled="page<=1 || loading"
-                class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
-          <i class="fa-solid fa-chevron-left mr-1"></i> Précédent
-        </button>
+        function invoiceListPage() {
+            return {
+                loading: false,
+                compact: false,
 
-        <div class="h-10 px-4 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 grid place-items-center text-sm">
-          <span x-text="page"></span>
-        </div>
+                currency: 'XOF',
+                rows: [],
+                page: 1,
+                pageSize: 20,
+                hasNext: false,
 
-        <button @click="nextPage()"
-                :disabled="!hasNext || loading"
-                class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
-          Suivant <i class="fa-solid fa-chevron-right ml-1"></i>
-        </button>
-      </div>
-    </div>
-  </div>
+                openColumns: false,
+                columns: [
+                    {key: 'number', label: 'N° facture', desc: 'Identifiant / numéro', enabled: true},
+                    {key: 'customer', label: 'Client', desc: 'Nom + email', enabled: true},
+                    {key: 'issued_at', label: 'Émise le', desc: 'Date émission', enabled: true},
+                    {key: 'due_date', label: 'Échéance', desc: 'Date limite', enabled: true},
+                    {key: 'status', label: 'Statut', desc: 'État facture', enabled: true},
+                    {key: 'total', label: 'Total', desc: 'Montant TTC', enabled: true},
+                ],
 
-  <!-- Columns Drawer -->
-  <div x-show="openColumns" x-cloak class="fixed inset-0 z-40 bg-slate-900/40" @click.self="openColumns=false">
-    <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl">
-      <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-slate-800">
-        <div class="font-semibold text-slate-900 dark:text-white">Colonnes</div>
-        <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
-                @click="openColumns=false">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
+                filters: {
+                    q: '',
+                    status: '',
+                    period: 'this_month',
+                    date_from: '',
+                    date_to: '',
+                },
 
-      <div class="p-5 space-y-4 text-sm">
-        <p class="text-xs text-slate-500 dark:text-slate-400">Affiche/masque les colonnes (démo UI).</p>
+                kpis: {count: 0, subtotal: 0, tax: 0, total: 0, lastSync: ''},
 
-        <div class="space-y-2">
-          <template x-for="c in columns" :key="c.key">
-            <label class="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 dark:border-slate-800 px-4 py-3 bg-white dark:bg-slate-900">
-              <div class="min-w-0">
-                <div class="font-medium text-slate-900 dark:text-white" x-text="c.label"></div>
-                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="c.desc"></div>
-              </div>
-              <input type="checkbox" class="rounded border-gray-300 dark:border-slate-600" x-model="c.enabled">
-            </label>
-          </template>
-        </div>
+                preview: {open: false, title: '', row: null},
 
-        <div class="pt-2 flex items-center gap-2">
-          <button @click="openColumns=false"
-                  class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
-            OK
-          </button>
-          <button @click="resetColumns()"
-                  class="px-4 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-sm">
-            Réinitialiser
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+                get metaText() {
+                    return `${this.rows.length} ligne(s) • page ${this.page}`;
+                },
+                get pageText() {
+                    return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`;
+                },
+                get filtersSummary() {
+                    const bits = [];
+                    if (this.filters.q) bits.push(`Recherche: "${this.filters.q}"`);
+                    if (this.filters.status) bits.push(`Statut: ${this.filters.status}`);
+                    if (this.filters.period) bits.push(`Période: ${this.filters.period}`);
+                    return bits.length ? bits.join(' • ') : 'Aucun filtre';
+                },
 
-  <!-- Preview Modal -->
-  <div x-show="preview.open" x-cloak class="fixed inset-0 z-40 bg-slate-900/50 grid place-items-center p-4" @click.self="closePreview()">
-    <div class="w-full max-w-3xl rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-2xl">
-      <div class="px-5 h-14 flex items-center justify-between border-b border-gray-200 dark:border-slate-800">
-        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-          <i class="fa-solid fa-eye text-slate-400"></i>
-          <span x-text="preview.title"></span>
-        </div>
-        <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400" @click="closePreview()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
+                statusPill(s) {
+                    const m = {
+                        DRAFT: {
+                            label: 'Brouillon',
+                            cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                            dot: 'bg-slate-400'
+                        },
+                        ISSUED: {
+                            label: 'Émise',
+                            cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+                            dot: 'bg-blue-500'
+                        },
+                        PARTIAL: {
+                            label: 'Partielle',
+                            cls: 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200',
+                            dot: 'bg-amber-500'
+                        },
+                        PAID: {
+                            label: 'Payée',
+                            cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+                            dot: 'bg-emerald-500'
+                        },
+                        OVERDUE: {
+                            label: 'En retard',
+                            cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
+                            dot: 'bg-rose-500'
+                        },
+                        CANCELLED: {
+                            label: 'Annulée',
+                            cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                            dot: 'bg-slate-400'
+                        },
+                    };
+                    return m[s] || {
+                        label: (s || '—'),
+                        cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                        dot: 'bg-slate-400'
+                    };
+                },
 
-      <div class="p-5 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
-            <div class="text-xs text-slate-500 dark:text-slate-400">Client</div>
-            <div class="font-semibold text-slate-900 dark:text-white" x-text="preview.row?.customer_name || '-'"></div>
-            <div class="text-xs text-slate-500 dark:text-slate-400" x-text="preview.row?.customer_email || ''"></div>
-          </div>
-          <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
-            <div class="text-xs text-slate-500 dark:text-slate-400">Total</div>
-            <div class="text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(preview.row?.total_amount || preview.row?.total)"></div>
-            <div class="text-xs text-slate-500 dark:text-slate-400" x-text="preview.row?.currency || currency"></div>
-          </div>
-        </div>
+                fmtDate(s) {
+                    if (!s) return '—';
+                    try {
+                        return new Date(s).toLocaleDateString('fr-FR');
+                    } catch {
+                        return '—';
+                    }
+                },
 
-        <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
-          <div class="text-xs text-slate-500 dark:text-slate-400">Note</div>
-          <div class="text-sm text-slate-700 dark:text-slate-200 mt-1" x-text="preview.row?.memo || preview.row?.note || '-'"></div>
-        </div>
+                formatMoney(v) {
+                    const n = Number(v || 0);
+                    try {
+                        return new Intl.NumberFormat('fr-FR', {style: 'currency', currency: this.currency}).format(n);
+                    } catch {
+                        return `${n.toLocaleString('fr-FR')} ${this.currency}`;
+                    }
+                },
 
-        <div class="flex flex-wrap justify-end gap-2">
-          <button @click="downloadPdf(preview.row)"
-                  class="px-4 py-2 rounded-full border border-gray-300 dark:border-slate-700 text-sm">
-            <i class="fa-solid fa-file-pdf mr-2"></i> PDF
-          </button>
-          <button @click="openEdit(preview.row)"
-                  class="px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
-            <i class="fa-solid fa-pen mr-2"></i> Éditer
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+                toggleCompact() {
+                    this.compact = !this.compact;
+                },
 
-</div>
+                resetColumns() {
+                    this.columns.forEach(c => c.enabled = true);
+                },
 
-<script>
-function invoiceListPage(){
-  return {
-    loading: false,
-    compact: false,
+                buildQueryParams() {
+                    const p = new URLSearchParams();
+                    p.set('page', String(this.page));
+                    p.set('page_size', String(this.pageSize));
+                    if (this.filters.q) p.set('search', this.filters.q);
+                    if (this.filters.status) p.set('status', this.filters.status);
+                    if (this.filters.period) p.set('period', this.filters.period);
+                    if (this.filters.period === 'custom') {
+                        if (this.filters.date_from) p.set('date_from', this.filters.date_from);
+                        if (this.filters.date_to) p.set('date_to', this.filters.date_to);
+                    }
+                    return p.toString();
+                },
 
-    currency: 'XOF',
-    rows: [],
-    page: 1,
-    pageSize: 20,
-    hasNext: false,
+                async fetchList() {
+                    // Ici: tu as 2 options:
+                    // A) serveur Django rend la page + injecte JSON
+                    // B) on fetch l’API DRF (recommandé)
+                    //
+                    // On part sur B: endpoint DRF à adapter
+                    const endpoint = `/api/finance/invoices/?${this.buildQueryParams()}`;
 
-    openColumns: false,
-    columns: [
-      {key:'number', label:'N° facture', desc:'Identifiant / numéro', enabled:true},
-      {key:'customer', label:'Client', desc:'Nom + email', enabled:true},
-      {key:'issued_at', label:'Émise le', desc:'Date émission', enabled:true},
-      {key:'due_date', label:'Échéance', desc:'Date limite', enabled:true},
-      {key:'status', label:'Statut', desc:'État facture', enabled:true},
-      {key:'total', label:'Total', desc:'Montant TTC', enabled:true},
-    ],
+                    this.loading = true;
+                    try {
+                        // hr/base.html expose déjà apiCall() dans window via hrApp,
+                        // mais ici on est dans un x-data séparé, donc on fait fetch direct
+                        const headers = {'Accept': 'application/json'};
 
-    filters: {
-      q: '',
-      status: '',
-      period: 'this_month',
-      date_from: '',
-      date_to: '',
-    },
+                        // tenant header si dispo via localStorage (comme dans ton base)
+                        const tid = localStorage.getItem('lyneerp_tenant') || '';
+                        if (tid) headers['X-Tenant-Id'] = tid;
 
-    kpis: {count: 0, subtotal: 0, tax: 0, total: 0, lastSync: ''},
+                        const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
+                        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    preview: {open:false, title:'', row:null},
+                        const res = await fetch(endpoint, {headers});
+                        const data = await res.json().catch(() => null);
 
-    get metaText(){
-      return `${this.rows.length} ligne(s) • page ${this.page}`;
-    },
-    get pageText(){
-      return `Page ${this.page}${this.hasNext ? ' • autre page disponible' : ''}`;
-    },
-    get filtersSummary(){
-      const bits = [];
-      if (this.filters.q) bits.push(`Recherche: "${this.filters.q}"`);
-      if (this.filters.status) bits.push(`Statut: ${this.filters.status}`);
-      if (this.filters.period) bits.push(`Période: ${this.filters.period}`);
-      return bits.length ? bits.join(' • ') : 'Aucun filtre';
-    },
+                        if (!res.ok) {
+                            const msg = data?.detail || `Erreur ${res.status}`;
+                            throw new Error(msg);
+                        }
 
-    statusPill(s){
-      const m = {
-        DRAFT:     {label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
-        ISSUED:    {label:'Émise',     cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},
-        PARTIAL:   {label:'Partielle', cls:'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},
-        PAID:      {label:'Payée',     cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
-        OVERDUE:   {label:'En retard', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
-        CANCELLED: {label:'Annulée',   cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
-      };
-      return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
-    },
+                        const list = data?.results || data || [];
+                        this.rows = Array.isArray(list) ? list : [];
 
-    fmtDate(s){
-      if (!s) return '—';
-      try { return new Date(s).toLocaleDateString('fr-FR'); } catch { return '—'; }
-    },
+                        // pagination naive
+                        this.hasNext = !!data?.next;
+                        // currency: fallback (si l’API renvoie currency)
+                        this.currency = data?.currency || (this.rows[0]?.currency) || this.currency;
 
-    formatMoney(v){
-      const n = Number(v || 0);
-      try {
-        return new Intl.NumberFormat('fr-FR', {style:'currency', currency:this.currency}).format(n);
-      } catch {
-        return `${n.toLocaleString('fr-FR')} ${this.currency}`;
-      }
-    },
+                        this.computeKpis();
+                        this.kpis.lastSync = new Date().toLocaleTimeString('fr-FR');
+                    } catch (e) {
+                        if (window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
 
-    toggleCompact(){ this.compact = !this.compact; },
+                computeKpis() {
+                    const total = this.rows.reduce((s, r) => s + Number(r.total_amount || r.total || 0), 0);
+                    const tax = this.rows.reduce((s, r) => s + Number(r.tax_amount || r.tax || 0), 0);
+                    const subtotal = this.rows.reduce((s, r) => s + Number(r.subtotal_amount || r.subtotal || 0), 0);
 
-    resetColumns(){
-      this.columns.forEach(c => c.enabled = true);
-    },
+                    this.kpis.count = this.rows.length;
+                    this.kpis.subtotal = subtotal || (total - tax);
+                    this.kpis.tax = tax;
+                    this.kpis.total = total;
+                },
 
-    buildQueryParams(){
-      const p = new URLSearchParams();
-      p.set('page', String(this.page));
-      p.set('page_size', String(this.pageSize));
-      if (this.filters.q) p.set('search', this.filters.q);
-      if (this.filters.status) p.set('status', this.filters.status);
-      if (this.filters.period) p.set('period', this.filters.period);
-      if (this.filters.period === 'custom'){
-        if (this.filters.date_from) p.set('date_from', this.filters.date_from);
-        if (this.filters.date_to) p.set('date_to', this.filters.date_to);
-      }
-      return p.toString();
-    },
+                resetFilters() {
+                    this.filters = {q: '', status: '', period: 'this_month', date_from: '', date_to: ''};
+                    this.page = 1;
+                    this.fetchList();
+                },
 
-    async fetchList(){
-      // Ici: tu as 2 options:
-      // A) serveur Django rend la page + injecte JSON
-      // B) on fetch l’API DRF (recommandé)
-      //
-      // On part sur B: endpoint DRF à adapter
-      const endpoint = `/api/finance/invoices/?${this.buildQueryParams()}`;
+                applyFilters() {
+                    this.page = 1;
+                    this.fetchList();
+                    if (window.hrToast) window.hrToast('Filtres appliqués', 'success');
+                },
 
-      this.loading = true;
-      try {
-        // hr/base.html expose déjà apiCall() dans window via hrApp,
-        // mais ici on est dans un x-data séparé, donc on fait fetch direct
-        const headers = {'Accept':'application/json'};
+                refresh() {
+                    this.fetchList();
+                },
 
-        // tenant header si dispo via localStorage (comme dans ton base)
-        const tid = localStorage.getItem('lyneerp_tenant') || '';
-        if (tid) headers['X-Tenant-Id'] = tid;
+                prevPage() {
+                    if (this.page <= 1) return;
+                    this.page--;
+                    this.fetchList();
+                },
 
-        const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+                nextPage() {
+                    if (!this.hasNext) return;
+                    this.page++;
+                    this.fetchList();
+                },
 
-        const res = await fetch(endpoint, {headers});
-        const data = await res.json().catch(()=>null);
+                exportCsv() {
+                    // export simple: CSV client-side
+                    const cols = ['number', 'customer_name', 'issued_at', 'due_date', 'status', 'total_amount'];
+                    const rows = [cols.join(',')];
+                    for (const r of this.rows) {
+                        const line = cols.map(k => {
+                            const v = (r[k] ?? r.customer?.name ?? '').toString().replaceAll('"', '""');
+                            return `"${v}"`;
+                        }).join(',');
+                        rows.push(line);
+                    }
+                    const blob = new Blob([rows.join('\n')], {type: 'text/csv;charset=utf-8'});
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `invoices_${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                },
 
-        if (!res.ok) {
-          const msg = data?.detail || `Erreur ${res.status}`;
-          throw new Error(msg);
+                openCreate() {
+                    window.location.assign(INVOICE_CREATE_URL);
+                },
+
+                openEdit(row) {
+                    if (!row?.id) return;
+                    const url = `${INVOICE_BASE_URL}${row.id}/`;
+                    window.location.assign(url);
+                },
+
+                openPreview(row) {
+                    this.preview.row = row;
+                    this.preview.title = (row?.number ? `Facture ${row.number}` : 'Aperçu facture');
+                    this.preview.open = true;
+                },
+                closePreview() {
+                    this.preview.open = false;
+                    this.preview.row = null;
+                },
+
+                async markIssued(row) {
+                    if (!row) return;
+                    // TODO: appeler endpoint
+                    if (window.hrToast) window.hrToast('Action (démo) : marquer comme émise', 'info');
+                },
+
+                async recordPayment(row) {
+                    if (!row) return;
+                    if (window.hrToast) window.hrToast('Action (démo) : enregistrer un paiement', 'info');
+                },
+
+                downloadPdf(row) {
+                    if (!row) return;
+                    // si ton API expose pdf_url:
+                    const url = row.pdf_url || row.pdf || '';
+                    if (url) return window.open(url, '_blank');
+                    if (window.hrToast) window.hrToast('PDF indisponible (démo)', 'warning');
+                },
+
+                cancel(row) {
+                    if (!row) return;
+                    Swal.fire({
+                        title: "Annuler la facture ?",
+                        text: "Cette action est réversible seulement si vous gérez des statuts.",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Oui, annuler",
+                        cancelButtonText: "Retour"
+                    }).then((r) => {
+                        if (!r.isConfirmed) return;
+                        if (window.hrToast) window.hrToast('Action (démo) : facture annulée', 'success');
+                    });
+                },
+
+                async init() {
+                    // sync le tenant (si ta page est dans le shell HR)
+                    const tid = localStorage.getItem('lyneerp_tenant') || '';
+                    if (tid) this.currency = (localStorage.getItem('lyneerp_currency') || this.currency);
+
+                    await this.fetchList();
+                }
+            }
         }
-
-        const list = data?.results || data || [];
-        this.rows = Array.isArray(list) ? list : [];
-
-        // pagination naive
-        this.hasNext = !!data?.next;
-        // currency: fallback (si l’API renvoie currency)
-        this.currency = data?.currency || (this.rows[0]?.currency) || this.currency;
-
-        this.computeKpis();
-        this.kpis.lastSync = new Date().toLocaleTimeString('fr-FR');
-      } catch (e){
-        if (window.hrToast) window.hrToast(e.message || 'Erreur chargement', 'error');
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    computeKpis(){
-      const total = this.rows.reduce((s,r)=> s + Number(r.total_amount || r.total || 0), 0);
-      const tax = this.rows.reduce((s,r)=> s + Number(r.tax_amount || r.tax || 0), 0);
-      const subtotal = this.rows.reduce((s,r)=> s + Number(r.subtotal_amount || r.subtotal || 0), 0);
-
-      this.kpis.count = this.rows.length;
-      this.kpis.subtotal = subtotal || (total - tax);
-      this.kpis.tax = tax;
-      this.kpis.total = total;
-    },
-
-    resetFilters(){
-      this.filters = {q:'', status:'', period:'this_month', date_from:'', date_to:''};
-      this.page = 1;
-      this.fetchList();
-    },
-
-    applyFilters(){
-      this.page = 1;
-      this.fetchList();
-      if (window.hrToast) window.hrToast('Filtres appliqués', 'success');
-    },
-
-    refresh(){
-      this.fetchList();
-    },
-
-    prevPage(){
-      if (this.page <= 1) return;
-      this.page--;
-      this.fetchList();
-    },
-
-    nextPage(){
-      if (!this.hasNext) return;
-      this.page++;
-      this.fetchList();
-    },
-
-    exportCsv(){
-      // export simple: CSV client-side
-      const cols = ['number','customer_name','issued_at','due_date','status','total_amount'];
-      const rows = [cols.join(',')];
-      for (const r of this.rows){
-        const line = cols.map(k => {
-          const v = (r[k] ?? r.customer?.name ?? '').toString().replaceAll('"','""');
-          return `"${v}"`;
-        }).join(',');
-        rows.push(line);
-      }
-      const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `invoices_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    },
-
-    openCreate(){
-      // À brancher vers ta route "create"
-      const url = "{% url 'finance:invoices:create' %}";
-      window.location.assign(url);
-    },
-
-    openEdit(row){
-      if (!row) return;
-      // à adapter selon ton URL (id/uuid/number)
-      const url = "{% url 'finance:invoices:detail' '0' %}".replace('0', row.id);
-      window.location.assign(url);
-    },
-
-    openPreview(row){
-      this.preview.row = row;
-      this.preview.title = (row?.number ? `Facture ${row.number}` : 'Aperçu facture');
-      this.preview.open = true;
-    },
-    closePreview(){
-      this.preview.open = false;
-      this.preview.row = null;
-    },
-
-    async markIssued(row){
-      if (!row) return;
-      // TODO: appeler endpoint
-      if (window.hrToast) window.hrToast('Action (démo) : marquer comme émise', 'info');
-    },
-
-    async recordPayment(row){
-      if (!row) return;
-      if (window.hrToast) window.hrToast('Action (démo) : enregistrer un paiement', 'info');
-    },
-
-    downloadPdf(row){
-      if (!row) return;
-      // si ton API expose pdf_url:
-      const url = row.pdf_url || row.pdf || '';
-      if (url) return window.open(url, '_blank');
-      if (window.hrToast) window.hrToast('PDF indisponible (démo)', 'warning');
-    },
-
-    cancel(row){
-      if (!row) return;
-      Swal.fire({
-        title: "Annuler la facture ?",
-        text: "Cette action est réversible seulement si vous gérez des statuts.",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Oui, annuler",
-        cancelButtonText: "Retour"
-      }).then((r)=>{
-        if (!r.isConfirmed) return;
-        if (window.hrToast) window.hrToast('Action (démo) : facture annulée', 'success');
-      });
-    },
-
-    async init(){
-      // sync le tenant (si ta page est dans le shell HR)
-      const tid = localStorage.getItem('lyneerp_tenant') || '';
-      if (tid) this.currency = (localStorage.getItem('lyneerp_currency') || this.currency);
-
-      await this.fetchList();
-    }
-  }
-}
-</script>
+    </script>
 {% endblock %}
