@@ -1,7 +1,11 @@
 # finance/views.py
 from __future__ import annotations
+
+import base64
+import io
 from typing import Any, Type, Tuple
 
+import qrcode
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -544,19 +548,36 @@ class InvoiceCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLines
         self.object = Invoice(tenant=get_current_tenant(request))
         return super().get(request, *args, **kwargs)
 
+def _qr_data_uri(payload: str) -> str:
+    """Return a PNG QR code as data:image/png;base64,... (WeasyPrint friendly)."""
+    img = qrcode.make(payload)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
+
 @login_required
 def invoice_pdf(request, pk):
     invoice = get_object_or_404(
-        Invoice.objects.select_related("partner").prefetch_related("lines", "lines__tax"),
+        Invoice.objects.select_related("partner", "tenant").prefetch_related("lines", "lines__tax"),
         pk=pk
     )
 
-    # (optionnel) Sécurité tenant: si tu as tenant sur request (middleware)
-    # if hasattr(request, "tenant") and invoice.tenant_id != request.tenant.id:
-    #     return HttpResponse(status=404)
+    # ✅ Sécurité tenant (si ton request.tenant existe)
+    if hasattr(request, "tenant") and invoice.tenant_id != request.tenant.id:
+        return HttpResponse(status=404)
+
+    tenant = getattr(invoice, "tenant", None) or getattr(request, "tenant", None)
+
+    # ✅ URL de vérification (tu peux créer une route "verify" plus tard)
+    verify_url = request.build_absolute_uri(f"/finance/invoices/{invoice.id}/")  # ou un endpoint public si tu veux
+    signature_payload = f"INVOICE|{invoice.id}|{invoice.number}|TENANT:{invoice.tenant_id}|TS:{timezone.now().isoformat()}"
+    qr_img = _qr_data_uri(verify_url)  # ou signature_payload si tu veux signer offline
 
     context = {
         "invoice": invoice,
+        "tenant": tenant,
         "partner": invoice.partner,
         "lines": invoice.lines.all(),
         "generated_at": timezone.now(),
@@ -565,28 +586,74 @@ def invoice_pdf(request, pk):
         "total": invoice.total(),
         "amount_paid": invoice.amount_paid(),
         "amount_due": invoice.amount_due(),
+        "qr_img": qr_img,
+        "verify_url": verify_url,
+        "signature_payload": signature_payload,
     }
 
-    html_string = render_to_string("finance/invoice/pdf.html", context=context, request=request)
+    html_string = render_to_string("finance/invoice/pdf_premium.html", context=context, request=request)
 
     font_config = FontConfiguration()
-
-    # Base URL IMPORTANT pour que WeasyPrint charge images/css via {% static %} et liens relatifs
     base_url = request.build_absolute_uri("/")
 
     pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf(
         font_config=font_config,
         stylesheets=[
-            # Optionnel: une feuille CSS dédiée PDF
             CSS(string="""
-                @page { size: A4; margin: 14mm; }
-                body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size: 12px; }
+                @page { 
+                  size: A4; 
+                  margin: 16mm 14mm 18mm 14mm;
+                }
+
+                /* Header & footer (WeasyPrint running elements) */
+                header { position: running(page-header); }
+                footer { position: running(page-footer); }
+
+                @page {
+                  @top-center { content: element(page-header); }
+                  @bottom-center { content: element(page-footer); }
+                }
+
+                body { 
+                  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+                  font-size: 12px;
+                  color: #0f172a;
+                }
+
                 .muted { color: #64748b; }
+                .tiny { font-size: 10px; }
+                .h1 { font-size: 18px; font-weight: 800; letter-spacing: .2px; margin: 0; }
+                .h2 { font-size: 12px; font-weight: 700; margin: 0; }
+                .badge { 
+                  display:inline-block; padding:5px 10px; border-radius:999px;
+                  font-size:11px; font-weight:700;
+                  background:#fff7ed; color:#9a3412; border:1px solid #fed7aa;
+                }
+                .card {
+                  border: 1px solid #e2e8f0;
+                  border-radius: 14px;
+                  padding: 12px;
+                  background: #ffffff;
+                }
+                .row { display:flex; gap:10px; }
+                .col { flex:1; }
+
                 .table { width: 100%; border-collapse: collapse; }
-                .table th, .table td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
-                .table th { text-align: left; background: #f8fafc; }
+                .table th, .table td { padding: 9px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+                .table th { text-align: left; background: #f8fafc; font-size: 11px; letter-spacing: .3px; text-transform: uppercase; color:#475569; }
                 .right { text-align: right; }
-                .badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:11px; background:#f1f5f9; }
+                .totalbox {
+                  border: 1px solid #e2e8f0;
+                  border-radius: 14px;
+                  padding: 10px 12px;
+                  background: #f8fafc;
+                }
+                .hr { height: 1px; background: #e5e7eb; margin: 10px 0; }
+                .brandline { height: 3px; background: linear-gradient(90deg, #fb923c, #f97316, #ea580c); border-radius: 999px; }
+                .logo { height: 28px; }
+                .qrcode { width: 88px; height: 88px; border-radius: 12px; border:1px solid #e2e8f0; padding: 6px; background:#fff; }
+                .footerline { border-top:1px solid #e5e7eb; padding-top:6px; display:flex; justify-content:space-between; gap:10px; }
+                .nowrap { white-space: nowrap; }
             """)
         ],
     )
