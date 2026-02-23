@@ -2,6 +2,7 @@
 from django.urls import path, include
 
 from . import views
+from .views import invoice_pdf
 
 app_name = "finance"
 
