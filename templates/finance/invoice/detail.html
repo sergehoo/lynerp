@@ -1,0 +1,880 @@
+{% extends "hr/base.html" %}
+{% load humanize %}
+
+{% block page_content %}
+    <script>
+        // URLs sûres (pas de pk factice)
+        const INVOICE_BASE_URL = "{% url 'finance:invoices:list' %}";  // ex: "/finance/invoices/"
+        const INVOICE_CREATE_URL = "{% url 'finance:invoices:create' %}";
+
+    </script>
+    <div x-data="invoiceDetailPage({
+        invoiceId: '{{ invoice.id|default:pk }}',
+        invoiceNumber: '{{ invoice.number|default:"" }}',
+
+        endpoint:'/finance/api/invoice/',
+    createUrl: INVOICE_CREATE_URL,
+    baseDetailUrl: INVOICE_BASE_URL, 
+    })"
+         x-init="init()"
+         class="space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-orange-600 text-white">
+          <i class="fa-solid fa-file-invoice-dollar text-[11px] opacity-90"></i>
+          <span>Finance • Factures</span>
+        </span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
+          Détail facture, lignes, paiements, actions
+        </span>
+                </div>
+
+                <div class="mt-3 flex items-end justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate">
+                            <span x-text="invoice.number || (cfg.invoiceNumber || 'Facture')"></span>
+                        </h2>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span><i class="fa-regular fa-calendar mr-1"></i> Émise: <span class="font-medium"
+                                                                                       x-text="fmtDate(invoice.issue_date)"></span></span>
+                            <span><i class="fa-regular fa-calendar-check mr-1"></i> Échéance: <span class="font-medium"
+                                                                                                    x-text="fmtDate(invoice.due_date)"></span></span>
+                            <span><i class="fa-solid fa-coins mr-1"></i> Devise: <span class="font-medium"
+                                                                                       x-text="invoice.currency || currency"></span></span>
+                        </div>
+                    </div>
+
+                    <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span x-text="lockText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button @click="goList()"
+                        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-left text-xs"></i><span>Retour</span>
+                </button>
+
+                <button @click="goEdit()" :disabled="loading"
+                        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-pen text-xs"></i><span>Éditer</span>
+                </button>
+
+                <button @click="downloadPdf()" :disabled="loading"
+                        class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-file-pdf text-xs"></i><span>PDF</span>
+                </button>
+
+                <div class="relative" x-data="{open:false}">
+                    <button @click="open=!open"
+                            class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-xs"></i><span>Actions</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] opacity-90"></i>
+                    </button>
+
+                    <div x-show="open" x-cloak @click.outside="open=false"
+                         class="absolute right-0 mt-2 w-64 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left z-20">
+
+                        <button @click="open=false; markIssued()" :disabled="busy"
+                                class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane text-slate-400"></i>
+                            <span>Marquer comme émise</span>
+                        </button>
+
+                        <button @click="open=false; openPaymentModal()" :disabled="busy"
+                                class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-credit-card text-slate-400"></i>
+                            <span>Enregistrer un paiement</span>
+                        </button>
+
+                        <button @click="open=false; cancelInvoice()" :disabled="busy"
+                                class="w-full px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-ban text-slate-400"></i>
+                            <span>Annuler la facture</span>
+                        </button>
+
+                        <div class="h-px bg-gray-100 dark:bg-slate-800"></div>
+
+                        <button @click="open=false; confirmDelete()" :disabled="busy"
+                                class="w-full px-4 py-3 text-sm hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                            <i class="fa-solid fa-trash"></i>
+                            <span>Supprimer</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">Sous-total (HT)</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white"
+                     x-text="formatMoney(totals.subtotal)"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Somme lignes</div>
+            </div>
+
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">TVA</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white"
+                     x-text="formatMoney(totals.tax)"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Total taxes</div>
+            </div>
+
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">Total (TTC)</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white"
+                     x-text="formatMoney(totals.total)"></div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Facturé</div>
+            </div>
+
+            <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                <div class="text-xs text-slate-500 dark:text-slate-400">Payé / Reste</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
+                    <span x-text="formatMoney(amounts.paid)"></span>
+                </div>
+                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Reste: <span class="font-semibold" x-text="formatMoney(amounts.due)"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Invoice card -->
+                <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-slate-400"></i><span>Informations</span>
+                        </div>
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                              :class="statusPill(invoice.status).cls">
+            <span class="w-2 h-2 rounded-full" :class="statusPill(invoice.status).dot"></span>
+            <span x-text="statusPill(invoice.status).label"></span>
+          </span>
+                    </div>
+
+                    <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Client</div>
+                            <div class="mt-1 font-semibold text-slate-900 dark:text-white"
+                                 x-text="partner.name || '-'"></div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400" x-text="partner.email || ''"></div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400" x-text="partner.phone || ''"></div>
+                        </div>
+
+                        <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Références</div>
+                            <div class="mt-1 text-slate-700 dark:text-slate-200">
+                                <span class="font-semibold">Type:</span> <span x-text="invoice.type || '-'"></span>
+                            </div>
+                            <div class="mt-1 text-slate-700 dark:text-slate-200">
+                                <span class="font-semibold">Devis:</span>
+                                <span x-text="invoice.quote_number || invoice.quote || '-'"></span>
+                            </div>
+                            <div class="mt-1 text-slate-700 dark:text-slate-200">
+                                <span class="font-semibold">Envoyée:</span> <span
+                                    x-text="fmtDateTime(invoice.sent_at)"></span>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Notes</div>
+                            <div class="mt-1 text-slate-700 dark:text-slate-200 whitespace-pre-line"
+                                 x-text="invoice.notes || '-'"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lines -->
+                <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list text-slate-400"></i><span>Lignes</span>
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400"
+                             x-text="lines.length + ' ligne(s)'"></div>
+                    </div>
+
+                    <!-- Desktop -->
+                    <div class="hidden lg:block">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300">
+                            <tr>
+                                <th class="text-left font-semibold px-5 py-3">Libellé</th>
+                                <th class="text-right font-semibold px-5 py-3 w-24">Qté</th>
+                                <th class="text-right font-semibold px-5 py-3 w-32">PU</th>
+                                <th class="text-left font-semibold px-5 py-3 w-44">Taxe</th>
+                                <th class="text-right font-semibold px-5 py-3 w-32">HT</th>
+                                <th class="text-right font-semibold px-5 py-3 w-32">TVA</th>
+                                <th class="text-right font-semibold px-5 py-3 w-32">TTC</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+                            <template x-for="l in lines" :key="l.id">
+                                <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
+                                    <td class="px-5 py-4">
+                                        <div class="font-medium text-slate-900 dark:text-white" x-text="l.label"></div>
+                                    </td>
+                                    <td class="px-5 py-4 text-right text-slate-700 dark:text-slate-200"
+                                        x-text="fmtNum(l.quantity)"></td>
+                                    <td class="px-5 py-4 text-right text-slate-700 dark:text-slate-200"
+                                        x-text="formatMoney(l.unit_price)"></td>
+                                    <td class="px-5 py-4 text-slate-700 dark:text-slate-200"
+                                        x-text="l.tax_name || l.tax || '—'"></td>
+                                    <td class="px-5 py-4 text-right font-semibold text-slate-900 dark:text-white"
+                                        x-text="formatMoney(l.line_total)"></td>
+                                    <td class="px-5 py-4 text-right text-slate-700 dark:text-slate-200"
+                                        x-text="formatMoney(l.tax_amount)"></td>
+                                    <td class="px-5 py-4 text-right font-semibold text-slate-900 dark:text-white"
+                                        x-text="formatMoney((Number(l.line_total||0)+Number(l.tax_amount||0)))"></td>
+                                </tr>
+                            </template>
+
+                            <tr x-show="!loading && lines.length===0" x-cloak>
+                                <td colspan="7" class="px-5 py-12 text-center">
+                                    <div class="text-3xl mb-2">🧾</div>
+                                    <div class="font-semibold text-slate-900 dark:text-white">Aucune ligne</div>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mobile -->
+                    <div class="lg:hidden divide-y divide-gray-100 dark:divide-slate-800">
+                        <template x-for="l in lines" :key="'m:'+l.id">
+                            <div class="p-4">
+                                <div class="font-semibold text-slate-900 dark:text-white" x-text="l.label"></div>
+                                <div class="mt-2 grid grid-cols-2 gap-3 text-sm">
+                                    <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-3">
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">Qté</div>
+                                        <div class="font-medium text-slate-900 dark:text-white"
+                                             x-text="fmtNum(l.quantity)"></div>
+                                    </div>
+                                    <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-3">
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">PU</div>
+                                        <div class="font-medium text-slate-900 dark:text-white"
+                                             x-text="formatMoney(l.unit_price)"></div>
+                                    </div>
+                                    <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-3">
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">HT</div>
+                                        <div class="font-medium text-slate-900 dark:text-white"
+                                             x-text="formatMoney(l.line_total)"></div>
+                                    </div>
+                                    <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-3">
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">TVA</div>
+                                        <div class="font-medium text-slate-900 dark:text-white"
+                                             x-text="formatMoney(l.tax_amount)"></div>
+                                    </div>
+                                    <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-3 col-span-2">
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">TTC</div>
+                                        <div class="text-lg font-semibold text-slate-900 dark:text-white"
+                                             x-text="formatMoney((Number(l.line_total||0)+Number(l.tax_amount||0)))"></div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                    Taxe: <span class="font-medium" x-text="l.tax_name || l.tax || '—'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Totals footer -->
+                    <div class="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-800">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                            <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                                <div class="text-xs text-slate-500 dark:text-slate-400">Sous-total (HT)</div>
+                                <div class="mt-1 font-semibold text-slate-900 dark:text-white"
+                                     x-text="formatMoney(totals.subtotal)"></div>
+                            </div>
+                            <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                                <div class="text-xs text-slate-500 dark:text-slate-400">TVA</div>
+                                <div class="mt-1 font-semibold text-slate-900 dark:text-white"
+                                     x-text="formatMoney(totals.tax)"></div>
+                            </div>
+                            <div class="rounded-2xl border border-gray-200 dark:border-slate-800 p-4">
+                                <div class="text-xs text-slate-500 dark:text-slate-400">Total TTC</div>
+                                <div class="mt-1 text-lg font-semibold text-slate-900 dark:text-white"
+                                     x-text="formatMoney(totals.total)"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments -->
+                <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-credit-card text-slate-400"></i><span>Paiements</span>
+                        </div>
+                        <button @click="openPaymentModal()"
+                                class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+                            <i class="fa-solid fa-plus text-xs"></i><span>Nouveau paiement</span>
+                        </button>
+                    </div>
+
+                    <div class="p-4 sm:p-5 space-y-3">
+                        <template x-for="p in payments" :key="p.id">
+                            <div class="rounded-3xl border border-gray-200 dark:border-slate-800 p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="font-semibold text-slate-900 dark:text-white">
+                                            <span x-text="formatMoney(p.amount)"></span>
+                                            <span class="text-xs text-slate-400"
+                                                  x-text="' • ' + (p.currency || currency)"></span>
+                                        </div>
+                                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                            <span x-text="fmtDateTime(p.paid_at)"></span>
+                                            <span class="mx-2">•</span>
+                                            <span x-text="p.method || '-'"></span>
+                                            <span class="mx-2" x-show="p.reference">•</span>
+                                            <span x-show="p.reference" x-text="p.reference"></span>
+                                        </div>
+                                    </div>
+
+                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                                          :class="payStatusPill(p.status).cls">
+                  <span class="w-2 h-2 rounded-full" :class="payStatusPill(p.status).dot"></span>
+                  <span x-text="payStatusPill(p.status).label"></span>
+                </span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!loading && payments.length===0" x-cloak class="py-8 text-center">
+                            <div class="text-3xl mb-2">💳</div>
+                            <div class="font-semibold text-slate-900 dark:text-white">Aucun paiement</div>
+                            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Enregistre un paiement pour
+                                rapprocher la facture.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right -->
+            <div class="space-y-6">
+
+                <!-- Status & Due -->
+                <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800">
+                        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-gauge text-slate-400"></i><span>Statut</span>
+                        </div>
+                    </div>
+                    <div class="p-4 sm:p-5 space-y-3 text-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Statut</span>
+                            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                                  :class="statusPill(invoice.status).cls">
+              <span class="w-2 h-2 rounded-full" :class="statusPill(invoice.status).dot"></span>
+              <span x-text="statusPill(invoice.status).label"></span>
+            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">En retard</span>
+                            <span class="font-semibold"
+                                  :class="isOverdue ? 'text-rose-600 dark:text-rose-300':'text-slate-900 dark:text-white'"
+                                  x-text="isOverdue ? 'Oui' : 'Non'"></span>
+                        </div>
+                        <div class="h-px bg-gray-100 dark:bg-slate-800"></div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Payé</span>
+                            <span class="font-semibold text-slate-900 dark:text-white"
+                                  x-text="formatMoney(amounts.paid)"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Reste</span>
+                            <span class="font-semibold text-slate-900 dark:text-white"
+                                  x-text="formatMoney(amounts.due)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                    <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800">
+                        <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-slate-400"></i><span>Raccourcis</span>
+                        </div>
+                    </div>
+                    <div class="p-4 sm:p-5 space-y-2">
+                        <button @click="markIssued()" :disabled="busy"
+                                class="w-full h-11 rounded-2xl border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i><span>Marquer Émise</span>
+                        </button>
+                        <button @click="openPaymentModal()" :disabled="busy"
+                                class="w-full h-11 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-credit-card"></i><span>Ajouter paiement</span>
+                        </button>
+                        <button @click="cancelInvoice()" :disabled="busy"
+                                class="w-full h-11 rounded-2xl border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-ban"></i><span>Annuler</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Payment Modal -->
+        <div x-show="payModal.open" x-cloak class="fixed inset-0 z-40 bg-slate-900/50 grid place-items-center p-4"
+             @click.self="closePaymentModal()">
+            <div class="w-full max-w-xl rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-2xl">
+                <div class="px-5 h-14 flex items-center justify-between border-b border-gray-200 dark:border-slate-800">
+                    <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-credit-card text-slate-400"></i><span>Nouveau paiement</span>
+                    </div>
+                    <button class="p-2 rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-400"
+                            @click="closePaymentModal()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Montant</label>
+                            <input x-model.number="payModal.amount" type="number" step="0.01" min="0"
+                                   class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Méthode</label>
+                            <select x-model="payModal.method"
+                                    class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+                                <option value="CASH">Espèces</option>
+                                <option value="BANK">Banque</option>
+                                <option value="MOBILE">Mobile money</option>
+                                <option value="CHEQUE">Chèque</option>
+                                <option value="CARD">Carte</option>
+                            </select>
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="text-xs font-medium text-slate-500">Référence (optionnel)</label>
+                            <input x-model="payModal.reference" type="text" placeholder="Ref banque / MM / chèque…"
+                                   class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button @click="closePaymentModal()"
+                                class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+                            Annuler
+                        </button>
+                        <button @click="submitPayment()" :disabled="busy"
+                                class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
+                            Enregistrer
+                        </button>
+                    </div>
+
+                    <div x-show="busy" x-cloak
+                         class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-spinner fa-spin"></i><span>Traitement…</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DRF endpoints (d'après ton router.register(r"invoices"...))
+        const API_INVOICES = "/finance/api/invoices/";
+        const API_INVOICE_LINES = "/finance/api/invoice-lines/";
+        const API_PAYMENTS = "/finance/api/payments/";
+        const API_PARTNERS = "/finance/api/partners/";
+        const API_QUOTES = "/finance/api/quotes/";
+
+        // -------------------------
+        // CSRF + fetch helper
+        // -------------------------
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+
+        function csrfToken() {
+            return getCookie('csrftoken');
+        }
+
+        async function apiFetch(url, opts = {}) {
+            const method = (opts.method || 'GET').toUpperCase();
+            const headers = opts.headers ? {...opts.headers} : {};
+            headers['Accept'] = headers['Accept'] || 'application/json';
+
+            const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
+            if (unsafe) {
+                headers['X-CSRFToken'] = csrfToken();
+                if (opts.body && !headers['Content-Type']) {
+                    headers['Content-Type'] = 'application/json';
+                }
+            }
+
+            // tenant + bearer si ton app les utilise
+            const tid = localStorage.getItem('lyneerp_tenant') || '';
+            if (tid) headers['X-Tenant-Id'] = tid;
+            const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch(url, {
+                ...opts,
+                method,
+                headers,
+                credentials: 'same-origin', // mets 'include' si cross-subdomain
+            });
+
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(data?.detail || `Erreur ${res.status}`);
+            }
+            return data;
+        }
+
+        function invoiceDetailPage(cfg) {
+            return {
+                cfg,
+                loading: false,
+                busy: false,
+
+                currency: 'XOF',
+                invoice: {},
+                partner: {},
+                lines: [],
+                payments: [],
+
+                totals: {subtotal: 0, tax: 0, total: 0},
+                amounts: {paid: 0, due: 0},
+                payModal: {open: false, amount: 0, method: 'CASH', reference: ''},
+
+                get isOverdue() {
+                    const st = this.invoice.status;
+                    if (st === 'OVERDUE') return true;
+                    const due = this.invoice.due_date ? new Date(this.invoice.due_date) : null;
+                    if (!due) return false;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    due.setHours(0, 0, 0, 0);
+                    return (due < today) && !['PAID', 'CANCELLED'].includes(st);
+                },
+
+                get lockText() {
+                    if (!this.invoice.lock_at) return 'Non verrouillée';
+                    return 'Verrouillée';
+                },
+
+                toast(msg, type = 'info') {
+                    if (window.hrToast) return window.hrToast(msg, type);
+                    console[type === 'error' ? 'error' : 'log'](msg);
+                },
+
+                statusPill(s) {
+                    const m = {
+                        DRAFT: {
+                            label: 'Brouillon',
+                            cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                            dot: 'bg-slate-400'
+                        },
+                        ISSUED: {
+                            label: 'Émise',
+                            cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+                            dot: 'bg-blue-500'
+                        },
+                        PARTIALLY_PAID: {
+                            label: 'Partiellement payée',
+                            cls: 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200',
+                            dot: 'bg-amber-500'
+                        },
+                        PAID: {
+                            label: 'Payée',
+                            cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+                            dot: 'bg-emerald-500'
+                        },
+                        OVERDUE: {
+                            label: 'En retard',
+                            cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
+                            dot: 'bg-rose-500'
+                        },
+                        CANCELLED: {
+                            label: 'Annulée',
+                            cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                            dot: 'bg-slate-400'
+                        },
+                    };
+                    return m[s] || {
+                        label: (s || '—'),
+                        cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                        dot: 'bg-slate-400'
+                    };
+                },
+
+                payStatusPill(s) {
+                    const m = {
+                        PENDING: {
+                            label: 'En attente',
+                            cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                            dot: 'bg-slate-400'
+                        },
+                        DONE: {
+                            label: 'Effectué',
+                            cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+                            dot: 'bg-emerald-500'
+                        },
+                        FAILED: {
+                            label: 'Échoué',
+                            cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
+                            dot: 'bg-rose-500'
+                        },
+                        CANCELLED: {
+                            label: 'Annulé',
+                            cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                            dot: 'bg-slate-400'
+                        },
+                    };
+                    return m[s] || {
+                        label: (s || '—'),
+                        cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                        dot: 'bg-slate-400'
+                    };
+                },
+
+                fmtDate(s) {
+                    if (!s) return '—';
+                    try {
+                        return new Date(s).toLocaleDateString('fr-FR');
+                    } catch {
+                        return '—';
+                    }
+                },
+                fmtDateTime(s) {
+                    if (!s) return '—';
+                    try {
+                        return new Date(s).toLocaleString('fr-FR');
+                    } catch {
+                        return '—';
+                    }
+                },
+                fmtNum(v) {
+                    const n = Number(v || 0);
+                    try {
+                        return new Intl.NumberFormat('fr-FR').format(n);
+                    } catch {
+                        return String(n);
+                    }
+                },
+                formatMoney(v) {
+                    const n = Number(v || 0);
+                    const cur = this.invoice.currency || this.currency;
+                    try {
+                        return new Intl.NumberFormat('fr-FR', {style: 'currency', currency: cur}).format(n);
+                    } catch {
+                        return `${n.toLocaleString('fr-FR')} ${cur}`;
+                    }
+                },
+
+                computeTotals() {
+                    let sub = 0, tax = 0;
+                    for (const l of this.lines) {
+                        sub += Number(l.line_total || 0);
+                        tax += Number(l.tax_amount || 0);
+                    }
+                    this.totals.subtotal = sub;
+                    this.totals.tax = tax;
+                    this.totals.total = sub + tax;
+
+                    // paid/due: préfère les méthodes du modèle si l’API renvoie amount_paid/amount_due
+                    const paid = Number(this.invoice.amount_paid || 0) || this.payments
+                        .filter(p => p.status === 'DONE')
+                        .reduce((s, p) => s + Number(p.amount || 0), 0);
+
+                    const due = Number(this.invoice.amount_due || 0) || Math.max(0, (this.totals.total - paid));
+                    this.amounts.paid = paid;
+                    this.amounts.due = due;
+                },
+
+                goList() {
+                    window.location.assign(this.cfg.listUrl);
+                },
+                goEdit() {
+                    window.location.assign(this.cfg.editUrl);
+                },
+
+                downloadPdf() {
+                    const f = this.invoice.pdf_file;
+                    if (f) return window.open(f, '_blank');
+                    this.toast("PDF indisponible (pdf_file vide).", "warning");
+                },
+
+                openPaymentModal() {
+                    this.payModal.amount = Math.max(0, this.amounts.due || 0);
+                    this.payModal.method = 'CASH';
+                    this.payModal.reference = '';
+                    this.payModal.open = true;
+                },
+                closePaymentModal() {
+                    this.payModal.open = false;
+                },
+
+                async submitPayment() {
+                    if (!this.payModal.amount || Number(this.payModal.amount) <= 0) {
+                        this.toast("Montant invalide.", "error");
+                        return;
+                    }
+                    this.busy = true;
+                    try {
+                        // Payment model: invoice, method, amount, currency, paid_at, reference, status(default PENDING)
+                        const payload = {
+                            invoice: this.invoice.id,
+                            method: this.payModal.method,
+                            amount: String(this.payModal.amount),
+                            currency: this.invoice.currency || this.currency,
+                            reference: this.payModal.reference || '',
+                            status: 'DONE', // si tu veux enregistrer directement "effectué"
+                        };
+                        await apiFetch(API_PAYMENTS, {method: 'POST', body: JSON.stringify(payload)});
+                        this.toast("Paiement enregistré.", "success");
+                        this.closePaymentModal();
+                        await this.loadAll();
+                    } catch (e) {
+                        this.toast(e.message || "Erreur paiement", "error");
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+
+                async markIssued() {
+                    if (!this.invoice?.id) return;
+                    if (this.invoice.status === 'ISSUED') {
+                        this.toast("Déjà en statut Émise.", "info");
+                        return;
+                    }
+                    this.busy = true;
+                    try {
+                        // PATCH status
+                        await apiFetch(`${API_INVOICES}${this.invoice.id}/`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({status: 'ISSUED'}),
+                        });
+                        this.toast("Statut mis à jour: Émise.", "success");
+                        await this.loadAll();
+                    } catch (e) {
+                        this.toast(e.message || "Erreur statut", "error");
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+
+                async cancelInvoice() {
+                    if (!this.invoice?.id) return;
+                    this.busy = true;
+                    try {
+                        await apiFetch(`${API_INVOICES}${this.invoice.id}/`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({status: 'CANCELLED'}),
+                        });
+                        this.toast("Facture annulée.", "success");
+                        await this.loadAll();
+                    } catch (e) {
+                        this.toast(e.message || "Erreur annulation", "error");
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+
+                confirmDelete() {
+                    Swal.fire({
+                        title: "Supprimer la facture ?",
+                        text: "Cette action est irréversible.",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Oui, supprimer",
+                        cancelButtonText: "Retour"
+                    }).then(async (r) => {
+                        if (!r.isConfirmed) return;
+                        this.busy = true;
+                        try {
+                            await apiFetch(`${API_INVOICES}${this.invoice.id}/`, {method: 'DELETE'});
+                            this.toast("Facture supprimée.", "success");
+                            this.goList();
+                        } catch (e) {
+                            this.toast(e.message || "Erreur suppression", "error");
+                        } finally {
+                            this.busy = false;
+                        }
+                    });
+                },
+
+                async loadInvoice() {
+                    // 1) invoice
+                    const inv = await apiFetch(`${API_INVOICES}${this.cfg.invoiceId}/`);
+                    this.invoice = inv || {};
+                    this.currency = this.invoice.currency || this.currency;
+
+                    // 2) partner (si API renvoie partner as id)
+                    if (this.invoice.partner) {
+                        try {
+                            this.partner = await apiFetch(`${API_PARTNERS}${this.invoice.partner}/`);
+                        } catch {
+                            this.partner = {name: this.invoice.partner_name || '-', email: '', phone: ''};
+                        }
+                    } else {
+                        this.partner = {name: this.invoice.partner_name || '-', email: '', phone: ''};
+                    }
+
+                    // 3) lines
+                    // Ton InvoiceSerializer expose lines read_only, donc GET invoice/ doit déjà contenir "lines".
+                    // Si pas le cas, fallback: query invoice-lines.
+                    const l = Array.isArray(inv?.lines) ? inv.lines : null;
+                    if (l) {
+                        this.lines = l.map(x => ({
+                            ...x,
+                            tax_name: x.tax_name || x.tax_display || x.tax_label || x.tax, // fallback
+                        }));
+                    } else {
+                        const data = await apiFetch(`${API_INVOICE_LINES}?invoice=${this.cfg.invoiceId}`);
+                        const list = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+                        this.lines = list;
+                    }
+
+                    // 4) payments
+                    try {
+                        const pay = await apiFetch(`${API_PAYMENTS}?invoice=${this.cfg.invoiceId}`);
+                        this.payments = Array.isArray(pay?.results) ? pay.results : (Array.isArray(pay) ? pay : []);
+                    } catch {
+                        this.payments = [];
+                    }
+
+                    this.computeTotals();
+                },
+
+                async loadAll() {
+                    this.loading = true;
+                    try {
+                        await this.loadInvoice();
+                    } catch (e) {
+                        this.toast(e.message || "Erreur chargement facture", "error");
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async init() {
+                    await this.loadAll();
+                },
+            }
+        }
+    </script>
+{% endblock %}
