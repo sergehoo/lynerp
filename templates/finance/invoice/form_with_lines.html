@@ -322,10 +322,10 @@
   const INVOICE_CREATE_URL = "{% url 'finance:invoices:create' %}";   // "/finance/invoices/new/"
 
   // ⚠️ adapte ces endpoints selon ton routing API réel (tu as montré finance/api/routers.py)
-  const API_INVOICES = "/api/finance/invoices/";
-  const API_PARTNERS = "/api/finance/partners/";      // à adapter si différent
-  const API_TAXES    = "/api/finance/taxes/";         // à adapter si différent
-  const API_QUOTES   = "/api/finance/quotes/";        // à adapter si différent
+  const API_INVOICES = "/finance/api/invoices/";
+  const API_PARTNERS = "/finance/api/partners/";      // à adapter si différent
+  const API_TAXES    = "/finance/api/taxes/";         // à adapter si différent
+  const API_QUOTES   = "/finance/api/quotes/";        // à adapter si différent
   // const API_QUOTE_LINES = (id) => `/api/finance/quote-lines/?quote=${id}`; // si tu l’as
 
   function invoiceCreatePage(){
@@ -522,7 +522,7 @@
 
           // 2) créer les lignes (serializer nested actuel = read-only, donc POST séparés)
           // ⚠️ adapte l'endpoint invoice-lines si différent
-          const linesEndpoint = "/api/finance/invoice-lines/";
+          const linesEndpoint = "/finance/api/invoice-lines/";
           for(const l of this.lines){
             const linePayload = {
               invoice: inv.id,
