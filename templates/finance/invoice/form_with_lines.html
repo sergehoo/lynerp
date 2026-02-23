@@ -1,0 +1,584 @@
+{% extends "hr/base.html" %}
+{% load humanize %}
+
+{% block page_content %}
+<div x-data="invoiceCreatePage()" x-init="init()" class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-white/60 dark:border-slate-700/70 bg-orange-600 text-white">
+          <i class="fa-solid fa-file-invoice-dollar text-[11px] opacity-90"></i>
+          <span>Finance • Factures</span>
+        </span>
+        <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
+          Création d’une facture client avec lignes, taxes et échéance
+        </span>
+      </div>
+
+      <div class="mt-3 flex items-end justify-between gap-3">
+        <h2 class="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight truncate">
+          Nouvelle facture
+        </h2>
+        <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <i class="fa-solid fa-circle-info"></i>
+          <span x-text="statusPill(form.status).label"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button @click="goList()"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-arrow-left text-xs"></i><span>Retour</span>
+      </button>
+
+      <button @click="save('draft')" :disabled="saving"
+              class="h-10 px-4 rounded-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-floppy-disk text-xs"></i><span>Enregistrer brouillon</span>
+      </button>
+
+      <button @click="save('issue')" :disabled="saving"
+              class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+        <i class="fa-solid fa-paper-plane text-xs"></i><span>Créer & marquer Émise</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary KPI -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <div class="text-xs text-slate-500 dark:text-slate-400">Sous-total (HT)</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(totals.subtotal)"></div>
+      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Somme des lignes</div>
+    </div>
+
+    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <div class="text-xs text-slate-500 dark:text-slate-400">TVA</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(totals.tax)"></div>
+      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Taxes</div>
+    </div>
+
+    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <div class="text-xs text-slate-500 dark:text-slate-400">Total (TTC)</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="formatMoney(totals.total)"></div>
+      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">À facturer</div>
+    </div>
+
+    <div class="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <div class="text-xs text-slate-500 dark:text-slate-400">Devise</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white" x-text="form.currency"></div>
+      <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+        <i class="fa-solid fa-clock text-[11px]"></i>
+        <span x-text="'Dernière MAJ: ' + (lastCalc || '-')"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: main -->
+    <div class="lg:col-span-2 space-y-6">
+
+      <!-- Document -->
+      <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-file-lines text-slate-400"></i><span>Document</span>
+          </div>
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+                :class="statusPill(form.status).cls">
+            <span class="w-2 h-2 rounded-full" :class="statusPill(form.status).dot"></span>
+            <span x-text="statusPill(form.status).label"></span>
+          </span>
+        </div>
+
+        <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs font-medium text-slate-500">Client</label>
+            <div class="mt-1 relative">
+              <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <select x-model="form.partner"
+                      class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200">
+                <option value="">— Sélectionner —</option>
+                <template x-for="p in partners" :key="p.id">
+                  <option :value="p.id" x-text="p.name"></option>
+                </template>
+              </select>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Source: endpoint partenaires.</p>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500">N° facture</label>
+            <div class="mt-1 relative">
+              <i class="fa-solid fa-hashtag absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input x-model="form.number" type="text" placeholder="Ex: INV-2026-0001"
+                     class="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-orange-200"/>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Laisse vide si généré côté serveur.</p>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500">Date d’émission</label>
+            <input x-model="form.issue_date" type="date"
+                   class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500">Échéance</label>
+            <input x-model="form.due_date" type="date"
+                   class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500">Devise</label>
+            <select x-model="form.currency"
+                    class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+              <option value="XOF">XOF</option>
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-500">Devis (optionnel)</label>
+            <div class="mt-1 flex gap-2">
+              <select x-model="form.quote"
+                      class="w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+                <option value="">— Aucun —</option>
+                <template x-for="q in quotes" :key="q.id">
+                  <option :value="q.id" x-text="q.number + ' • ' + (q.partner_name || '')"></option>
+                </template>
+              </select>
+              <button @click="applyQuoteLines()" type="button"
+                      class="h-10 px-3 rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </button>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Le bouton copie les lignes du devis (si endpoint dispo).</p>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="text-xs font-medium text-slate-500">Notes</label>
+            <textarea x-model="form.notes" rows="3" placeholder="Conditions, remarques…"
+                      class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-orange-200"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lines -->
+      <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-list text-slate-400"></i><span>Lignes</span>
+          </div>
+          <button @click="addLine()" type="button"
+                  class="h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium shadow-soft flex items-center gap-2">
+            <i class="fa-solid fa-plus text-xs"></i><span>Ajouter</span>
+          </button>
+        </div>
+
+        <div class="p-4 sm:p-5 space-y-3">
+          <template x-for="(l, idx) in lines" :key="l._key">
+            <div class="rounded-3xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div class="md:col-span-5">
+                  <label class="text-xs font-medium text-slate-500">Libellé</label>
+                  <input x-model="l.label" @input="recalc()"
+                         type="text" placeholder="Prestation, produit…"
+                         class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-orange-200"/>
+                </div>
+
+                <div class="md:col-span-2">
+                  <label class="text-xs font-medium text-slate-500">Qté</label>
+                  <input x-model.number="l.quantity" @input="recalc()"
+                         type="number" step="0.01" min="0"
+                         class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                </div>
+
+                <div class="md:col-span-2">
+                  <label class="text-xs font-medium text-slate-500">PU</label>
+                  <input x-model.number="l.unit_price" @input="recalc()"
+                         type="number" step="0.01" min="0"
+                         class="mt-1 w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2"/>
+                </div>
+
+                <div class="md:col-span-2">
+                  <label class="text-xs font-medium text-slate-500">Taxe</label>
+                  <select x-model="l.tax" @change="recalc()"
+                          class="mt-1 w-full rounded-2xl border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm px-3 py-2">
+                    <option value="">—</option>
+                    <template x-for="t in taxes" :key="t.id">
+                      <option :value="t.id" x-text="t.name + ' (' + t.rate + '%)'"></option>
+                    </template>
+                  </select>
+                </div>
+
+                <div class="md:col-span-1 flex items-end justify-end">
+                  <button @click="removeLine(idx)" type="button"
+                          class="h-10 w-10 rounded-2xl border border-gray-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-700 dark:text-rose-300">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="text-slate-500 dark:text-slate-400">
+                  <span class="font-semibold">HT:</span> <span x-text="formatMoney(l._line_total)"></span>
+                  <span class="mx-2">•</span>
+                  <span class="font-semibold">TVA:</span> <span x-text="formatMoney(l._tax_amount)"></span>
+                </div>
+                <div class="text-slate-500 dark:text-slate-400">
+                  <span class="font-semibold">TTC:</span> <span x-text="formatMoney(l._line_total + l._tax_amount)"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div x-show="lines.length===0" x-cloak class="py-10 text-center">
+            <div class="text-3xl mb-2">🧾</div>
+            <div class="font-semibold text-slate-900 dark:text-white">Aucune ligne</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ajoute au moins une ligne pour calculer le total.</div>
+            <button @click="addLine()" type="button"
+                    class="mt-4 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium">
+              Ajouter une ligne
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: side -->
+    <div class="space-y-6">
+
+      <!-- Totals card -->
+      <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-calculator text-slate-400"></i><span>Récap</span>
+          </div>
+          <span class="text-xs text-slate-500 dark:text-slate-400" x-text="lines.length + ' ligne(s)'"></span>
+        </div>
+
+        <div class="p-4 sm:p-5 space-y-3 text-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 dark:text-slate-400">Sous-total (HT)</span>
+            <span class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(totals.subtotal)"></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 dark:text-slate-400">TVA</span>
+            <span class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(totals.tax)"></span>
+          </div>
+          <div class="h-px bg-gray-100 dark:bg-slate-800"></div>
+          <div class="flex items-center justify-between text-base">
+            <span class="text-slate-500 dark:text-slate-400">Total TTC</span>
+            <span class="font-semibold text-slate-900 dark:text-white" x-text="formatMoney(totals.total)"></span>
+          </div>
+          <p class="text-xs text-slate-400">
+            Les champs line_total et tax_amount sont recalculés côté serveur aussi. Ici c’est juste pour l’UX.
+          </p>
+        </div>
+      </div>
+
+      <!-- Actions card -->
+      <div class="rounded-3xl border border-gray-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-slate-800">
+          <div class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-slate-400"></i><span>Actions</span>
+          </div>
+        </div>
+
+        <div class="p-4 sm:p-5 space-y-2">
+          <button @click="save('draft')" :disabled="saving"
+                  class="w-full h-11 rounded-2xl border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center justify-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i><span>Enregistrer brouillon</span>
+          </button>
+
+          <button @click="save('issue')" :disabled="saving"
+                  class="w-full h-11 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane"></i><span>Créer & marquer Émise</span>
+          </button>
+
+          <button @click="goList()"
+                  class="w-full h-11 rounded-2xl border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center justify-center gap-2">
+            <i class="fa-solid fa-list"></i><span>Retour liste</span>
+          </button>
+
+          <div x-show="saving" x-cloak class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+            <i class="fa-solid fa-spinner fa-spin"></i><span>Enregistrement…</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const INVOICE_LIST_URL   = "{% url 'finance:invoices:list' %}";     // "/finance/invoices/"
+  const INVOICE_CREATE_URL = "{% url 'finance:invoices:create' %}";   // "/finance/invoices/new/"
+
+  // ⚠️ adapte ces endpoints selon ton routing API réel (tu as montré finance/api/routers.py)
+  const API_INVOICES = "/api/finance/invoices/";
+  const API_PARTNERS = "/api/finance/partners/";      // à adapter si différent
+  const API_TAXES    = "/api/finance/taxes/";         // à adapter si différent
+  const API_QUOTES   = "/api/finance/quotes/";        // à adapter si différent
+  // const API_QUOTE_LINES = (id) => `/api/finance/quote-lines/?quote=${id}`; // si tu l’as
+
+  function invoiceCreatePage(){
+    return {
+      loading:false,
+      saving:false,
+
+      currency:'XOF',
+      partners:[],
+      taxes:[],
+      quotes:[],
+
+      form:{
+        type:'SALE',
+        number:'',
+        partner:'',
+        status:'DRAFT',
+        issue_date:'',
+        due_date:'',
+        currency:'XOF',
+        notes:'',
+        quote:'',
+      },
+
+      lines:[],
+      totals:{ subtotal:0, tax:0, total:0 },
+      lastCalc:'',
+
+      statusPill(s){
+        const m = {
+          DRAFT:{label:'Brouillon', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
+          ISSUED:{label:'Émise', cls:'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200', dot:'bg-blue-500'},
+          PARTIALLY_PAID:{label:'Partiellement payée', cls:'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200', dot:'bg-amber-500'},
+          PAID:{label:'Payée', cls:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200', dot:'bg-emerald-500'},
+          OVERDUE:{label:'En retard', cls:'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200', dot:'bg-rose-500'},
+          CANCELLED:{label:'Annulée', cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'},
+        };
+        return m[s] || {label:(s||'—'), cls:'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200', dot:'bg-slate-400'};
+      },
+
+      formatMoney(v){
+        const n=Number(v||0);
+        try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:this.form.currency || this.currency}).format(n); }
+        catch { return `${n.toLocaleString('fr-FR')} ${(this.form.currency||this.currency)}`; }
+      },
+
+      toast(msg, type='info'){
+        if(window.hrToast) return window.hrToast(msg, type);
+        console[type==='error'?'error':'log'](msg);
+      },
+
+      goList(){ window.location.assign(INVOICE_LIST_URL); },
+
+      addLine(){
+        this.lines.push({
+          _key: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
+          label:'',
+          quantity:1,
+          unit_price:0,
+          tax:'',
+          _line_total:0,
+          _tax_amount:0,
+        });
+        this.recalc();
+      },
+
+      removeLine(i){
+        this.lines.splice(i,1);
+        this.recalc();
+      },
+
+      recalc(){
+        let subtotal=0, tax=0;
+        const taxesById = new Map(this.taxes.map(t => [String(t.id), t]));
+        for(const l of this.lines){
+          const q = Number(l.quantity||0);
+          const pu = Number(l.unit_price||0);
+          const base = q * pu;
+          const tx = l.tax ? (Number(taxesById.get(String(l.tax))?.rate || 0) / 100.0) : 0;
+          const tva = base * tx;
+
+          l._line_total = base;
+          l._tax_amount = tva;
+
+          subtotal += base;
+          tax += tva;
+        }
+        this.totals.subtotal = subtotal;
+        this.totals.tax = tax;
+        this.totals.total = subtotal + tax;
+        this.lastCalc = new Date().toLocaleTimeString('fr-FR');
+      },
+
+      headers(){
+        const headers = {'Accept':'application/json','Content-Type':'application/json'};
+        const tid = localStorage.getItem('lyneerp_tenant') || '';
+        if (tid) headers['X-Tenant-Id'] = tid;
+        const token = localStorage.getItem('lyneerp_token') || localStorage.getItem('kc_access_token') || '';
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+      },
+
+      todayISO(){
+        const d=new Date();
+        const pad=(n)=>String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      },
+
+      addDaysISO(days){
+        const d=new Date();
+        d.setDate(d.getDate()+days);
+        const pad=(n)=>String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      },
+
+      async loadPartners(){
+        const res = await fetch(API_PARTNERS, {headers:this.headers()});
+        const data = await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(data?.detail || `Partners: ${res.status}`);
+        return Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+      },
+
+      async loadTaxes(){
+        const res = await fetch(API_TAXES, {headers:this.headers()});
+        const data = await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(data?.detail || `Taxes: ${res.status}`);
+        return Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+      },
+
+      async loadQuotes(){
+        // optionnel: si tu as l’endpoint
+        try{
+          const res = await fetch(API_QUOTES, {headers:this.headers()});
+          const data = await res.json().catch(()=>null);
+          if(!res.ok) return [];
+          return Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        }catch{ return []; }
+      },
+
+      async applyQuoteLines(){
+        // Démo: si tu exposes des lignes de devis en API, branche ici.
+        if(!this.form.quote){
+          this.toast("Choisis un devis d’abord.", "warning");
+          return;
+        }
+        this.toast("Copie des lignes du devis: endpoint à brancher (quote-lines).", "info");
+      },
+
+      buildPayload(mode){
+        const status = (mode === 'issue') ? 'ISSUED' : 'DRAFT';
+        const payload = {
+          type: this.form.type || 'SALE',
+          number: this.form.number || null,
+          partner: this.form.partner || null,
+          status,
+          issue_date: this.form.issue_date || null,
+          due_date: this.form.due_date || null,
+          currency: this.form.currency || 'XOF',
+          notes: this.form.notes || '',
+          quote: this.form.quote || null,
+
+          // IMPORTANT: ton InvoiceSerializer actuel a lines read_only=True.
+          // Donc pour créer avec lignes en une requête, il faut un serializer writable (nested create)
+          // ou bien créer Invoice puis POST les InvoiceLine séparément.
+        };
+        return payload;
+      },
+
+      async save(mode){
+        // validations UX
+        if(!this.form.partner){
+          this.toast("Sélectionne un client (partner).", "error");
+          return;
+        }
+        if(this.lines.length === 0){
+          this.toast("Ajoute au moins une ligne.", "error");
+          return;
+        }
+        for(const l of this.lines){
+          if(!l.label?.trim()){
+            this.toast("Chaque ligne doit avoir un libellé.", "error");
+            return;
+          }
+        }
+
+        this.saving=true;
+        try{
+          // 1) créer la facture
+          const payload = this.buildPayload(mode);
+          if(!payload.number) delete payload.number; // si génération serveur
+          const res = await fetch(API_INVOICES, {method:'POST', headers:this.headers(), body: JSON.stringify(payload)});
+          const inv = await res.json().catch(()=>null);
+          if(!res.ok) throw new Error(inv?.detail || `Erreur création facture (${res.status})`);
+
+          // 2) créer les lignes (serializer nested actuel = read-only, donc POST séparés)
+          // ⚠️ adapte l'endpoint invoice-lines si différent
+          const linesEndpoint = "/api/finance/invoice-lines/";
+          for(const l of this.lines){
+            const linePayload = {
+              invoice: inv.id,
+              label: l.label,
+              quantity: String(l.quantity ?? 0),
+              unit_price: String(l.unit_price ?? 0),
+              tax: l.tax || null,
+            };
+            const r2 = await fetch(linesEndpoint, {method:'POST', headers:this.headers(), body: JSON.stringify(linePayload)});
+            const out = await r2.json().catch(()=>null);
+            if(!r2.ok) throw new Error(out?.detail || `Erreur ligne (${r2.status})`);
+          }
+
+          this.toast("Facture créée avec succès.", "success");
+
+          // 3) redirect vers detail HTML
+          const detailUrl = `${INVOICE_LIST_URL}${inv.id}/`;
+          window.location.assign(detailUrl);
+
+        }catch(e){
+          this.toast(e.message || "Erreur enregistrement", "error");
+        }finally{
+          this.saving=false;
+        }
+      },
+
+      async init(){
+        this.loading=true;
+        try{
+          // init dates
+          this.form.issue_date = this.todayISO();
+          this.form.due_date = this.addDaysISO(14);
+          this.form.currency = localStorage.getItem('lyneerp_currency') || 'XOF';
+
+          // charge référentiels
+          const [partners, taxes, quotes] = await Promise.all([
+            this.loadPartners(),
+            this.loadTaxes(),
+            this.loadQuotes(),
+          ]);
+
+          this.partners = partners;
+          this.taxes = taxes;
+          this.quotes = quotes;
+
+          // 1 ligne par défaut
+          this.addLine();
+
+        }catch(e){
+          this.toast(e.message || "Erreur initialisation", "error");
+        }finally{
+          this.loading=false;
+        }
+      }
+    }
+  }
+</script>
+
+{% endblock %}
