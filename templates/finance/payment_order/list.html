@@ -1,23 +1,82 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
-<div x-data="genericList({
-  title:'Ordres de paiement',
-  subtitle:'Paiements fournisseurs / virements / batch',
-  icon:'fa-solid fa-money-check-dollar',
-  theme:'orange',
-  endpoint:'/api/finance/payment-orders/',
-  createUrl:"{% url 'finance:payment_orders:create' %}",
-  detailUrlTpl:"{% url 'finance:payment_orders:detail' '0' %}",
-  columns:[
-    {key:'reference', label:'Référence', mobile:true},
-    {key:'beneficiary', label:'Bénéficiaire', mobile:true},
-    {key:'scheduled_date', label:'Prévu', mobile:true},
-    {key:'status', label:'Statut', mobile:true},
-    {key:'method', label:'Méthode', mobile:false},
-    {key:'amount', label:'Montant', align:'right', mobile:true},
-  ]
-})" x-init="init()" class="space-y-6">
+
+<script>
+  // URLs sûres (pas de pk factice)
+  const PAYMENT_ORDERS_BASE_URL   = "{% url 'finance:payment_orders:list' %}";
+  const PAYMENT_ORDERS_CREATE_URL = "{% url 'finance:payment_orders:create' %}";
+</script>
+
+<div
+  x-data="genericList({
+    title:'Ordres de paiement',
+    subtitle:'Paiements fournisseurs / virements / batch',
+    icon:'fa-solid fa-money-check-dollar',
+    theme:'orange',
+    endpoint:'/api/finance/payment-orders/',
+    createUrl: PAYMENT_ORDERS_CREATE_URL,
+    baseDetailUrl: PAYMENT_ORDERS_BASE_URL,   // ✅ remplace detailUrlTpl
+    columns:[
+      {key:'reference', label:'Référence', mobile:true},
+      {key:'beneficiary', label:'Bénéficiaire', mobile:true},
+      {key:'scheduled_date', label:'Prévu', mobile:true},
+      {key:'status', label:'Statut', mobile:true},
+      {key:'method', label:'Méthode', mobile:false},
+      {key:'amount', label:'Montant', align:'right', mobile:true},
+    ]
+  })"
+  x-init="init()"
+  class="space-y-6"
+>
   {% include "finance/shared/list_skeleton.html" %}
 </div>
+
 {% include "finance/shared/list_skeleton_script.html" %}
+
+<script>
+/**
+ * UUID-safe navigation patch
+ * (à idéalement centraliser dans list_skeleton_script.html)
+ */
+(function(){
+  if (typeof window.genericList !== "function") return;
+
+  const _orig = window.genericList;
+
+  window.genericList = function(cfg){
+    const api = _orig(cfg);
+
+    const toast = (msg, type='info') => {
+      if (window.hrToast) return window.hrToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](msg);
+    };
+
+    const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
+    api.goDetail = function(row){
+      if (!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(cfg.baseDetailUrl || '');
+      if (!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    };
+
+    api.goCreate = function(){
+      if (cfg.createUrl && cfg.createUrl !== '#') {
+        window.location.assign(cfg.createUrl);
+      } else {
+        toast("createUrl non configuré", "error");
+      }
+    };
+
+    return api;
+  };
+})();
+</script>
+
 {% endblock %}

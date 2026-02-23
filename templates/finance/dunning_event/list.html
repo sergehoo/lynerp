@@ -1,13 +1,19 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
+
+<script>
+  // URL sûre (pas de pk factice)
+  const DUNNING_EVENTS_BASE_URL = "{% url 'finance:dunning_events:list' %}";
+</script>
+
 <div x-data="genericList({
   title:'Relances • Envois',
   subtitle:'Historique des relances, statut, erreurs',
   icon:'fa-solid fa-envelope',
   theme:'orange',
   endpoint:'/api/finance/dunning-events/',
-  createUrl:"#",
-  detailUrlTpl:"{% url 'finance:dunning_events:detail' '0' %}",
+{#  createUrl:"#",#}
+  baseDetailUrl: DUNNING_EVENTS_BASE_URL,  /* ✅ remplace detailUrlTpl */
   columns:[
     {key:'reference', label:'Référence', mobile:true},
     {key:'customer', label:'Client', mobile:true},
@@ -19,5 +25,49 @@
 })" x-init="init()" class="space-y-6">
   {% include "finance/shared/list_skeleton.html" %}
 </div>
+
 {% include "finance/shared/list_skeleton_script.html" %}
+
+<script>
+/**
+ * UUID-safe navigation patch (à centraliser idéalement dans list_skeleton_script.html)
+ */
+(function(){
+  if (typeof window.genericList !== "function") return;
+
+  const _orig = window.genericList;
+
+  window.genericList = function(cfg){
+    const api = _orig(cfg);
+
+    const toast = (msg, type='info') => {
+      if (window.hrToast) return window.hrToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](msg);
+    };
+
+    const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
+    api.goDetail = function(row){
+      if (!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(cfg.baseDetailUrl || '');
+      if (!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    };
+
+    // createUrl est "#": pas de création, on bloque proprement
+    api.goCreate = function(){
+      toast("Création indisponible pour les envois de relance", "info");
+    };
+
+    return api;
+  };
+})();
+</script>
+
 {% endblock %}

@@ -1,13 +1,20 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
+
+<script>
+  // URLs sûres (pas de pk factice)
+  const DUNNING_STAGES_BASE_URL   = "{% url 'finance:dunning_stages:list' %}";
+  const DUNNING_STAGES_CREATE_URL = "{% url 'finance:dunning_stages:create' %}";
+</script>
+
 <div x-data="genericList({
   title:'Relances • Étapes',
   subtitle:'Scénarios de relance, délais, modèles',
   icon:'fa-solid fa-bell',
   theme:'orange',
   endpoint:'/api/finance/dunning-stages/',
-  createUrl:"{% url 'finance:dunning_stages:create' %}",
-  detailUrlTpl:"{% url 'finance:dunning_stages:detail' '0' %}",
+  createUrl: DUNNING_STAGES_CREATE_URL,
+  baseDetailUrl: DUNNING_STAGES_BASE_URL,  /* ✅ remplace detailUrlTpl */
   columns:[
     {key:'code', label:'Code', mobile:true},
     {key:'name', label:'Étape', mobile:true},
@@ -19,5 +26,52 @@
 })" x-init="init()" class="space-y-6">
   {% include "finance/shared/list_skeleton.html" %}
 </div>
+
 {% include "finance/shared/list_skeleton_script.html" %}
+
+<script>
+/**
+ * UUID-safe navigation patch (à centraliser idéalement dans list_skeleton_script.html)
+ */
+(function(){
+  if (typeof window.genericList !== "function") return;
+
+  const _orig = window.genericList;
+
+  window.genericList = function(cfg){
+    const api = _orig(cfg);
+
+    const toast = (msg, type='info') => {
+      if (window.hrToast) return window.hrToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](msg);
+    };
+
+    const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
+    api.goDetail = function(row){
+      if (!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(cfg.baseDetailUrl || '');
+      if (!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    };
+
+    api.goCreate = function(){
+      if (cfg.createUrl && cfg.createUrl !== '#') {
+        window.location.assign(cfg.createUrl);
+      } else {
+        toast("createUrl non configuré", "error");
+      }
+    };
+
+    return api;
+  };
+})();
+</script>
+
 {% endblock %}

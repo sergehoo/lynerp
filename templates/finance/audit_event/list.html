@@ -1,5 +1,11 @@
 {% extends "hr/base.html" %}
 {% block page_content %}
+
+<script>
+  // URL sûre (pas de pk factice)
+  const AUDIT_EVENTS_BASE_URL = "{% url 'finance:audit_events:list' %}";
+</script>
+
 <div x-data="genericList({
   title:'Audit Finance',
   subtitle:'Actions, changements, traçabilité',
@@ -7,7 +13,7 @@
   theme:'orange',
   endpoint:'/api/finance/audit-events/',
   createUrl:"#",
-  detailUrlTpl:"{% url 'finance:audit_events:detail' '0' %}",
+  baseDetailUrl: AUDIT_EVENTS_BASE_URL,  /* ✅ remplace detailUrlTpl */
   columns:[
     {key:'date', label:'Date', mobile:true},
     {key:'action', label:'Action', mobile:true},
@@ -19,5 +25,49 @@
 })" x-init="init()" class="space-y-6">
   {% include "finance/shared/list_skeleton.html" %}
 </div>
+
 {% include "finance/shared/list_skeleton_script.html" %}
+
+<script>
+/**
+ * UUID-safe navigation patch (à centraliser idéalement dans list_skeleton_script.html)
+ * - createUrl est "#": pas de création => on bloque proprement
+ */
+(function(){
+  if (typeof window.genericList !== "function") return;
+
+  const _orig = window.genericList;
+
+  window.genericList = function(cfg){
+    const api = _orig(cfg);
+
+    const toast = (msg, type='info') => {
+      if (window.hrToast) return window.hrToast(msg, type);
+      console[type === 'error' ? 'error' : 'log'](msg);
+    };
+
+    const normalizeBase = (u) => (u || '').endsWith('/') ? u : (u + '/');
+
+    api.goDetail = function(row){
+      if (!row?.id){
+        toast("ID manquant pour ouvrir le détail", "error");
+        return;
+      }
+      const base = normalizeBase(cfg.baseDetailUrl || '');
+      if (!base){
+        toast("baseDetailUrl non configuré", "error");
+        return;
+      }
+      window.location.assign(`${base}${row.id}/`);
+    };
+
+    api.goCreate = function(){
+      toast("Création indisponible pour l’audit", "info");
+    };
+
+    return api;
+  };
+})();
+</script>
+
 {% endblock %}
