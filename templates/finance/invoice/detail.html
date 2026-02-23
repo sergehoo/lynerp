@@ -3,21 +3,27 @@
 
 {% block page_content %}
     <script>
-        // URLs sûres (pas de pk factice)
-        const INVOICE_BASE_URL = "{% url 'finance:invoices:list' %}";  // ex: "/finance/invoices/"
+        const INVOICE_BASE_URL = "{% url 'finance:invoices:list' %}";   // ex: "/finance/invoices/"
         const INVOICE_CREATE_URL = "{% url 'finance:invoices:create' %}";
-
     </script>
-    <div x-data="invoiceDetailPage({
-        invoiceId: '{{ invoice.id|default:pk }}',
-        invoiceNumber: '{{ invoice.number|default:"" }}',
+    <div
+            x-data="invoiceDetailPage({
+    invoiceId: '{{ invoice.id|default:object.id }}',
+    invoiceNumber: '{{ invoice.number|default:"" }}',
 
-        endpoint:'/finance/api/invoice/',
-    createUrl: INVOICE_CREATE_URL,
-    baseDetailUrl: INVOICE_BASE_URL, 
-    })"
-         x-init="init()"
-         class="space-y-6">
+    baseDetailUrl: INVOICE_BASE_URL,     // ✅ comme genericList
+    createUrl: INVOICE_CREATE_URL,       // optionnel
+    editSuffix: 'update/',               // ✅ à ajuster selon ton URL (voir plus bas)
+
+    // API
+    apiInvoices: '/finance/api/invoices/',
+    apiInvoiceLines: '/finance/api/invoice-lines/',
+    apiPayments: '/finance/api/payments/',
+    apiPartners: '/finance/api/partners/',
+  })"
+            x-init="init()"
+            class="space-y-6"
+    >
 
         <!-- Header -->
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -621,6 +627,19 @@
                     };
                 },
 
+                normalizeBase(u) {
+                    u = (u || '');
+                    return u.endsWith('/') ? u : (u + '/');
+                },
+                detailUrl(id) {
+                    const base = this.normalizeBase(this.cfg.baseDetailUrl || '');
+                    return `${base}${id}/`;
+                },
+                editUrl(id) {
+                    const base = this.normalizeBase(this.cfg.baseDetailUrl || '');
+                    const suffix = (this.cfg.editSuffix || 'update/'); // 'edit/' ou 'update/'
+                    return `${base}${id}/${suffix}`;
+                },
                 payStatusPill(s) {
                     const m = {
                         PENDING: {
@@ -706,10 +725,16 @@
                 },
 
                 goList() {
-                    window.location.assign(this.cfg.listUrl);
+                    const base = this.normalizeBase(this.cfg.baseDetailUrl || '');
+                    if (!base) return this.toast("baseDetailUrl non configuré", "error");
+                    window.location.assign(base);
                 },
                 goEdit() {
-                    window.location.assign(this.cfg.editUrl);
+                    if (!this.invoice?.id && !this.cfg.invoiceId) {
+                        return this.toast("ID facture manquant", "error");
+                    }
+                    const id = this.invoice?.id || this.cfg.invoiceId;
+                    window.location.assign(this.editUrl(id));
                 },
 
                 downloadPdf() {
