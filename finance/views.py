@@ -12,8 +12,10 @@ from django.http import HttpRequest, HttpResponse, JsonResponse, Http404
 from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from weasyprint import HTML, CSS
+from weasyprint.text.fonts import FontConfiguration
 
 from .models import (
     AuditEvent,
@@ -541,7 +543,57 @@ class InvoiceCreate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLines
         self.object = Invoice(tenant=get_current_tenant(request))
         return super().get(request, *args, **kwargs)
 
+@login_required
+def invoice_pdf(request, pk):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("partner").prefetch_related("lines", "lines__tax"),
+        pk=pk
+    )
 
+    # (optionnel) Sécurité tenant: si tu as tenant sur request (middleware)
+    # if hasattr(request, "tenant") and invoice.tenant_id != request.tenant.id:
+    #     return HttpResponse(status=404)
+
+    context = {
+        "invoice": invoice,
+        "partner": invoice.partner,
+        "lines": invoice.lines.all(),
+        "generated_at": timezone.now(),
+        "subtotal": invoice.subtotal(),
+        "tax": invoice.total_tax(),
+        "total": invoice.total(),
+        "amount_paid": invoice.amount_paid(),
+        "amount_due": invoice.amount_due(),
+    }
+
+    html_string = render_to_string("finance/invoice/pdf.html", context=context, request=request)
+
+    font_config = FontConfiguration()
+
+    # Base URL IMPORTANT pour que WeasyPrint charge images/css via {% static %} et liens relatifs
+    base_url = request.build_absolute_uri("/")
+
+    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf(
+        font_config=font_config,
+        stylesheets=[
+            # Optionnel: une feuille CSS dédiée PDF
+            CSS(string="""
+                @page { size: A4; margin: 14mm; }
+                body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size: 12px; }
+                .muted { color: #64748b; }
+                .table { width: 100%; border-collapse: collapse; }
+                .table th, .table td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+                .table th { text-align: left; background: #f8fafc; }
+                .right { text-align: right; }
+                .badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:11px; background:#f1f5f9; }
+            """)
+        ],
+    )
+
+    filename = f"FACTURE-{invoice.number or invoice.id}.pdf"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 class InvoiceUpdate(LoginRequiredMixin, PermissionRequiredMixin, MasterWithLinesMixin, UpdateView):
     model = Invoice
     form_class = InvoiceForm

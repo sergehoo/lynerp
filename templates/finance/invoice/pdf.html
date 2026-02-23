@@ -1,0 +1,108 @@
+{% load humanize %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Facture {{ invoice.number }}</title>
+</head>
+<body>
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+    <div>
+      <h2 style="margin:0;">Facture</h2>
+      <div class="muted">N° {{ invoice.number }}</div>
+      <div class="muted">Émise: {{ invoice.issue_date|date:"d/m/Y" }}</div>
+      {% if invoice.due_date %}<div class="muted">Échéance: {{ invoice.due_date|date:"d/m/Y" }}</div>{% endif %}
+    </div>
+
+    <div style="text-align:right;">
+      <div class="badge">{{ invoice.get_status_display }}</div>
+      <div class="muted" style="margin-top:6px;">Devise: {{ invoice.currency }}</div>
+    </div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e5e7eb; margin:14px 0;">
+
+  <div style="display:flex; justify-content:space-between; gap:20px;">
+    <div style="flex:1;">
+      <div class="muted" style="font-weight:600;">Client</div>
+      <div style="font-weight:700;">{{ partner.name }}</div>
+      {% if partner.email %}<div class="muted">{{ partner.email }}</div>{% endif %}
+      {% if partner.phone %}<div class="muted">{{ partner.phone }}</div>{% endif %}
+    </div>
+
+    <div style="flex:1; text-align:right;">
+      <div class="muted" style="font-weight:600;">Généré le</div>
+      <div class="muted">{{ generated_at|date:"d/m/Y H:i" }}</div>
+    </div>
+  </div>
+
+  <div style="height:14px;"></div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Libellé</th>
+        <th class="right">Qté</th>
+        <th class="right">PU</th>
+        <th>Taxe</th>
+        <th class="right">HT</th>
+        <th class="right">TVA</th>
+        <th class="right">TTC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lines %}
+      <tr>
+        <td>{{ l.label }}</td>
+        <td class="right">{{ l.quantity|floatformat:2 }}</td>
+        <td class="right">{{ l.unit_price|floatformat:2 }}</td>
+        <td>{% if l.tax %}{{ l.tax.name }} ({{ l.tax.rate }}%){% else %}—{% endif %}</td>
+        <td class="right">{{ l.line_total|floatformat:2 }}</td>
+        <td class="right">{{ l.tax_amount|floatformat:2 }}</td>
+        <td class="right">{{ l.line_total|add:l.tax_amount|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="muted">Aucune ligne</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+    <div style="width:320px;">
+      <div style="display:flex; justify-content:space-between; padding:6px 0;">
+        <div class="muted">Sous-total (HT)</div>
+        <div><strong>{{ subtotal|floatformat:2 }}</strong></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0;">
+        <div class="muted">TVA</div>
+        <div><strong>{{ tax|floatformat:2 }}</strong></div>
+      </div>
+      <div style="border-top:1px solid #e5e7eb; margin:8px 0;"></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;">
+        <div><strong>Total TTC</strong></div>
+        <div><strong>{{ total|floatformat:2 }}</strong></div>
+      </div>
+
+      <div style="margin-top:10px; font-size:12px;">
+        <div style="display:flex; justify-content:space-between; padding:4px 0;">
+          <div class="muted">Payé</div>
+          <div>{{ amount_paid|floatformat:2 }}</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:4px 0;">
+          <div class="muted">Reste dû</div>
+          <div><strong>{{ amount_due|floatformat:2 }}</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if invoice.notes %}
+  <div style="margin-top:14px;">
+    <div class="muted" style="font-weight:600;">Notes</div>
+    <div style="white-space:pre-line;">{{ invoice.notes }}</div>
+  </div>
+  {% endif %}
+
+</body>
+</html>

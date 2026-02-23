@@ -738,9 +738,15 @@
                 },
 
                 downloadPdf() {
-                    const f = this.invoice.pdf_file;
-                    if (f) return window.open(f, '_blank');
-                    this.toast("PDF indisponible (pdf_file vide).", "warning");
+                    const id = this.invoice?.id || this.cfg.invoiceId;
+                    if (!id) return this.toast("ID facture introuvable.", "error");
+
+                    // même style que baseDetailUrl + id + "/pdf/"
+                    const base = (this.cfg.baseDetailUrl || '').endsWith('/') ? this.cfg.baseDetailUrl : (this.cfg.baseDetailUrl + '/');
+                    const url = `${base}${id}/pdf/`;
+
+                    // Téléchargement direct
+                    window.location.assign(url);
                 },
 
                 openPaymentModal() {
