@@ -2,358 +2,253 @@
 <!doctype html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>Facture {{ invoice.number }}</title>
+  <meta charset="utf-8">
+  <title>Facture {{ invoice.number }}</title>
 
-    <style>
-        /* =========================
-           WEASYPRINT PAGE SETUP
-        ========================= */
-        @page {
-            size: A4;
+  <style>
+    /* =========================
+       WEASYPRINT PAGE SETUP
+       -> on réserve l’espace avec les MARGES
+    ========================= */
+    @page {
+      size: A4;
 
-            /* marges globales */
-            margin: 14mm 14mm 18mm 14mm;
+      /* Réservations header/footer */
+      margin: 44mm 14mm 34mm 14mm;
 
-            /* ✅ réserve de l’espace pour le header/footer */
-            padding-top: 28mm;     /* hauteur header */
-            padding-bottom: 22mm;  /* hauteur footer */
-            @top-center {
-                content: element(docheader);
-            }
-            @bottom-center {
-                content: element(docfooter);
-            }
-        }
+      @top-center    { content: element(docheader); }
+      @bottom-center { content: element(docfooter); }
+    }
 
-        :root {
-            --ink: #0f172a; /* slate-900 */
-            --muted: #64748b; /* slate-500 */
-            --line: #e5e7eb; /* gray-200 */
-            --soft: #f8fafc; /* slate-50 */
-            --soft2: #f1f5f9; /* slate-100 */
-            --accent: #f97316; /* orange-500 */
-            --accent2: #ea580c; /* orange-600 */
-            --ok: #10b981; /* emerald-500 */
-            --danger: #ef4444; /* red-500 */
-            --blue: #3b82f6; /* blue-500 */
-        }
+    :root{
+      --ink:#0f172a;
+      --muted:#64748b;
+      --line:#e5e7eb;
+      --soft:#f8fafc;
+      --soft2:#f1f5f9;
+      --accent:#f97316;
+      --accent2:#ea580c;
+      --ok:#10b981;
+      --danger:#ef4444;
+      --blue:#3b82f6;
+    }
 
-        * {
-            box-sizing: border-box;
-        }
+    *{ box-sizing:border-box; }
+    html,body{ padding:0; margin:0; }
 
-        html, body {
-            padding: 0;
-            margin: 0;
-        }
+    body{
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+      color:var(--ink);
+      font-size:12px;
+      line-height:1.35;
+    }
 
-        body {
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
-            color: var(--ink);
-            font-size: 12px;
-            line-height: 1.35;
-        }
+    /* =========================
+       UTILS
+    ========================= */
+    .muted{ color:var(--muted); }
+    .tiny{ font-size:10px; }
+    .small{ font-size:11px; }
+    .nowrap{ white-space:nowrap; }
+    .right{ text-align:right; }
+    .center{ text-align:center; }
+    .wrap-anywhere{ overflow-wrap:anywhere; word-break:break-word; }
 
-        /* =========================
-           UTILS
-        ========================= */
-        .muted {
-            color: var(--muted);
-        }
+    .hr{ height:1px; background:var(--line); margin:10px 0; }
 
-        .tiny {
-            font-size: 10px;
-        }
+    .chip{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:10px;
+      font-weight:800;
+      border:1px solid var(--line);
+      background:var(--soft);
+    }
+    .chip.orange{ border-color:rgba(249,115,22,.25); background:rgba(249,115,22,.08); color:var(--accent2); }
+    .chip.blue{ border-color:rgba(59,130,246,.25); background:rgba(59,130,246,.08); color:#1d4ed8; }
+    .chip.green{ border-color:rgba(16,185,129,.25); background:rgba(16,185,129,.08); color:#047857; }
+    .chip.red{ border-color:rgba(239,68,68,.25); background:rgba(239,68,68,.08); color:#b91c1c; }
 
-        .small {
-            font-size: 11px;
-        }
+    /* =========================
+       LAYOUT CARDS
+    ========================= */
+    .grid{ display:flex; gap:12px; }
+    .col{ flex:1; min-width:0; }
 
-        .nowrap {
-            white-space: nowrap;
-        }
+    .card{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:14px;
+      padding:12px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .card.soft{
+      background: linear-gradient(180deg, #fff, var(--soft));
+    }
 
-        .right {
-            text-align: right;
-        }
+    .title{
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.3px;
+      margin:0;
+      line-height:1.1;
+    }
+    .h2{
+      font-weight:900;
+      font-size:12px;
+      margin:0;
+      letter-spacing:.2px;
+      text-transform:uppercase;
+    }
 
-        .center {
-            text-align: center;
-        }
+    /* =========================
+       HEADER / FOOTER
+       -> limiter la hauteur pour éviter tout débordement
+    ========================= */
+    header{ position: running(docheader); max-height:40mm; overflow:hidden; }
+    footer{ position: running(docfooter); max-height:28mm; overflow:hidden; }
 
-        .hr {
-            height: 1px;
-            background: var(--line);
-            margin: 10px 0;
-        }
+    .brandline{
+      height:4px;
+      border-radius:999px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent), #ffd7b5);
+    }
 
-        .chip {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 10px;
-            font-weight: 700;
-            border: 1px solid var(--line);
-            background: var(--soft);
-        }
+    .logo{
+      width:40px;
+      height:40px;
+      object-fit:contain;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:#fff;
+      padding:4px;
+    }
 
-        .chip.orange {
-            border-color: rgba(249, 115, 22, .25);
-            background: rgba(249, 115, 22, .08);
-            color: var(--accent2);
-        }
+    /* Header : table-layout (plus stable que flex en PDF) */
+    .header-table{
+      display:table;
+      width:100%;
+      margin-top:8px;
+    }
+    .header-cell{ display:table-cell; vertical-align:top; }
+    .header-right{ width:190px; text-align:right; }
 
-        .chip.blue {
-            border-color: rgba(59, 130, 246, .25);
-            background: rgba(59, 130, 246, .08);
-            color: #1d4ed8;
-        }
+    .company-name{
+      font-weight:900;
+      font-size:12px;
+      line-height:1.15;
+    }
 
-        .chip.green {
-            border-color: rgba(16, 185, 129, .25);
-            background: rgba(16, 185, 129, .08);
-            color: #047857;
-        }
+    /* lignes header en 1 ligne max, sinon ellipsis */
+    .header-1line{
+      max-width:380px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      display:block;
+    }
 
-        .chip.red {
-            border-color: rgba(239, 68, 68, .25);
-            background: rgba(239, 68, 68, .08);
-            color: #b91c1c;
-        }
+    .footerwrap{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:10px;
+      border-top:1px solid var(--line);
+      padding-top:8px;
+      margin-top:8px;
+    }
 
-        /* =========================
-           LAYOUT CARDS
-        ========================= */
-        .grid {
-            display: flex;
-            gap: 12px;
-        }
+    .sig-arcade{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:9px;
+      letter-spacing:.2px;
+      padding:6px 8px;
+      border:1px dashed rgba(100,116,139,.55);
+      border-radius:10px;
+      background:rgba(241,245,249,.8);
+      max-width:360px;
+      max-height:14mm; /* évite d’agrandir le footer */
+      overflow:hidden;
+      word-break:break-all;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
 
-        .col {
-            flex: 1;
-            min-width: 0;
-        }
+    .pageNumber:before{ content: counter(page); }
+    .totalPages:before{ content: counter(pages); }
 
-        .card {
-            border: 1px solid var(--line);
-            background: #fff;
-            border-radius: 14px;
-            padding: 12px;
-        }
+    /* =========================
+       TABLE
+       -> thead répété + pagination stable
+    ========================= */
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+    }
 
-        .card.soft {
-            background: linear-gradient(180deg, #fff, var(--soft));
-        }
+    thead{ display: table-header-group; }
+    thead th{
+      background:var(--soft2);
+      color:var(--muted);
+      font-weight:900;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.25px;
+      padding:10px;
+      border-bottom:1px solid var(--line);
+    }
 
-        .title {
-            font-size: 18px;
-            font-weight: 900;
-            letter-spacing: .3px;
-            margin: 0;
-            line-height: 1.1;
-        }
+    tbody td{
+      padding:10px;
+      border-bottom:1px solid var(--line);
+      vertical-align:top;
+    }
+    tbody tr:last-child td{ border-bottom:none; }
 
-        .h2 {
-            font-weight: 800;
-            font-size: 12px;
-            margin: 0;
-            letter-spacing: .2px;
-            text-transform: uppercase;
-        }
+    /* IMPORTANT:
+       - ne pas empêcher les "tr" de se couper si besoin, sinon gros risques de débordement
+       - mais on évite de casser le contenu à l’intérieur d’un td */
+    tr{ page-break-inside:auto; break-inside:auto; }
+    td{ page-break-inside:avoid; break-inside:avoid; }
 
-        /* =========================
-           HEADER / FOOTER
-        ========================= */
-        header {
-            position: running(docheader);
-        }
+    .label{ font-weight:900; margin-bottom:2px; }
 
-        footer {
-            position: running(docfooter);
-        }
+    /* Totals */
+    .totals{
+      width:340px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px;
+      background: linear-gradient(180deg, #fff, var(--soft));
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .totals .row{ display:flex; justify-content:space-between; padding:6px 0; }
+    .totals .grand{
+      font-size:14px;
+      font-weight:900;
+      padding-top:8px;
+      border-top:1px solid var(--line);
+      margin-top:6px;
+    }
 
-        .brandline {
-            height: 4px;
-            border-radius: 999px;
-            background: linear-gradient(90deg, var(--accent2), var(--accent), #ffd7b5);
-        }
-
-        .headwrap {
-            padding: 6px 0 6px; /* ↓ réduit */
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        .logo {
-            width: 44px;
-            height: 44px;
-            object-fit: contain;
-            border-radius: 10px;
-            border: 1px solid var(--line);
-            background: #fff;
-            padding: 4px;
-        }
-
-        .company {
-            min-width: 0;
-            max-width: 380px; /* important */
-        }
-
-        .company .name {
-            font-weight: 900;
-            font-size: 12px; /* ↓ réduit */
-            margin: 0;
-            line-height: 1.15;
-        }
-
-        /* lignes d’infos: 1 ligne max (sinon header grossit) */
-        .company .tiny {
-            display: block;
-            max-width: 380px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* logo un peu plus petit */
-        .logo {
-            width: 40px;
-            height: 40px;
-        }
-
-        /* Footer layout */
-        .footerwrap {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 10px;
-            border-top: 1px solid var(--line);
-            padding-top: 8px;
-            margin-top: 8px;
-        }
-
-        .sig-arcade {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-            font-size: 9px;
-            letter-spacing: .2px;
-            padding: 6px 8px;
-            border: 1px dashed rgba(100, 116, 139, .55);
-            border-radius: 10px;
-            background: rgba(241, 245, 249, .8);
-            max-width: 360px;
-            word-break: break-all;
-        }
-
-        .pageNumber:before {
-            content: counter(page);
-        }
-
-        .totalPages:before {
-            content: counter(pages);
-        }
-
-        /* =========================
-           TABLE
-        ========================= */
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            overflow: hidden;
-            border: 1px solid var(--line);
-            border-radius: 14px;
-        }
-
-        thead th {
-            background: var(--soft2);
-            color: var(--muted);
-            font-weight: 800;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: .25px;
-            padding: 10px 10px;
-            border-bottom: 1px solid var(--line);
-        }
-
-        tbody td {
-            padding: 10px 10px;
-            border-bottom: 1px solid var(--line);
-            vertical-align: top;
-        }
-
-        tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .label {
-            font-weight: 800;
-            margin-bottom: 2px;
-        }
-
-        /* Totals */
-        .totals {
-            width: 340px;
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 12px;
-            background: linear-gradient(180deg, #fff, var(--soft));
-        }
-
-        .totals .row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-        }
-
-        .totals .grand {
-            font-size: 14px;
-            font-weight: 900;
-            padding-top: 8px;
-            border-top: 1px solid var(--line);
-            margin-top: 6px;
-        }
-
-        /* QR */
-        .qrcode {
-            width: 84px;
-            height: 84px;
-            object-fit: contain;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            padding: 6px;
-            background: #fff;
-        }
-
-        /* Status badge mapping (optional) */
-    </style>
-    <style>
-  @page {
-    size: A4;
-    /* Réserve assez d’espace pour le header et le footer */
-    margin: 44mm 14mm 34mm 14mm;
-
-    @top-center { content: element(docheader); }
-    @bottom-center { content: element(docfooter); }
-  }
-
-  header { position: running(docheader); max-height: 40mm; overflow: hidden; }
-  footer { position: running(docfooter); max-height: 28mm; overflow: hidden; }
-
-  /* WeasyPrint: pagination plus stable */
-  .card, .totals, .sig-arcade { break-inside: avoid; page-break-inside: avoid; }
-  table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
-  thead { display: table-header-group; }
-  tfoot { display: table-footer-group; }
-
-  /* Pour éviter le débordement horizontal (URL, signature, etc.) */
-  .wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
-
-  /* Optionnel: évite qu’un long bloc en footer “pousse” trop */
-  .sig-arcade { max-height: 14mm; overflow: hidden; }
-</style>
+    /* QR */
+    .qrcode{
+      width:84px;
+      height:84px;
+      object-fit:contain;
+      border-radius:12px;
+      border:1px solid var(--line);
+      padding:6px;
+      background:#fff;
+    }
+  </style>
 </head>
 
 <body>
@@ -364,44 +259,51 @@
 <header>
   <div class="brandline"></div>
 
-  <div style="display:table; width:100%; margin-top:10px;">
-    <div style="display:table-cell; vertical-align:top;">
+  <div class="header-table">
+    <div class="header-cell">
       <div style="display:table; width:100%;">
-        <div style="display:table-cell; width:54px; vertical-align:top;">
+        <div class="header-cell" style="width:54px;">
           {% if tenant_logo_base64 %}
             <img class="logo" src="{{ tenant_logo_base64 }}" alt="Logo">
           {% elif tenant.logo_url %}
             <img class="logo" src="{{ tenant.logo_url.url }}" alt="Logo">
           {% else %}
-            <div class="logo" style="display:grid; place-items:center; font-weight:900;">
+            <div class="logo" style="display:grid; place-items:center; font-weight:900; color:var(--accent2);">
               {{ tenant.name|default:"ORG"|slice:":2"|upper }}
             </div>
           {% endif %}
         </div>
-        <div style="display:table-cell; vertical-align:top; padding-left:10px;">
-          <div class="company name">{{ tenant.display_legal_name|default:tenant.name }}</div>
-          <div class="tiny muted wrap-anywhere">
+
+        <div class="header-cell" style="padding-left:10px;">
+          <div class="company-name header-1line">
+            {{ tenant.display_legal_name|default:tenant.name }}
+          </div>
+
+          <span class="tiny muted header-1line">
             {% if tenant.legal_form %}{{ tenant.legal_form }}{% endif %}
             {% if tenant.registration_number %} • RCCM: {{ tenant.registration_number }}{% endif %}
             {% if tenant.tax_id %} • NIF/TVA: {{ tenant.tax_id }}{% endif %}
-          </div>
-          <div class="tiny muted wrap-anywhere">{{ tenant.display_address }}</div>
-          <div class="tiny muted wrap-anywhere">
+          </span>
+
+          <span class="tiny muted header-1line">{{ tenant.display_address }}</span>
+
+          <span class="tiny muted header-1line">
             {% if tenant.contact_phone %}{{ tenant.contact_phone }}{% endif %}
             {% if tenant.contact_email %}{% if tenant.contact_phone %} • {% endif %}{{ tenant.contact_email }}{% endif %}
             {% if tenant.website %}{% if tenant.contact_email or tenant.contact_phone %} • {% endif %}{{ tenant.website }}{% endif %}
-          </div>
+          </span>
         </div>
       </div>
     </div>
 
-    <div style="display:table-cell; width:190px; vertical-align:top; text-align:right;">
+    <div class="header-cell header-right">
       <span class="chip
         {% if invoice.status == 'PAID' %}green
         {% elif invoice.status == 'ISSUED' %}blue
         {% elif invoice.status == 'CANCELLED' %}red
         {% else %}orange{% endif %}
       ">{{ invoice.get_status_display }}</span>
+
       <div class="tiny muted" style="margin-top:6px;">Généré: {{ generated_at|date:"d/m/Y H:i" }}</div>
       <div class="tiny muted">Devise: <strong>{{ invoice.currency }}</strong></div>
     </div>
@@ -412,17 +314,15 @@
 
 <!-- =========================
      FOOTER (running)
-     - signature arcade en bas de page ✅
 ========================= -->
 <footer>
   <div class="footerwrap">
     <div style="min-width:0;">
-      <!-- ✅ Signature arcade en bas de page, mais compacte -->
-      <div class="sig-arcade wrap-anywhere">
+      <div class="sig-arcade">
         Signature: {{ signature_hash }}
       </div>
 
-      <div class="tiny muted wrap-anywhere" style="margin-top:6px;">
+      <div class="tiny muted header-1line" style="margin-top:6px; max-width:360px;">
         {% if tenant.invoice_footer_note %}
           {{ tenant.invoice_footer_note }}
         {% else %}
@@ -446,131 +346,131 @@
      CONTENT
 ========================= -->
 
-<!-- Top summary row -->
 <div class="grid" style="margin-top:6px;">
-    <div class="col card soft">
-        <div class="h2">FACTURE</div>
-        <h1 class="title" style="margin-top:6px;">{{ invoice.number }}</h1>
-        <div class="small muted" style="margin-top:6px;">
-            Type : <strong>{{ invoice.get_type_display }}</strong>
-            {% if invoice.quote %} • Devis : <strong>{{ invoice.quote.number }}</strong>{% endif %}
-        </div>
-        <div class="small muted" style="margin-top:4px;">
-            Émise : <strong>{{ invoice.issue_date|date:"d/m/Y" }}</strong>
-            {% if invoice.due_date %} • Échéance : <strong>{{ invoice.due_date|date:"d/m/Y" }}</strong>{% endif %}
-        </div>
+  <div class="col card soft">
+    <div class="h2">FACTURE</div>
+    <h1 class="title" style="margin-top:6px;">{{ invoice.number }}</h1>
+
+    <div class="small muted" style="margin-top:6px;">
+      Type : <strong>{{ invoice.get_type_display }}</strong>
+      {% if invoice.quote %} • Devis : <strong>{{ invoice.quote.number }}</strong>{% endif %}
     </div>
 
-    <div style="width:220px;" class="card">
-        <div class="h2">Vérification</div>
-        <div class="tiny muted" style="margin-top:4px;">Scanner le QR pour ouvrir le lien</div>
-        <div style="margin-top:10px; display:flex; justify-content:flex-end;">
-            <img class="qrcode" src="{{ qr_img }}" alt="QR">
-        </div>
-        <div class="tiny muted" style="margin-top:8px; word-break:break-all;">
-            {{ verify_url }}
-        </div>
+    <div class="small muted" style="margin-top:4px;">
+      Émise : <strong>{{ invoice.issue_date|date:"d/m/Y" }}</strong>
+      {% if invoice.due_date %} • Échéance : <strong>{{ invoice.due_date|date:"d/m/Y" }}</strong>{% endif %}
     </div>
+  </div>
+
+  <div style="width:220px;" class="card">
+    <div class="h2">Vérification</div>
+    <div class="tiny muted" style="margin-top:4px;">Scanner le QR pour ouvrir le lien</div>
+
+    <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+      <img class="qrcode" src="{{ qr_img }}" alt="QR">
+    </div>
+
+    <div class="tiny muted wrap-anywhere" style="margin-top:8px;">
+      {{ verify_url }}
+    </div>
+  </div>
 </div>
 
-<!-- Parties -->
 <div class="grid" style="margin-top:12px;">
-    <div class="col card">
-        <div class="h2">Client</div>
-        <div style="margin-top:8px; font-weight:900; font-size:13px;">{{ partner.name }}</div>
-        <div class="small muted" style="margin-top:4px;">
-            {% if partner.email %}{{ partner.email }}{% endif %}
-            {% if partner.phone %}{% if partner.email %} • {% endif %}{{ partner.phone }}{% endif %}
-        </div>
+  <div class="col card">
+    <div class="h2">Client</div>
+    <div style="margin-top:8px; font-weight:900; font-size:13px;" class="wrap-anywhere">{{ partner.name }}</div>
+    <div class="small muted wrap-anywhere" style="margin-top:4px;">
+      {% if partner.email %}{{ partner.email }}{% endif %}
+      {% if partner.phone %}{% if partner.email %} • {% endif %}{{ partner.phone }}{% endif %}
     </div>
+  </div>
 
-    <div class="col card">
-        <div class="h2">Émetteur</div>
-        <div style="margin-top:8px; font-weight:900; font-size:13px;">
-            {{ tenant.display_legal_name|default:tenant.name }}
-        </div>
-        <div class="small muted" style="margin-top:4px;">
-            {% if tenant.tax_id %}NIF/TVA: <strong>{{ tenant.tax_id }}</strong>{% endif %}
-            {% if tenant.registration_number %}{% if tenant.tax_id %} • {% endif %}RCCM:
-                <strong>{{ tenant.registration_number }}</strong>{% endif %}
-        </div>
-        <div class="small muted">{{ tenant.display_address }}</div>
+  <div class="col card">
+    <div class="h2">Émetteur</div>
+    <div style="margin-top:8px; font-weight:900; font-size:13px;" class="wrap-anywhere">
+      {{ tenant.display_legal_name|default:tenant.name }}
     </div>
+    <div class="small muted wrap-anywhere" style="margin-top:4px;">
+      {% if tenant.tax_id %}NIF/TVA: <strong>{{ tenant.tax_id }}</strong>{% endif %}
+      {% if tenant.registration_number %}{% if tenant.tax_id %} • {% endif %}RCCM: <strong>{{ tenant.registration_number }}</strong>{% endif %}
+    </div>
+    <div class="small muted wrap-anywhere">{{ tenant.display_address }}</div>
+  </div>
 </div>
 
 <div style="height:12px;"></div>
 
-<!-- Lines table -->
 <table>
-    <thead>
+  <thead>
     <tr>
-        <th>Libellé</th>
-        <th class="right">Qté</th>
-        <th class="right">PU</th>
-        <th>Taxe</th>
-        <th class="right">HT</th>
-        <th class="right">TVA</th>
-        <th class="right">TTC</th>
+      <th>Libellé</th>
+      <th class="right">Qté</th>
+      <th class="right">PU</th>
+      <th>Taxe</th>
+      <th class="right">HT</th>
+      <th class="right">TVA</th>
+      <th class="right">TTC</th>
     </tr>
-    </thead>
-    <tbody>
+  </thead>
+
+  <tbody>
     {% for l in lines %}
-        <tr>
-            <td>
-                <div class="label">{{ l.label }}</div>
-            </td>
-            <td class="right">{{ l.quantity|floatformat:2 }}</td>
-            <td class="right">{{ l.unit_price|floatformat:2 }}</td>
-            <td class="small muted">
-                {% if l.tax %}{{ l.tax.name }} ({{ l.tax.rate }}%){% else %}—{% endif %}
-            </td>
-            <td class="right"><strong>{{ l.line_total|floatformat:2 }}</strong></td>
-            <td class="right">{{ l.tax_amount|floatformat:2 }}</td>
-            <td class="right"><strong>{{ l.line_total|add:l.tax_amount|floatformat:2 }}</strong></td>
-        </tr>
+      <tr>
+        <td>
+          <div class="label wrap-anywhere">{{ l.label }}</div>
+        </td>
+        <td class="right">{{ l.quantity|floatformat:2 }}</td>
+        <td class="right">{{ l.unit_price|floatformat:2 }}</td>
+        <td class="small muted wrap-anywhere">
+          {% if l.tax %}{{ l.tax.name }} ({{ l.tax.rate }}%){% else %}—{% endif %}
+        </td>
+        <td class="right"><strong>{{ l.line_total|floatformat:2 }}</strong></td>
+        <td class="right">{{ l.tax_amount|floatformat:2 }}</td>
+        <td class="right"><strong>{{ l.line_total|add:l.tax_amount|floatformat:2 }}</strong></td>
+      </tr>
     {% empty %}
-        <tr>
-            <td colspan="7" class="muted">Aucune ligne</td>
-        </tr>
+      <tr>
+        <td colspan="7" class="muted center" style="padding:18px;">Aucune ligne</td>
+      </tr>
     {% endfor %}
-    </tbody>
+  </tbody>
 </table>
 
-<!-- Totals -->
 <div style="display:flex; justify-content:flex-end; margin-top:12px;">
-    <div class="totals">
-        <div class="row">
-            <div class="muted">Sous-total (HT)</div>
-            <div><strong>{{ subtotal|floatformat:2 }}</strong></div>
-        </div>
-        <div class="row">
-            <div class="muted">TVA</div>
-            <div><strong>{{ tax|floatformat:2 }}</strong></div>
-        </div>
-
-        <div class="row grand">
-            <div>Total TTC</div>
-            <div>{{ total|floatformat:2 }}</div>
-        </div>
-
-        <div class="hr"></div>
-
-        <div class="row small">
-            <div class="muted">Payé</div>
-            <div>{{ amount_paid|floatformat:2 }}</div>
-        </div>
-        <div class="row small">
-            <div class="muted">Reste dû</div>
-            <div><strong>{{ amount_due|floatformat:2 }}</strong></div>
-        </div>
+  <div class="totals">
+    <div class="row">
+      <div class="muted">Sous-total (HT)</div>
+      <div><strong>{{ subtotal|floatformat:2 }}</strong></div>
     </div>
+    <div class="row">
+      <div class="muted">TVA</div>
+      <div><strong>{{ tax|floatformat:2 }}</strong></div>
+    </div>
+
+    <div class="row grand">
+      <div>Total TTC</div>
+      <div>{{ total|floatformat:2 }}</div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row small">
+      <div class="muted">Payé</div>
+      <div>{{ amount_paid|floatformat:2 }}</div>
+    </div>
+    <div class="row small">
+      <div class="muted">Reste dû</div>
+      <div><strong>{{ amount_due|floatformat:2 }}</strong></div>
+    </div>
+  </div>
 </div>
 
 {% if invoice.notes %}
-    <div class="card" style="margin-top:12px;">
-        <div class="h2">Notes</div>
-        <div style="margin-top:8px; white-space:pre-line;">{{ invoice.notes }}</div>
-    </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="h2">Notes</div>
+    <div style="margin-top:8px; white-space:pre-line;" class="wrap-anywhere">{{ invoice.notes }}</div>
+  </div>
 {% endif %}
 
 </body>
