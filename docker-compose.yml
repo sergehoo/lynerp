@@ -86,7 +86,6 @@ services:
 #       Middleware console: headers proxy
       - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Host=files.lyneerp.com
-      - traefik.http.routers.lyneminio-console.middlewares=minio-console-headers
       - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Port=443
       - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Ssl=on
       - traefik.http.routers.lyneminio-console.middlewares=minio-console-headers@docker
