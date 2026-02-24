@@ -319,10 +319,10 @@
   <div class="footerwrap">
     <div style="min-width:0;">
       <div class="sig-arcade">
-        Signature: {{ signature_hash }}
+        Signature: {{ signature_payload }}
       </div>
 
-      <div class="tiny muted header-1line" style="margin-top:6px; max-width:360px;">
+      <div class="tiny muted header-1line" style="margin-top:6px; max-width:760px;">
         {% if tenant.invoice_footer_note %}
           {{ tenant.invoice_footer_note }}
         {% else %}
@@ -361,16 +361,7 @@
       {% if invoice.due_date %} • Échéance : <strong>{{ invoice.due_date|date:"d/m/Y" }}</strong>{% endif %}
     </div>
   </div>
-
-  <div style="width:120px;" class="card">
-    <div style="margin-top:4px; display:flex; justify-content:flex-end;">
-      <img class="qrcode" src="{{ qr_img }}" alt="QR">
-    </div>
-  </div>
-</div>
-
-<div class="grid" style="margin-top:12px;">
-  <div class="col card">
+    <div class="col card">
     <div class="h2">Client</div>
     <div style="margin-top:8px; font-weight:900; font-size:13px;" class="wrap-anywhere">{{ partner.name }}</div>
     <div class="small muted wrap-anywhere" style="margin-top:4px;">
@@ -378,17 +369,10 @@
       {% if partner.phone %}{% if partner.email %} • {% endif %}{{ partner.phone }}{% endif %}
     </div>
   </div>
-
-  <div class="col card">
-    <div class="h2">Émetteur</div>
-    <div style="margin-top:8px; font-weight:900; font-size:13px;" class="wrap-anywhere">
-      {{ tenant.display_legal_name|default:tenant.name }}
+  <div style="width:120px;" class="card">
+    <div style="margin-top:4px; display:flex; justify-content:flex-end;">
+      <img class="qrcode" src="{{ qr_img }}" alt="QR">
     </div>
-    <div class="small muted wrap-anywhere" style="margin-top:4px;">
-      {% if tenant.tax_id %}NIF/TVA: <strong>{{ tenant.tax_id }}</strong>{% endif %}
-      {% if tenant.registration_number %}{% if tenant.tax_id %} • {% endif %}RCCM: <strong>{{ tenant.registration_number }}</strong>{% endif %}
-    </div>
-    <div class="small muted wrap-anywhere">{{ tenant.display_address }}</div>
   </div>
 </div>
 
