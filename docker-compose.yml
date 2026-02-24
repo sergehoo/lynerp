@@ -85,9 +85,9 @@ services:
       - traefik.http.services.lyneminio-console.loadbalancer.server.scheme=http
 
         # ✅ Middleware console: headers proxy
-      - traefik.http.routers.lyneminio-console.middlewares=minio-console-headers@docker
       - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Host=files.lyneerp.com
+      - traefik.http.routers.lyneminio-console.middlewares=minio-console-headers
 
   # === Keycloak (SSO) ===
   keycloak:
