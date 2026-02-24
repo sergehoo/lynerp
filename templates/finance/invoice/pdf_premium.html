@@ -329,6 +329,31 @@
 
         /* Status badge mapping (optional) */
     </style>
+    <style>
+  @page {
+    size: A4;
+    /* Réserve assez d’espace pour le header et le footer */
+    margin: 44mm 14mm 34mm 14mm;
+
+    @top-center { content: element(docheader); }
+    @bottom-center { content: element(docfooter); }
+  }
+
+  header { position: running(docheader); max-height: 40mm; overflow: hidden; }
+  footer { position: running(docfooter); max-height: 28mm; overflow: hidden; }
+
+  /* WeasyPrint: pagination plus stable */
+  .card, .totals, .sig-arcade { break-inside: avoid; page-break-inside: avoid; }
+  table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  /* Pour éviter le débordement horizontal (URL, signature, etc.) */
+  .wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
+  /* Optionnel: évite qu’un long bloc en footer “pousse” trop */
+  .sig-arcade { max-height: 14mm; overflow: hidden; }
+</style>
 </head>
 
 <body>
@@ -337,57 +362,52 @@
      HEADER (running)
 ========================= -->
 <header>
-    <div class="brandline"></div>
+  <div class="brandline"></div>
 
-    <div class="headwrap">
-        <div class="grid" style="align-items:center; gap:10px;">
-            {% if tenant_logo_base64 %}
-                <img class="logo" src="{{ tenant_logo_base64 }}" alt="Logo">
-            {% elif tenant.logo_url %}
-                <img class="logo" src="{{ tenant.logo_url.url }}" alt="Logo">
-            {% else %}
-                <!-- Fallback: si tu peux, fournis aussi un fallback_base64 côté vue, sinon laisse vide -->
-                <div class="logo" style="display:grid; place-items:center; font-weight:900; color:var(--accent2);">
-                    {{ tenant.name|default:"ORG"|slice:":2"|upper }}
-                </div>
-            {% endif %}
-
-            <div class="company">
-                <p class="name">{{ tenant.display_legal_name|default:tenant.name }}</p>
-                <div class="tiny muted">
-                    {% if tenant.legal_form %}{{ tenant.legal_form }}{% endif %}
-                    {% if tenant.registration_number %} • RCCM: {{ tenant.registration_number }}{% endif %}
-                    {% if tenant.tax_id %} • NIF/TVA: {{ tenant.tax_id }}{% endif %}
-                </div>
-                <div class="tiny muted">{{ tenant.display_address }}</div>
-                <div class="tiny muted">
-                    {% if tenant.contact_phone %}{{ tenant.contact_phone }}{% endif %}
-                    {% if tenant.contact_email %}{% if tenant.contact_phone %} • {% endif %}
-                        {{ tenant.contact_email }}{% endif %}
-                    {% if tenant.website %}{% if tenant.contact_email or tenant.contact_phone %} • {% endif %}
-                        {{ tenant.website }}{% endif %}
-                </div>
+  <div style="display:table; width:100%; margin-top:10px;">
+    <div style="display:table-cell; vertical-align:top;">
+      <div style="display:table; width:100%;">
+        <div style="display:table-cell; width:54px; vertical-align:top;">
+          {% if tenant_logo_base64 %}
+            <img class="logo" src="{{ tenant_logo_base64 }}" alt="Logo">
+          {% elif tenant.logo_url %}
+            <img class="logo" src="{{ tenant.logo_url.url }}" alt="Logo">
+          {% else %}
+            <div class="logo" style="display:grid; place-items:center; font-weight:900;">
+              {{ tenant.name|default:"ORG"|slice:":2"|upper }}
             </div>
+          {% endif %}
         </div>
+        <div style="display:table-cell; vertical-align:top; padding-left:10px;">
+          <div class="company name">{{ tenant.display_legal_name|default:tenant.name }}</div>
+          <div class="tiny muted wrap-anywhere">
+            {% if tenant.legal_form %}{{ tenant.legal_form }}{% endif %}
+            {% if tenant.registration_number %} • RCCM: {{ tenant.registration_number }}{% endif %}
+            {% if tenant.tax_id %} • NIF/TVA: {{ tenant.tax_id }}{% endif %}
+          </div>
+          <div class="tiny muted wrap-anywhere">{{ tenant.display_address }}</div>
+          <div class="tiny muted wrap-anywhere">
+            {% if tenant.contact_phone %}{{ tenant.contact_phone }}{% endif %}
+            {% if tenant.contact_email %}{% if tenant.contact_phone %} • {% endif %}{{ tenant.contact_email }}{% endif %}
+            {% if tenant.website %}{% if tenant.contact_email or tenant.contact_phone %} • {% endif %}{{ tenant.website }}{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
 
-        <div style="text-align:right;">
-            <!-- Statut premium -->
-            {% comment %} tu peux mapper statut -> couleur {% endcomment %}
-            <span class="chip
+    <div style="display:table-cell; width:190px; vertical-align:top; text-align:right;">
+      <span class="chip
         {% if invoice.status == 'PAID' %}green
         {% elif invoice.status == 'ISSUED' %}blue
         {% elif invoice.status == 'CANCELLED' %}red
         {% else %}orange{% endif %}
-      ">
-        {{ invoice.get_status_display }}
-      </span>
-
-            <div class="tiny muted" style="margin-top:6px;">Généré: {{ generated_at|date:"d/m/Y H:i" }}</div>
-            <div class="tiny muted">Devise: <strong>{{ invoice.currency }}</strong></div>
-        </div>
+      ">{{ invoice.get_status_display }}</span>
+      <div class="tiny muted" style="margin-top:6px;">Généré: {{ generated_at|date:"d/m/Y H:i" }}</div>
+      <div class="tiny muted">Devise: <strong>{{ invoice.currency }}</strong></div>
     </div>
+  </div>
 
-    <div class="hr"></div>
+  <div class="hr"></div>
 </header>
 
 <!-- =========================
@@ -395,25 +415,31 @@
      - signature arcade en bas de page ✅
 ========================= -->
 <footer>
-    <div class="footerwrap">
-        <div style="min-width:0;">
-            <!-- signature arcade en bas -->
-            <div class="sig-arcade">
-                Signature (Arcade) : {{ signature_payload }}
-            </div>
-            <div class="tiny muted" style="margin-top:6px;">
-                {% if tenant.invoice_footer_note %}
-                    {{ tenant.invoice_footer_note }}
-                {% else %}
-                    Document généré par {{ tenant.name }} • Conservez ce document pour vos archives.
-                {% endif %}
-            </div>
-        </div>
+  <div class="footerwrap">
+    <div style="min-width:0;">
+      <!-- ✅ Signature arcade en bas de page, mais compacte -->
+      <div class="sig-arcade wrap-anywhere">
+        Signature: {{ signature_hash }}
+      </div>
 
-        <div class="tiny muted nowrap" style="text-align:right;">
-            Page <span class="pageNumber"></span> / <span class="totalPages"></span>
-        </div>
+      <div class="tiny muted wrap-anywhere" style="margin-top:6px;">
+        {% if tenant.invoice_footer_note %}
+          {{ tenant.invoice_footer_note }}
+        {% else %}
+          Document généré par {{ tenant.name }} • Conservez ce document pour vos archives.
+        {% endif %}
+      </div>
     </div>
+
+    <div class="tiny muted nowrap" style="text-align:right;">
+      Page <span class="pageNumber"></span> / <span class="totalPages"></span>
+    </div>
+  </div>
+
+  <style>
+    .pageNumber:before{ content: counter(page); }
+    .totalPages:before{ content: counter(pages); }
+  </style>
 </footer>
 
 <!-- =========================
