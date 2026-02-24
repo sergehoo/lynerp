@@ -83,10 +83,12 @@ services:
       - traefik.http.routers.lyneminio-console.service=lyneminio-console
       - traefik.http.services.lyneminio-console.loadbalancer.server.port=9001
       - traefik.http.services.lyneminio-console.loadbalancer.server.scheme=http
-        # ✅ Middleware console: headers proxy
-#      - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Proto=https
-#      - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Host=files.lyneerp.com
-#      - traefik.http.routers.lyneminio-console.middlewares=minio-console-headers
+#         ✅ Middleware console: headers proxy
+      - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Host=files.lyneerp.com
+      - traefik.http.routers.lyneminio-console.middlewares=minio-console-headers
+      - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Port=443
+      - traefik.http.middlewares.minio-console-headers.headers.customrequestheaders.X-Forwarded-Ssl=on
 
   # === Keycloak (SSO) ===
   keycloak:
