@@ -169,7 +169,7 @@
       border:1px dashed rgba(100,116,139,.55);
       border-radius:10px;
       background:rgba(241,245,249,.8);
-      
+
       max-height:14mm; /* évite d’agrandir le footer */
       overflow:hidden;
       word-break:break-all;
@@ -325,14 +325,13 @@
         {% else %}
           Document généré par {{ tenant.name }} • Conservez ce document pour vos archives.
         {% endif %}
-        
+
       </div>
 
       <div class="tiny muted header-1line" style="margin-top:6px; max-width:560px;">
        {{ signature_payload }}
       </div>
     </div>
-
     <div class="tiny muted nowrap" style="text-align:right;">
       Page <span class="pageNumber"></span> / <span class="totalPages"></span>
     </div>
@@ -363,7 +362,7 @@
       {% if invoice.due_date %} • Échéance : <strong>{{ invoice.due_date|date:"d/m/Y" }}</strong>{% endif %}
     </div>
   </div>
-    <div class="col card">
+  <div class="col card">
     <div class="h2">Client</div>
     <div style="margin-top:8px; font-weight:900; font-size:13px;" class="wrap-anywhere">{{ partner.name }}</div>
     <div class="small muted wrap-anywhere" style="margin-top:4px;">
@@ -417,6 +416,12 @@
 </table>
 
 <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+    {% if invoice.notes %}
+  <div class="card">
+    <div class="h2">Notes</div>
+    <div style="margin-top:8px; white-space:pre-line;" class="wrap-anywhere">{{ invoice.notes }}</div>
+  </div>
+{% endif %}
   <div class="totals">
     <div class="row">
       <div class="muted">Sous-total (HT)</div>
@@ -445,12 +450,7 @@
   </div>
 </div>
 
-{% if invoice.notes %}
-  <div class="card" style="margin-top:12px;">
-    <div class="h2">Notes</div>
-    <div style="margin-top:8px; white-space:pre-line;" class="wrap-anywhere">{{ invoice.notes }}</div>
-  </div>
-{% endif %}
+
 
 </body>
 </html>
