@@ -165,11 +165,11 @@
       font-size:9px;
       letter-spacing:.2px;
       padding:6px 8px;
-      margin-left: 10px;
+      margin-left: 5px;
       border:1px dashed rgba(100,116,139,.55);
       border-radius:10px;
       background:rgba(241,245,249,.8);
-      max-width:460px;
+      max-width:500px;
       max-height:14mm; /* évite d’agrandir le footer */
       overflow:hidden;
       word-break:break-all;
@@ -320,15 +320,16 @@
   <div class="footerwrap">
     <div style="min-width:0;">
       <div class="sig-arcade">
-        Signature: {{ signature_payload }}
-      </div>
-
-      <div class="tiny muted header-1line" style="margin-top:6px; max-width:560px;">
-        {% if tenant.invoice_footer_note %}
+          {% if tenant.invoice_footer_note %}
           {{ tenant.invoice_footer_note }}
         {% else %}
           Document généré par {{ tenant.name }} • Conservez ce document pour vos archives.
         {% endif %}
+        
+      </div>
+
+      <div class="tiny muted header-1line" style="margin-top:6px; max-width:560px;">
+       {{ signature_payload }}
       </div>
     </div>
 
