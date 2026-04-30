@@ -379,49 +379,83 @@ OIDC_SESSION_KEY = "oidc_user"
 #   serveur (échange code → token, fetch JWKS, etc.). En Docker / k8s,
 #   c'est le hostname du service Keycloak sur le réseau interne.
 #
-# Si KEYCLOAK_INTERNAL_URL n'est pas défini, on retombe sur la même URL
-# publique que pour le navigateur (déploiements simples / dev local).
+# Logique :
+#   - Si KEYCLOAK_INTERNAL_URL est défini ET différent de KEYCLOAK_BASE_URL,
+#     on FORCE tous les endpoints back-channel sur l'interne, en ignorant
+#     les anciennes variables individuelles (KEYCLOAK_JWKS_URL,
+#     OIDC_OP_*_ENDPOINT) qui peuvent rester d'un setup précédent.
+#   - Sinon, on retombe sur l'URL publique partout (dev local sans Docker).
 KEYCLOAK_INTERNAL_URL = os.getenv("KEYCLOAK_INTERNAL_URL", "").rstrip("/") or KEYCLOAK_BASE_URL
 
-# L'issuer doit TOUJOURS être l'URL publique (cohérent avec le `iss` claim
-# que Keycloak signe dans les JWT — on ne triche pas avec ça).
+# L'issuer reste l'URL publique (cohérent avec le `iss` claim signé par
+# Keycloak — on ne triche pas avec ça).
 KEYCLOAK_INTERNAL_ISSUER = (
     f"{KEYCLOAK_INTERNAL_URL}/realms/{KEYCLOAK_REALM}"
     if KEYCLOAK_INTERNAL_URL
     else ""
 )
 
+# Si l'URL interne est *vraiment* distincte de la publique (vrai setup
+# Docker / k8s), on force les overrides legacy à être ignorés.
+_FORCE_INTERNAL = bool(
+    KEYCLOAK_INTERNAL_URL and KEYCLOAK_INTERNAL_URL != KEYCLOAK_BASE_URL
+)
+
 if KEYCLOAK_ISSUER:
     OIDC_OP_ISSUER = KEYCLOAK_ISSUER
 
-    # Front-channel : navigateur → Keycloak (URL publique HTTPS).
+    # Front-channel : navigateur → Keycloak (URL publique HTTPS, toujours).
     OIDC_OP_AUTHORIZATION_ENDPOINT = os.getenv(
         "OIDC_OP_AUTHORIZATION_ENDPOINT",
         f"{KEYCLOAK_ISSUER}/protocol/openid-connect/auth",
     )
 
-    # Back-channel : Django → Keycloak. Override individuel possible via env.
-    OIDC_OP_TOKEN_ENDPOINT = os.getenv(
-        "OIDC_OP_TOKEN_ENDPOINT",
-        f"{KEYCLOAK_INTERNAL_ISSUER or KEYCLOAK_ISSUER}/protocol/openid-connect/token",
-    )
-    OIDC_OP_USER_ENDPOINT = os.getenv(
-        "OIDC_OP_USER_ENDPOINT",
-        f"{KEYCLOAK_INTERNAL_ISSUER or KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo",
-    )
-    OIDC_OP_JWKS_ENDPOINT = os.getenv(
-        "OIDC_OP_JWKS_ENDPOINT",
-        KEYCLOAK_JWKS_URL
-        or f"{KEYCLOAK_INTERNAL_ISSUER or KEYCLOAK_ISSUER}/protocol/openid-connect/certs",
-    )
+    # Back-channel : Django → Keycloak.
+    if _FORCE_INTERNAL:
+        # Tout passe en interne. Les overrides individuels d'env sont quand
+        # même respectés s'ils sont définis (cas avancé).
+        OIDC_OP_TOKEN_ENDPOINT = os.getenv(
+            "OIDC_OP_TOKEN_ENDPOINT",
+            f"{KEYCLOAK_INTERNAL_ISSUER}/protocol/openid-connect/token",
+        )
+        OIDC_OP_USER_ENDPOINT = os.getenv(
+            "OIDC_OP_USER_ENDPOINT",
+            f"{KEYCLOAK_INTERNAL_ISSUER}/protocol/openid-connect/userinfo",
+        )
+        OIDC_OP_JWKS_ENDPOINT = os.getenv(
+            "OIDC_OP_JWKS_ENDPOINT",
+            f"{KEYCLOAK_INTERNAL_ISSUER}/protocol/openid-connect/certs",
+        )
+        # 🛡️ On NORMALISE KEYCLOAK_JWKS_URL pour `hr.auth.KeycloakJWTAuthentication`,
+        # qui le lit directement. Ainsi un ancien `.env` avec une URL publique
+        # ne casse plus la validation des JWT côté API.
+        KEYCLOAK_JWKS_URL = OIDC_OP_JWKS_ENDPOINT
+    else:
+        # Pas de séparation public/interne : tout sur l'URL publique.
+        OIDC_OP_TOKEN_ENDPOINT = os.getenv(
+            "OIDC_OP_TOKEN_ENDPOINT",
+            f"{KEYCLOAK_ISSUER}/protocol/openid-connect/token",
+        )
+        OIDC_OP_USER_ENDPOINT = os.getenv(
+            "OIDC_OP_USER_ENDPOINT",
+            f"{KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo",
+        )
+        OIDC_OP_JWKS_ENDPOINT = os.getenv(
+            "OIDC_OP_JWKS_ENDPOINT",
+            KEYCLOAK_JWKS_URL
+            or f"{KEYCLOAK_ISSUER}/protocol/openid-connect/certs",
+        )
+        if not KEYCLOAK_JWKS_URL:
+            KEYCLOAK_JWKS_URL = OIDC_OP_JWKS_ENDPOINT
+
     # ⚠️ Discovery DÉSACTIVÉ par défaut.
     # Si on l'active, mozilla-django-oidc fait un GET sur ``.well-known``
     # et utilise les endpoints retournés. Or Keycloak retourne ses URLs
-    # PUBLIQUES (https://sso.lyneerp.com/...), ce qui écrase nos overrides
-    # internes (http://keycloak:8080/...) → ConnectTimeout depuis Docker.
+    # PUBLIQUES, ce qui écrase nos overrides internes → ConnectTimeout.
     #
-    # Pour réactiver explicitement : poser la variable d'env
-    # ``OIDC_OP_DISCOVERY_ENDPOINT`` (ex. en dev sans Docker).
+    # Pour réactiver explicitement : poser ``OIDC_OP_DISCOVERY_ENDPOINT``
+    # (utile si vous avez un IdP qui sert un .well-known cohérent avec votre
+    # topologie réseau).
     _discovery = os.getenv("OIDC_OP_DISCOVERY_ENDPOINT", "").strip()
     if _discovery:
         OIDC_OP_DISCOVERY_ENDPOINT = _discovery
