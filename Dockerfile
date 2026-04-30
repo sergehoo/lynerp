@@ -1,41 +1,69 @@
-# docker/Dockerfile
-FROM python:3.11-slim
+# =============================================================================
+# LYNEERP — Image Docker de production.
+#
+# Construction :
+#   docker build -t lyneerp:latest .
+# Lancement local :
+#   docker run --rm -p 8000:8000 --env-file .env lyneerp:latest
+# =============================================================================
+
+FROM python:3.11-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DJANGO_ENV=prod
 
 WORKDIR /app
 
-# Dépendances OS (nc pour wait-for)
+# --- Dépendances système ---------------------------------------------------- #
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    netcat-openbsd curl wget gcc build-essential libpq-dev git \
- && rm -rf /var/lib/apt/lists/*
+        netcat-openbsd \
+        curl \
+        wget \
+        gcc \
+        build-essential \
+        libpq-dev \
+        git \
+        # Dépendances WeasyPrint (génération de PDF)
+        libcairo2 \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libgdk-pixbuf-2.0-0 \
+        libglib2.0-0 \
+        libgobject-2.0-0 \
+        shared-mime-info \
+        fonts-dejavu-core \
+        fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
-    libglib2.0-0 \
-    libgobject-2.0-0 \
-    shared-mime-info \
-    fonts-dejavu-core \
-    fonts-liberation \
- && rm -rf /var/lib/apt/lists/*
-# Entrypoint (copié depuis la racine du repo)
+# --- Entrypoint ------------------------------------------------------------- #
 COPY entrypoint.sh /entrypoint.sh
-# Normalise les fins de ligne si jamais le fichier a du CRLF
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
-# Requirements
-COPY requirements.txt /requirements.txt
-RUN pip install --upgrade pip && pip install -r /requirements.txt
+# --- Dépendances Python ----------------------------------------------------- #
+# On copie d'abord UNIQUEMENT les fichiers requirements pour profiter du cache
+# Docker (les couches ne se rebuildent pas à chaque modification de code).
+COPY requirements.txt /app/requirements.txt
+COPY requirements /app/requirements
 
-# Code de l’app
+RUN pip install --upgrade pip \
+ && pip install -r /app/requirements/prod.txt
+
+# --- Code applicatif -------------------------------------------------------- #
 COPY . /app
+
+# --- Création d'un user non-root -------------------------------------------- #
+RUN groupadd -r lyneerp && useradd -r -g lyneerp -d /app -s /sbin/nologin lyneerp \
+ && chown -R lyneerp:lyneerp /app
+USER lyneerp
 
 EXPOSE 8000
 
-# Tu peux aussi définir l’ENTRYPOINT ici, sinon on le mettra dans compose :
-# ENTRYPOINT ["/entrypoint.sh"]
+# Healthcheck : on tape /healthz qui est servi sans DB.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/healthz || exit 1
+
+# L'entrypoint orchestre wait-for + migrate + collectstatic + gunicorn.
+ENTRYPOINT ["/entrypoint.sh"]
