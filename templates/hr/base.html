@@ -1,66 +1,69 @@
-<!-- Lyneerp/hr/templates/hr/base.html -->
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="fr" class="h-full" x-data="hrApp()" x-init="init()" :class="{'dark': dark}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>LyneERP - Plateforme RH Intelligente</title>
+    <meta name="theme-color" content="#4f46e5">
+    <title>{% block title %}LyneERP — Plateforme RH Intelligente{% endblock %}</title>
 
-    <!-- Alpine.js -->
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    {# ===========================================================
+       En DEBUG (dev) on charge Tailwind / Alpine / SweetAlert2 / FontAwesome
+       depuis les CDN — ça permet de démarrer le projet sans `npm install`.
 
-    <!-- Fonts & Icons -->
+       En production (DEBUG=False), on charge le build local généré par :
+           npm install
+           npm run build:css          # → static/dist/main.css
+           npm run vendor:copy        # → static/vendor/*
+           python manage.py collectstatic
+       =========================================================== #}
+
+    {# === Polices (toujours via CDN — assets très légers) === #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
 
-    <!-- Alpine Plugins -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-
-    <script defer>
-        document.addEventListener('alpine:init', () => {
-            Alpine.plugin(window.AlpineCollapse)
-        })
-    </script>
-
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui']},
-                    colors: {
-                        brand: {
-                            50: '#fff7ed',
-                            100: '#ffedd5',
-                            200: '#fed7aa',
-                            300: '#fdba74',
-                            400: '#fb923c',
-                            500: '#f97316',
-                            600: '#ea580c',
-                            700: '#c2410c',
-                            800: '#9a3412',
-                            900: '#7c2d12'
-                        }
-                    },
-                    boxShadow: {
-                        card: '0 18px 45px rgba(15,23,42,0.08)',
-                        soft: '0 10px 30px rgba(15,23,42,0.06)'
-                    },
-                    borderRadius: {'3xl': '1.5rem'}
+    {% if DEBUG %}
+        {# --- Mode DEV : CDN --- #}
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+                        colors: {
+                            brand: {
+                                50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74',
+                                400: '#fb923c', 500: '#f97316', 600: '#ea580c', 700: '#c2410c',
+                                800: '#9a3412', 900: '#7c2d12'
+                            }
+                        },
+                        boxShadow: {
+                            card: '0 18px 45px rgba(15,23,42,0.08)',
+                            soft: '0 10px 30px rgba(15,23,42,0.06)'
+                        },
+                        borderRadius: { '3xl': '1.5rem' }
+                    }
                 }
-            }
-        }
-    </script>
-
-    <!-- SweetAlert2 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            };
+        </script>
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+        <link rel="stylesheet"
+              href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% else %}
+        {# --- Mode PROD : assets buildés localement (servis par WhiteNoise) --- #}
+        <link rel="stylesheet" href="{% static 'dist/main.css' %}">
+        <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+        <script defer src="{% static 'vendor/alpinejs/plugin-collapse.min.js' %}"></script>
+        <script defer src="{% static 'vendor/alpinejs/cdn.min.js' %}"></script>
+        <link rel="stylesheet" href="{% static 'vendor/sweetalert2/sweetalert2.min.css' %}">
+        <script defer src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+    {% endif %}
 
     <style>
         body {

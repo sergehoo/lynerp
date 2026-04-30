@@ -1,0 +1,20 @@
+{
+  "name": "lyneerp-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build Tailwind CSS v3 + assets pour LYNEERP.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/src/main.css -o ./static/dist/main.css --minify",
+    "watch:css": "tailwindcss -i ./static/src/main.css -o ./static/dist/main.css --watch",
+    "vendor:copy": "node ./scripts/copy-vendor.js"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
+    "@alpinejs/collapse": "^3.13.5",
+    "alpinejs": "^3.13.5",
+    "sweetalert2": "^11.10.0",
+    "@fortawesome/fontawesome-free": "^6.5.1",
+    "tailwindcss": "^3.4.1"
+  }
+}

@@ -1,0 +1,12 @@
+# =============================================================================
+# Dépendances de production LYNEERP.
+# =============================================================================
+
+-r base.txt
+
+# Serveur HTTP
+gunicorn==23.0.0
+uvicorn[standard]==0.38.0
+
+# Monitoring / observabilité
+sentry-sdk==2.18.0

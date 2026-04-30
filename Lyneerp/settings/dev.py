@@ -1,30 +1,37 @@
-# settings/dev.py
+"""
+Settings de développement local.
 
-from .base import *
+Active automatiquement DEBUG, ouvre ALLOWED_HOSTS, n'impose pas SSL.
+"""
+from __future__ import annotations
 
-import os
-
-ALLOWED_HOSTS = ['*']
-
-GDAL_LIBRARY_PATH = os.getenv('GDAL_LIBRARY_PATH', '/opt/homebrew/opt/gdal/lib/libgdal.dylib')
-GEOS_LIBRARY_PATH = os.getenv('GEOS_LIBRARY_PATH', '/opt/homebrew/opt/geos/lib/libgeos_c.dylib')
+from .base import *  # noqa: F401,F403
+from .base import REST_FRAMEWORK, env_bool
 
 DEBUG = True
+ALLOWED_HOSTS = ["*"]
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
-    }
-}
+# En dev on accepte aussi BrowsableAPI pour faciliter le debug DRF.
+REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [
+    "rest_framework.renderers.JSONRenderer",
+    "rest_framework.renderers.BrowsableAPIRenderer",
+]
 
-LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "/"
+# Outils dev : django-debug-toolbar si présent.
+if env_bool("ENABLE_DEBUG_TOOLBAR", False):
+    try:
+        import debug_toolbar  # noqa: F401
 
-DEFAULT_TENANT = "acme"  # slug existant en DB, ou UUID du tenant
-TENANT_SESSION_KEY = "current_tenant"
+        INSTALLED_APPS = list(INSTALLED_APPS) + ["debug_toolbar"]  # noqa: F405
+        MIDDLEWARE = (  # noqa: F405
+            ["debug_toolbar.middleware.DebugToolbarMiddleware"] + list(MIDDLEWARE)
+        )
+        INTERNAL_IPS = ["127.0.0.1"]
+    except ImportError:
+        pass
+
+# Email console pour le dev.
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Multi-tenant : valeur par défaut explicite.
+DEFAULT_TENANT = "acme"

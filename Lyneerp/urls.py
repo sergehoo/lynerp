@@ -1,76 +1,130 @@
+"""
+URL configuration LYNEERP.
+
+Hiérarchie :
+
+- ``/admin/``       → Django admin
+- ``/healthz``      → endpoint de healthcheck (pas d'auth, pas de DB)
+- ``/api/schema/``  → schéma OpenAPI (drf-spectacular)
+- ``/api/docs/``    → Swagger UI
+- ``/api/rh/``      → API REST RH
+- ``/api/finance/`` → API REST Finance
+- ``/api/license/`` → API licences (multi-tenant)
+- ``/api/auth/``    → API auth (whoami, exchange, etc.)
+- ``/oidc/``        → URLs mozilla-django-oidc (Authorization Code Flow)
+- ``/login/``       → Page de connexion (form + lien SSO Keycloak)
+- ``/logout/``      → Déconnexion (purge session locale + Keycloak si applicable)
+- ``/finance/``     → UI Finance (web)
+- ``/hr/``          → UI RH (web) — préfixe explicite, plus de pollution racine
+- ``/``             → redirige vers le dashboard adapté au rôle utilisateur
+"""
+from __future__ import annotations
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 from django.shortcuts import redirect
-from django.urls import path, include
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-
-from finance.views import invoice_pdf
-from hr.api.api_auth import RefreshLicenseView, LicensePortalView, LicenseStatusView, WhoAmIView
-from hr.api.routers import urlpatterns as hr_urls
-from hr.api.views import RecruitmentStatsView
-from hr.views import HRDashboardView, EmployeeManagementView, RecruitmentView, LeaveManagementView, AttendanceView, \
-    EmployeeDetailView, EmployeeUpdateView, EmployeeDeleteView, EmploymentContractDetailView
-from django.contrib.auth import views as auth_views
-
-from hr.views_auth import ExchangeTokenView
-from tenants.api_license import LicenseStatusView, LicenseClaimSeatView
-from tenants.auth_views import keycloak_direct_login
+from django.urls import include, path
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 
 
-def healthz(_):
-    # ⚡ rapide : sans requête DB
-    return JsonResponse({"status": "ok"})
+# --------------------------------------------------------------------------- #
+# Endpoints utilitaires
+# --------------------------------------------------------------------------- #
+def healthz(_request):
+    """
+    Healthcheck léger, sans accès DB. Renvoie toujours 200.
+    """
+    return JsonResponse({"status": "ok", "service": "lyneerp"})
 
 
-def home(request):
+def root_dispatch(request):
+    """
+    Route ``/`` :
+    - utilisateur authentifié → dashboard RH
+    - sinon → page de connexion
+    """
     if request.user.is_authenticated:
-        # ta home réelle
-        return redirect("/")  # ou la page que tu veux
-    return redirect("/oidc/authenticate/")  # lance le flow OIDC
+        return redirect("hr-dashboard")
+    return redirect(settings.LOGIN_URL)
 
 
+# --------------------------------------------------------------------------- #
+# URL patterns
+# --------------------------------------------------------------------------- #
 urlpatterns = [
-                  path("healthz", healthz),
-                  path('admin/', admin.site.urls),
-                  path('api/rh/', include((hr_urls, 'hr'))),
+    # Admin & Health
+    path("admin/", admin.site.urls),
+    path("healthz", healthz, name="healthz"),
+    # API documentation
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="api-docs",
+    ),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="api-redoc",
+    ),
+    # API REST par module
+    path("api/rh/", include(("hr.api.urls", "hr_api"), namespace="hr_api")),
+    path(
+        "api/finance/",
+        include(("finance.api.urls", "finance_api"), namespace="finance_api"),
+    ),
+    path(
+        "api/auth/",
+        include(("Lyneerp.auth_urls", "auth"), namespace="auth"),
+    ),
+    path(
+        "api/license/",
+        include(("Lyneerp.license_urls", "license"), namespace="license"),
+    ),
+    # OIDC / Keycloak (Authorization Code Flow géré par mozilla-django-oidc)
+    path("oidc/", include("mozilla_django_oidc.urls")),
+    # Login / Logout (formulaire + redirections SSO)
+    path(
+        "login/",
+        auth_views.LoginView.as_view(template_name="registration/login.html"),
+        name="login",
+    ),
+    path(
+        "logout/",
+        auth_views.LogoutView.as_view(next_page="/login/"),
+        name="logout",
+    ),
+    # UI Web par module
+    path(
+        "finance/",
+        include(("finance.urls", "finance"), namespace="finance"),
+    ),
+    # Les URLs RH conservent les noms historiques (sans namespace) pour
+    # rester compatibles avec les ~50 templates existants qui font
+    # `{% url 'hr-dashboard' %}`, `{% url 'employee_detail' pk=... %}`, etc.
+    path("hr/", include("hr.urls")),
+    # Racine
+    path("", root_dispatch, name="root"),
+]
 
-                  path("finance/", include(("finance.urls", "finance"), namespace="finance")),
-                  # path("api/rh/", include("hr.routers")),
-                  path('schema/', SpectacularAPIView.as_view(), name='schema'),
-                  path('docs/', SpectacularSwaggerView.as_view(url_name='schema')),
-                  path('oidc/', include('mozilla_django_oidc.urls')),
-
-
-                  path('', HRDashboardView.as_view(), name='hr-dashboard'),
-
-                  path('employees/', EmployeeManagementView.as_view(), name='hr-employees'),
-                  path("employees/<int:pk>/", EmployeeDetailView.as_view(), name="employee_detail"),
-                  path("employees/<int:pk>/edit/", EmployeeUpdateView.as_view(), name="employee_update"),
-                  path("employees/<int:pk>/delete/", EmployeeDeleteView.as_view(), name="employee_delete"),
-
-                  path(
-                      "contracts/<int:pk>/",
-                      EmploymentContractDetailView.as_view(),
-                      name="contract_detail",
-                  ),
-
-                  path('recruitment/', RecruitmentView.as_view(), name='hr-recruitment'),
-                  path('leaves/', LeaveManagementView.as_view(), name='hr-leaves'),
-                  path('attendance/', AttendanceView.as_view(), name='hr-attendance'),
-
-                  path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-                  path("auth/keycloak/login", keycloak_direct_login, name="keycloak_direct_login"),
-                  path("auth/exchange/", ExchangeTokenView.as_view(), name="auth-exchange"),
-
-                  path('api/license/status/', LicenseStatusView.as_view(), name='license-status'),
-                  path('api/license/refresh/', RefreshLicenseView.as_view(), name='license-refresh'),
-                  path('api/license/portal/', LicensePortalView.as_view(), name='license-portal'),
-                  path('api/auth/whoami/', WhoAmIView.as_view(), name='whoami'),
-                  path("api/dashboard/recruitment_stats/", RecruitmentStatsView.as_view(), name="recruitment-stats"),
-
-                  path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-              ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# --------------------------------------------------------------------------- #
+# Médias statiques (uniquement en dev)
+# --------------------------------------------------------------------------- #
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# --------------------------------------------------------------------------- #
+# Handlers d'erreur personnalisés (templates 4xx/5xx fournis dans templates/)
+# --------------------------------------------------------------------------- #
+handler400 = "Lyneerp.views_errors.bad_request"
+handler403 = "Lyneerp.views_errors.permission_denied"
+handler404 = "Lyneerp.views_errors.page_not_found"
+handler500 = "Lyneerp.views_errors.server_error"

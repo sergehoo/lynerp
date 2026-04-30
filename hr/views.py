@@ -44,10 +44,21 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
 
     # ✅ Pour éviter N+1 au chargement du header
     def get_queryset(self):
-        return (
+        qs = (
             Employee.objects
             .select_related("tenant", "department", "position", "user_account")
         )
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return qs.none()
+        return qs.filter(tenant=tenant)
+
+    def get_object(self, queryset=None):
+        queryset = queryset if queryset is not None else self.get_queryset()
+        return get_object_or_404(queryset, pk=self.kwargs["pk"])
 
     def can_view_medical(self):
         u = self.request.user
@@ -345,10 +356,34 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
+class _TenantScopedMixin:
+    """
+    Mixin local : restreint le queryset au tenant courant pour les CBV.
+
+    - Superuser global : accès complet.
+    - Sinon : filtre strict sur ``request.tenant`` (FK ``tenant``) ou sur
+      ``tenant_id`` selon le modèle.
+    """
+
+    def _scoped(self, qs):
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return qs.none()
+        model = qs.model
+        if any(f.name == "tenant" for f in model._meta.fields):
+            return qs.filter(tenant=tenant)
+        if any(f.name == "tenant_id" for f in model._meta.fields):
+            return qs.filter(tenant_id=tenant.id)
+        return qs.none()
+
+
+class EmployeeUpdateView(LoginRequiredMixin, _TenantScopedMixin, UpdateView):
     model = Employee
     template_name = "hr/employee/form.html"
-    success_url = reverse_lazy("hr:employee_list")
+    success_url = reverse_lazy("hr-employees")
 
     fields = [
         "matricule", "first_name", "last_name", "email",
@@ -360,21 +395,33 @@ class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
         "is_active",
     ]
 
+    def get_queryset(self):
+        return self._scoped(
+            Employee.objects.select_related("tenant", "department", "position", "user_account")
+        )
 
-class EmployeeDeleteView(LoginRequiredMixin, DeleteView):
+
+class EmployeeDeleteView(LoginRequiredMixin, _TenantScopedMixin, DeleteView):
     model = Employee
     template_name = "hr/employee/confirm_delete.html"
-    success_url = reverse_lazy("hr:employee_list")
+    success_url = reverse_lazy("hr-employees")
+
+    def get_queryset(self):
+        return self._scoped(Employee.objects.select_related("tenant"))
 
 
-class EmploymentContractDetailView(LoginRequiredMixin, DetailView):
+class EmploymentContractDetailView(LoginRequiredMixin, _TenantScopedMixin, DetailView):
     model = EmploymentContract
     template_name = "hr/contrat/contrat_detail.html"
     context_object_name = "contract"
 
     def get_queryset(self):
         """
-        Sécurisation multi-tenant + optimisation
+        Sécurisation multi-tenant stricte + optimisation N+1.
+
+        - Super admin LYNEERP : voit tout.
+        - Sinon : seules les FK ``tenant=request.tenant`` sont renvoyées.
+        - Aucun fall-through vers ``EmploymentContract.objects.all()``.
         """
         qs = (
             EmploymentContract.objects
@@ -384,27 +431,17 @@ class EmploymentContractDetailView(LoginRequiredMixin, DetailView):
                 "position",
                 "contract_type",
                 "approved_by",
+                "tenant",
             )
         )
-
-        user = self.request.user
-
-        # 🔐 Super admin / RH externalisée → tous tenants
-        if getattr(user, "is_superuser", False) or getattr(user, "is_external_hr", False):
-            return qs
-
-        # 🏢 Admin entreprise → uniquement son tenant
-        # tenant_id = getattr(self.request, "tenant_id", None)
-        # if tenant_id:
-        #     qs = qs.filter(tenant_id=tenant_id)
-
-        return qs
+        return self._scoped(qs)
 
     def get_object(self, queryset=None):
         """
-        Force le filtrage tenant même si pk valide
+        Force le filtrage tenant : si l'utilisateur courant n'a pas accès,
+        404 (pas 403, on n'expose pas l'existence de la ressource).
         """
-        queryset = queryset or self.get_queryset()
+        queryset = queryset if queryset is not None else self.get_queryset()
         return get_object_or_404(queryset, pk=self.kwargs["pk"])
 
     def get_context_data(self, **kwargs):

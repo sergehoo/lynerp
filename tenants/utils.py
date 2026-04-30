@@ -1,105 +1,57 @@
-# tenants/utils.py
-from __future__ import annotations
-import re
-from typing import Optional
-from uuid import UUID
+"""
+Helpers tenant — façade pour les apps qui veulent rester découplées de
+``Lyneerp.core``.
 
-from django.conf import settings
+Cette couche conserve l'API historique du projet (``resolve_tenant``,
+``get_tenant_from_request``, ``infer_tenant_from_host``) mais déléguée à
+l'unique implémentation dans ``Lyneerp.core.tenant``.
+"""
+from __future__ import annotations
+
+from typing import Optional
+
+from Lyneerp.core.tenant import (
+    infer_tenant_from_host as _infer_tenant_from_host,
+    resolve_tenant as _resolve_tenant,
+    resolve_tenant_from_request as _resolve_from_request,
+)
 from tenants.models import Tenant
 
-_SUBDOMAIN_RE = re.compile(
-    getattr(settings, "TENANT_SUBDOMAIN_REGEX", r"^(?P<tenant>[a-z0-9-]+)\.(?:rh\.)?lyneerp\.com$"),
-    re.I,
-)
-
-def _is_uuid(val: str) -> bool:
-    try:
-        UUID(str(val))
-        return True
-    except Exception:
-        return False
 
 def infer_tenant_from_host(host: str) -> Optional[str]:
-    host = (host or "").split(":")[0]
-    m = _SUBDOMAIN_RE.match(host)
-    if m:
-        return m.group("tenant")
+    return _infer_tenant_from_host(host)
 
-    # ⚠️ évite IP/localhost
-    if host in {"localhost", "127.0.0.1"}:
-        return None
-    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host):  # IPv4
-        return None
-
-    # fallback permissif
-    if host and "." in host:
-        return host.split(".")[0]
-    return None
 
 def resolve_tenant(identifier: Optional[str]) -> Optional[Tenant]:
-    """
-    Résout une instance Tenant à partir d’un identifiant souple :
-    - UUID (id)
-    - slug (champ unique conseillé)
-    - domain (si tu l’as dans ton modèle)
-    """
-    if not identifier:
-        return None
-    val = str(identifier).strip()
+    return _resolve_tenant(identifier)
 
-    # 1) par UUID
-    if _is_uuid(val):
-        t = Tenant.objects.filter(id=val).first()
-        if t:
-            return t
-
-    # 2) par slug
-    t = Tenant.objects.filter(slug=val).first()
-    if t:
-        return t
-
-    # 3) par domain (facultatif si tu as ce champ)
-    if hasattr(Tenant, "domain"):
-        t = Tenant.objects.filter(domain=val).first()
-        if t:
-            return t
-
-    return None
 
 def get_tenant_from_request(request) -> Optional[Tenant]:
+    return _resolve_from_request(request)
+
+
+def get_user_membership(user, tenant: Tenant):
     """
-    Ordre de résolution :
-      1) X-Tenant-Id (id ou slug)
-      2) session 'tenant_id' / TENANT_SESSION_KEY
-      3) sous-domaine
-      4) DEFAULT_TENANT (slug ou id)
+    Renvoie ``TenantUser`` actif si l'utilisateur appartient au tenant.
     """
-    # header
-    ident = request.META.get("HTTP_X_TENANT_ID") or request.headers.get("X-Tenant-Id")
-    if ident:
-        t = resolve_tenant(ident)
-        if t:
-            return t
+    if not user or not user.is_authenticated or tenant is None:
+        return None
+    from tenants.models import TenantUser
 
-    # session
-    ident = request.session.get("tenant_id") or request.session.get(getattr(settings, "TENANT_SESSION_KEY", "current_tenant"))
-    if ident:
-        t = resolve_tenant(ident)
-        if t:
-            return t
+    return (
+        TenantUser.objects
+        .filter(user=user, tenant=tenant, is_active=True)
+        .select_related("user", "tenant")
+        .first()
+    )
 
-    # host
-    ident = infer_tenant_from_host(request.get_host())
-    if ident:
-        t = resolve_tenant(ident)
-        if t:
-            return t
 
-    # default
-    ident = getattr(settings, "DEFAULT_TENANT", None)
-    if ident:
-        t = resolve_tenant(ident)
-        if t:
-            return t
-
-    return None
+def user_can_access_tenant(user, tenant: Tenant) -> bool:
+    """
+    Booleen pratique : True si superuser ou membre actif.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return get_user_membership(user, tenant) is not None

@@ -1,0 +1,16 @@
+{% extends "base_minimal.html" %}
+{% block title %}Accès refusé — LyneERP{% endblock %}
+{% block content %}
+<div class="text-center max-w-md mx-auto py-16">
+    <p class="text-6xl font-bold text-red-500">403</p>
+    <h1 class="mt-4 text-2xl font-semibold text-gray-900">Accès refusé</h1>
+    <p class="mt-3 text-gray-600">
+        Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.
+        Contactez votre administrateur si vous pensez qu'il s'agit d'une erreur.
+    </p>
+    <a href="/"
+       class="mt-8 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-white font-medium hover:bg-indigo-700">
+        Retour à l'accueil
+    </a>
+</div>
+{% endblock %}

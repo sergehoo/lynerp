@@ -92,11 +92,20 @@ logger = logging.getLogger(__name__)
 
 def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
     """
-    Résout le tenant à partir, dans l'ordre :
-    1) du token OIDC (request.oidc.tenant / tenant_id : slug ou UUID)
-    2) du header X-Tenant-Id : slug ou UUID
-    3) du host (TenantDomain ou sous-domaine = slug)
+    Compat — délègue désormais au résolveur unique du projet.
+
+    .. deprecated::
+        Utiliser ``Lyneerp.core.tenant.resolve_tenant_from_request`` à la place.
+        Cette fonction est conservée pour ne pas casser les imports existants.
     """
+    from Lyneerp.core.tenant import resolve_tenant_from_request
+
+    return resolve_tenant_from_request(request)
+
+
+def _legacy_get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
+    # Conservée comme référence — l'algorithme initial multi-source. Ne plus
+    # appeler directement.
 
     # 1) Via OIDC (si tu ajoutes oidc au request)
     oidc = getattr(request, "oidc", {}) or {}
@@ -152,73 +161,87 @@ def get_current_tenant_from_request(request: HttpRequest) -> Optional[Tenant]:
 # Mixins multi-tenant
 # -----------------------------
 class BaseTenantViewSet(viewsets.ModelViewSet):
+    """
+    Base de tous les viewsets multi-tenant du module RH.
+
+    Délègue la résolution du tenant au résolveur unique du projet
+    (``Lyneerp.core.tenant.resolve_tenant_from_request``) et applique
+    automatiquement le filtre tenant sur le queryset.
+
+    Compatibilité : si le modèle est legacy (champ ``tenant_id`` en
+    CharField/UUIDField, sans FK ``tenant``), on filtre via UUID **et**
+    slug le temps de la migration. Cette compatibilité disparaîtra quand
+    tous les modèles auront été migrés vers ``TenantOwnedModel``.
+    """
+
     TENANT_HEADER = "X-Tenant-Id"
 
-    def get_tenant_id(self):
-        """
-        Renvoie tenant_id depuis:
-        - request.tenant_id (middleware)
-        - request.tenant (middleware)
-        - Header X-Tenant-Id
-        """
-        # 1) middleware qui pose request.tenant_id
-        tenant_id = getattr(self.request, "tenant_id", None)
-        if tenant_id:
-            return str(tenant_id)
-
-        # 2) middleware qui pose request.tenant
-        tenant = getattr(self.request, "tenant", None)
-        if tenant:
-            # slug sinon id
-            return str(getattr(tenant, "slug", None) or tenant.id)
-
-        # 3) header
-        return self.request.headers.get(self.TENANT_HEADER)
-
+    # ---- Résolution du tenant ----------------------------------------------
     def get_tenant(self):
-        """
-        Retourne l'objet Tenant (ou None).
-        """
+        from Lyneerp.core.tenant import resolve_tenant_from_request
+
         tenant = getattr(self.request, "tenant", None)
-        if tenant:
-            return tenant
+        if tenant is None:
+            tenant = resolve_tenant_from_request(self.request)
+            try:
+                self.request.tenant = tenant
+            except Exception:  # request peut être immuable
+                pass
+        return tenant
 
-        tenant_id = self.get_tenant_id()
-        if not tenant_id:
-            return None
+    def get_tenant_id(self):
+        tenant = self.get_tenant()
+        return str(tenant.id) if tenant else None
 
-        # accepte id OU slug
-        return (
-            Tenant.objects
-            .filter(Q(id=tenant_id) | Q(slug=tenant_id))
-            .first()
-        )
+    # ---- Filtrage queryset --------------------------------------------------
+    def _scope_legacy_tenant_id(self, qs, tenant):
+        slug = getattr(tenant, "slug", None)
+        cond = Q(tenant_id=str(tenant.id))
+        if slug:
+            cond |= Q(tenant_id=slug)
+        return qs.filter(cond).distinct()
 
     def get_queryset(self):
-        # 0) Super admin plateforme : accès global
-        if self.request.user and self.request.user.is_superuser:
+        user = getattr(self.request, "user", None)
+        if user is not None and user.is_authenticated and user.is_superuser:
             return super().get_queryset()
 
         tenant = self.get_tenant()
-        if not tenant:
-            return self.queryset.none()
+        if tenant is None:
+            return super().get_queryset().none()
 
         qs = super().get_queryset()
         model = qs.model
+        field_names = {f.name for f in model._meta.fields}
 
-        # FK tenant
-        if hasattr(model, "tenant"):
+        if "tenant" in field_names:
             return qs.filter(tenant=tenant)
+        if "tenant_id" in field_names:
+            return self._scope_legacy_tenant_id(qs, tenant)
 
-        # tenant_id string
-        if hasattr(model, "tenant_id"):
-            slug = getattr(tenant, "slug", None)
-            filt = Q(tenant_id=str(tenant.id))
-            if slug:
-                filt |= Q(tenant_id=slug)
-            return qs.filter(filt).distinct()
-
+        # Aucun champ tenant : on refuse l'accès par défaut.
+        logger.warning(
+            "[BaseTenantViewSet] Modèle %s sans champ tenant — accès refusé.",
+            model.__name__,
+        )
         return qs.none()
+
+    # ---- Création : pose automatiquement le tenant -------------------------
+    def perform_create(self, serializer):
+        tenant = self.get_tenant()
+        if tenant is None and not (
+            getattr(self.request.user, "is_superuser", False)
+        ):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Tenant manquant pour cette requête.")
+        model = serializer.Meta.model
+        field_names = {f.name for f in model._meta.fields}
+        kwargs = {}
+        if tenant is not None and "tenant" in field_names:
+            kwargs["tenant"] = tenant
+        elif tenant is not None and "tenant_id" in field_names:
+            kwargs["tenant_id"] = str(tenant.id)
+        serializer.save(**kwargs)
 
 
 def get_membership(user, tenant: Tenant) -> Optional[TenantUser]:
@@ -829,7 +852,10 @@ class EmployeeViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    from hr.api.filtersets import EmployeeFilterSet
+    from django_filters.rest_framework import DjangoFilterBackend
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = EmployeeFilterSet
     search_fields = ['first_name', 'last_name', 'email', 'matricule']
     ordering_fields = ['first_name', 'last_name', 'hire_date', 'created_at']
 
@@ -999,7 +1025,10 @@ class LeaveRequestViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    from hr.api.filtersets import LeaveRequestFilterSet
+    from django_filters.rest_framework import DjangoFilterBackend
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = LeaveRequestFilterSet
     ordering_fields = ['requested_at', 'start_date']
 
     def get_queryset(self):
@@ -1066,6 +1095,11 @@ class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
     permission_classes = [IsAuthenticated]
+    from hr.api.filtersets import AttendanceFilterSet
+    from django_filters.rest_framework import DjangoFilterBackend
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_class = AttendanceFilterSet
+    ordering_fields = ['date', 'check_in', 'created_at']
 
     @action(detail=False, methods=['post'])
     def bulk_check_in(self, request):
@@ -1108,10 +1142,13 @@ class AttendanceViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
 # -----------------------------
 
 class RecruitmentViewSet(BaseTenantViewSet, viewsets.ModelViewSet):
-    queryset = Recruitment.objects.all()  # <-- IMPORTANT (BaseTenantViewSet l’utilise)
+    queryset = Recruitment.objects.all()  # <-- IMPORTANT (BaseTenantViewSet l'utilise)
     serializer_class = RecruitmentSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    from hr.api.filtersets import RecruitmentFilterSet
+    from django_filters.rest_framework import DjangoFilterBackend
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = RecruitmentFilterSet
     search_fields = ['title', 'reference']
     ordering_fields = ['created_at', 'publication_date', 'title']
 
@@ -1377,7 +1414,10 @@ class EmploymentContractViewSet(BaseTenantViewSet):
     queryset = EmploymentContract.objects.all()
     serializer_class = EmploymentContractSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    from hr.api.filtersets import EmploymentContractFilterSet
+    from django_filters.rest_framework import DjangoFilterBackend
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = EmploymentContractFilterSet
     search_fields = ["contract_number", "title", "employee__email"]
     ordering_fields = ["start_date", "end_date", "created_at"]
 

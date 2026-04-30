@@ -1,2 +1,104 @@
+# =========================================================
+# Secrets & environnement
+# =========================================================
 .env
 *.env
+!.env.example
+
+# =========================================================
+# Python
+# =========================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+.eggs/
+build/
+dist/
+develop-eggs/
+.installed.cfg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# =========================================================
+# Virtualenvs
+# =========================================================
+venv/
+.venv/
+env/
+.env-*/
+ENV/
+
+# =========================================================
+# Django
+# =========================================================
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3
+media/
+staticfiles/
+local_settings.py
+
+# =========================================================
+# Tests / coverage
+# =========================================================
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+.tox/
+
+# =========================================================
+# Linters / type checkers
+# =========================================================
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# =========================================================
+# IDE / OS
+# =========================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# =========================================================
+# Frontend / Tailwind
+# =========================================================
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+package-lock.json.bak
+
+# =========================================================
+# Logs / temporaires
+# =========================================================
+*.log
+logs/
+tmp/
+*.bak
+*.orig
+*.swp
+
+# =========================================================
+# Divers
+# =========================================================
+cookies.txt
+*.pid
+celerybeat-schedule
+celerybeat.pid

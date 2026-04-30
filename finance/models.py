@@ -69,6 +69,11 @@ class AuditEvent(UUIDPkModel, TenantOwnedModel):
         ]
 
     def compute_hash(self) -> str:
+        """
+        Hash SHA-256 stable, calculé à partir de tous les champs significatifs
+        (incl. ``created_at``). Le ``created_at`` est forcé en amont du save
+        pour garantir l'idempotence de la chaîne.
+        """
         payload = {
             "tenant_id": str(self.tenant_id),
             "actor_id": str(self.actor_id) if self.actor_id else None,
@@ -81,17 +86,55 @@ class AuditEvent(UUIDPkModel, TenantOwnedModel):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "prev_hash": self.prev_hash,
         }
-        raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        raw = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
         return hashlib.sha256(raw).hexdigest()
 
+    @classmethod
+    def _last_hash_for_tenant(cls, tenant_id) -> str:
+        """
+        Récupère le hash du dernier événement pour ce tenant, pour chaîner.
+        """
+        last = (
+            cls.objects
+            .filter(tenant_id=tenant_id)
+            .order_by("-created_at", "-id")
+            .only("event_hash")
+            .first()
+        )
+        return last.event_hash if last and last.event_hash else ""
+
     def save(self, *args, **kwargs):
-        if not self.event_hash:
-            # event_hash final seulement quand created_at est défini (après insert) => fallback
-            pass
-        super().save(*args, **kwargs)
-        if not self.event_hash:
-            self.event_hash = self.compute_hash()
-            super().save(update_fields=["event_hash"])
+        """
+        Pose ``created_at`` et ``prev_hash`` AVANT le calcul du ``event_hash``,
+        puis sauve dans une seule transaction. Plus aucun double-write.
+        """
+        from django.db import transaction
+        from django.utils import timezone
+
+        is_insert = self._state.adding
+        if is_insert:
+            if self.created_at is None:
+                self.created_at = timezone.now()
+            if not self.prev_hash:
+                # On chaîne avec le dernier événement du tenant.
+                self.prev_hash = self._last_hash_for_tenant(self.tenant_id)
+            if not self.event_hash:
+                self.event_hash = self.compute_hash()
+            with transaction.atomic():
+                super().save(*args, **kwargs)
+        else:
+            # En update, on NE recalcule PAS le hash : le hash est immuable
+            # par construction (audit trail).
+            super().save(*args, **kwargs)
+
+    def verify_chain(self) -> bool:
+        """
+        Re-calcule le hash courant et le compare à la valeur stockée.
+        Renvoie True si l'enregistrement n'a pas été altéré.
+        """
+        return self.event_hash == self.compute_hash()
 
 
 class AccountingStandard(models.TextChoices):
@@ -607,6 +650,10 @@ class Payment(UUIDPkModel, TenantOwnedModel):
     provider = models.CharField(max_length=40, blank=True)  # stripe, paydunya, cinetpay...
     provider_payload = models.JSONField(default=dict, blank=True)
 
+    # Clé d'idempotence : permet d'éviter le double encaissement quand un client
+    # ré-essaye un POST (problème classique sur webhooks Stripe / mobile money).
+    idempotency_key = models.CharField(max_length=128, blank=True, db_index=True)
+
     journal_entry_id = models.CharField(max_length=64, blank=True)
 
     class Meta:
@@ -614,6 +661,16 @@ class Payment(UUIDPkModel, TenantOwnedModel):
             models.Index(fields=["tenant", "status"]),
             models.Index(fields=["tenant", "paid_at"]),
             models.Index(fields=["tenant", "provider"]),
+        ]
+        constraints = [
+            # Idempotence par tenant : deux paiements ne peuvent pas partager
+            # la même clé. La condition exclut la valeur "" pour permettre les
+            # paiements créés sans clé (rétro-compat).
+            models.UniqueConstraint(
+                fields=["tenant", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="uniq_payment_idempotency_per_tenant",
+            ),
         ]
 
 
