@@ -211,6 +211,11 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# WhiteNoise : ne pas planter si une entrée du manifest est manquante.
+# Si le bundle Tailwind/Alpine n'a pas encore été buildé, l'app continue
+# de tourner et `{% static 'foo.css' %}` renvoie le path tel quel.
+WHITENOISE_MANIFEST_STRICT = False
+
 # Bascule sur S3/MinIO si AWS_STORAGE_BUCKET_NAME défini.
 AWS_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY")
 AWS_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_KEY")
