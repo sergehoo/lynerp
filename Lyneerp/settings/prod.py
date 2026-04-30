@@ -15,7 +15,7 @@ from .base import env_bool, env_int, env_list
 # --------------------------------------------------------------------------- #
 # Garde-fous critiques
 # --------------------------------------------------------------------------- #
-DEBUG = False
+DEBUG = True
 
 if not os.getenv("DJANGO_SECRET_KEY"):
     raise RuntimeError(
