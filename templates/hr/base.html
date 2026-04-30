@@ -6,23 +6,12 @@
     <meta name="theme-color" content="#4f46e5">
     <title>{% block title %}LyneERP — Plateforme RH Intelligente{% endblock %}</title>
 
-    {# ===========================================================
-       En DEBUG (dev) on charge Tailwind / Alpine / SweetAlert2 / FontAwesome
-       depuis les CDN — ça permet de démarrer le projet sans `npm install`.
-
-       En production (DEBUG=False), on charge le build local généré par :
-           npm install
-           npm run build:css          # → static/dist/main.css
-           npm run vendor:copy        # → static/vendor/*
-           python manage.py collectstatic
-       =========================================================== #}
-
     {# === Polices (toujours via CDN — assets très légers) === #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet">
-
+<script src="https://cdn.tailwindcss.com"></script>
     {% if DEBUG %}
         {# --- Mode DEV : CDN --- #}
         <script src="https://cdn.tailwindcss.com"></script>
