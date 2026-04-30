@@ -206,7 +206,16 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# WhiteNoise : on utilise le mode "Compressed" sans manifest (ne hash pas
+# les filenames). Avantage : si un asset n'a pas été buildé (ex. Tailwind
+# pas encore exécuté), l'app ne plante pas — le navigateur recevra
+# simplement un 404 sur l'asset manquant, mais le HTML est rendu.
+# En contrepartie : pas de cache busting automatique via hash dans le
+# nom du fichier. Pour ré-activer le hashing strict une fois que tous
+# les assets sont sûrement buildés, repasser à
+# `CompressedManifestStaticFilesStorage`.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
