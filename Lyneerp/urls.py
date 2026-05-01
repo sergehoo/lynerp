@@ -125,6 +125,26 @@ urlpatterns = [
     # Workflows / notifications / audit
     path("workflows/", include(("workflows.urls", "workflows"), namespace="workflows")),
     path("api/workflows/", include(("workflows.api.urls", "workflows_api"), namespace="workflows_api")),
+
+    # CRM
+    path("crm/", include(("crm.urls", "crm"), namespace="crm")),
+    path("api/crm/", include(("crm.api.urls", "crm_api"), namespace="crm_api")),
+
+    # Projets
+    path("projects/", include(("projects.urls", "projects"), namespace="projects")),
+    path("api/projects/", include(("projects.api.urls", "projects_api"), namespace="projects_api")),
+
+    # Reporting / BI
+    path("reporting/", include(("reporting.urls", "reporting"), namespace="reporting")),
+
+    # OCR factures
+    path("ocr/", include(("ocr.urls", "ocr"), namespace="ocr")),
+    path("api/ocr/", include(("ocr.api.urls", "ocr_api"), namespace="ocr_api")),
+
+    # Orphelins : pages référencées par la sidebar mais sans module dédié.
+    # Chaque route renvoie une page Placeholder propre (titre + roadmap).
+    path("", include(("Lyneerp.orphan_urls", "orphans"), namespace="orphans")),
+
     # Racine
     path("", root_dispatch, name="root"),
 ]

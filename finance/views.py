@@ -18,7 +18,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View, TemplateView
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 
@@ -53,7 +53,8 @@ from .forms import (
     ReportSnapshotForm,
 )
 
-
+class FinanceDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "finance/dashboard.html"
 # ========= Tenant resolver =========
 def get_current_tenant(request: HttpRequest):
     """

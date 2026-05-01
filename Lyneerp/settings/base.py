@@ -143,6 +143,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "tenants.context_processors.current_tenant",
+                "Lyneerp.core.context_processors.navigation",
             ],
         },
     },
@@ -352,6 +353,36 @@ OLLAMA_TIMEOUT = env_int("OLLAMA_TIMEOUT", 120)
 OLLAMA_DEFAULT_TEMPERATURE = float(os.getenv("OLLAMA_DEFAULT_TEMPERATURE", "0.2"))
 OLLAMA_DEFAULT_TOP_P = float(os.getenv("OLLAMA_DEFAULT_TOP_P", "0.9"))
 OLLAMA_DEFAULT_MAX_TOKENS = env_int("OLLAMA_DEFAULT_MAX_TOKENS", 2048)
+
+# --------------------------------------------------------------------------- #
+# Web research (LyneAI)
+# --------------------------------------------------------------------------- #
+# Provider de recherche par défaut : 'ddg' (DuckDuckGo HTML, gratuit, sans
+# API key), 'brave' (BRAVE_API_KEY requis), 'searx' (SEARX_URL requis).
+WEB_SEARCH_PROVIDER = os.getenv("WEB_SEARCH_PROVIDER", "ddg")
+BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")
+SEARX_URL = os.getenv("SEARX_URL", "")
+
+WEB_SEARCH_USER_AGENT = os.getenv(
+    "WEB_SEARCH_USER_AGENT",
+    "Mozilla/5.0 (LyneERP-AI/1.0; +https://lyneerp.com)",
+)
+WEB_SEARCH_TIMEOUT = env_int("WEB_SEARCH_TIMEOUT", 12)
+WEB_FETCH_TIMEOUT = env_int("WEB_FETCH_TIMEOUT", 15)
+WEB_FETCH_MAX_BYTES = env_int("WEB_FETCH_MAX_BYTES", 2 * 1024 * 1024)  # 2 Mo
+WEB_SEARCH_CACHE_TTL = env_int("WEB_SEARCH_CACHE_TTL", 30 * 60)        # 30 min
+WEB_FETCH_CACHE_TTL = env_int("WEB_FETCH_CACHE_TTL", 6 * 60 * 60)      # 6 h
+
+# Allowlist / blocklist de domaines (séparés par virgule).
+# Allowlist vide ⇒ toutes les URLs publiques sont autorisées (sauf blocklist).
+WEB_ALLOWLIST = env_list("WEB_ALLOWLIST")
+WEB_BLOCKLIST = env_list(
+    "WEB_BLOCKLIST",
+    default=[
+        # Patterns à risque par défaut. Ajoutez vos propres exclusions.
+        "facebook.com", "instagram.com", "tiktok.com",
+    ],
+)
 
 # --------------------------------------------------------------------------- #
 # Keycloak / OIDC

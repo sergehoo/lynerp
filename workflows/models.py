@@ -208,12 +208,17 @@ class Notification(UUIDPkModel, TenantOwnedModel):
 class AuditEvent(UUIDPkModel, TenantOwnedModel):
     """
     Journal d'audit cross-module. Différent de ``ai_assistant.AIAuditLog``
-    qui est dédié aux actions IA.
+    (dédié aux actions IA) et de ``finance.AuditEvent`` (hash chain
+    comptabilité).
+
+    NB : ``related_name`` distinct (``workflow_audit_events``) pour éviter
+    la collision avec ``finance.AuditEvent.actor`` qui utilise déjà
+    ``audit_events`` sur le même AUTH_USER_MODEL.
     """
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name="audit_events",
+        on_delete=models.SET_NULL, related_name="workflow_audit_events",
     )
     event_type = models.CharField(max_length=80, db_index=True)
     severity = models.CharField(

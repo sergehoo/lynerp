@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from django.views.generic import DetailView, ListView, View
+from django.views.generic import DetailView, ListView, View, TemplateView
 
 from workflows.models import (
     ApprovalRequest,
@@ -15,7 +15,8 @@ from workflows.models import (
 )
 from workflows.services import approve_step, reject_step
 
-
+class WorkflowDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "workflows/dashboard.html"
 class ApprovalRequestListView(LoginRequiredMixin, ListView):
     template_name = "workflows/request_list.html"
     context_object_name = "requests"

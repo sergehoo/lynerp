@@ -1,4 +1,4 @@
-{% extends "hr/base.html" %}
+{% extends "lyneerp/app_base.html" %}
 {% load static %}
 
 {% block title %}LyneAI · Assistant intelligent{% endblock %}
@@ -93,6 +93,27 @@
             <p class="text-xs font-semibold mb-1 opacity-70"
                x-text="msg.role === 'user' ? '{{ request.user.first_name|default:request.user.username }}' : 'LyneAI'"></p>
             <div class="prose prose-sm max-w-none ai-content" x-html="renderMarkdown(msg.content)"></div>
+
+            {# Sources web (recherche profonde) #}
+            <template x-if="msg.sources && msg.sources.length">
+              <div class="mt-3 pt-3 border-t border-gray-200/60">
+                <p class="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">
+                  <i class="fa-solid fa-globe text-violet-500 mr-1"></i> Sources web
+                </p>
+                <ol class="space-y-1.5">
+                  <template x-for="src in msg.sources" :key="src.index">
+                    <li class="text-xs">
+                      <span class="inline-flex w-5 h-5 rounded-full bg-violet-100 text-violet-700 items-center justify-center font-mono text-[10px] mr-1"
+                            x-text="src.index"></span>
+                      <a :href="src.url" target="_blank" rel="noopener noreferrer"
+                         class="text-primary-700 hover:underline" x-text="src.title || src.url"></a>
+                      <span class="block text-[10px] text-gray-500 ml-6 break-all" x-text="src.url"></span>
+                    </li>
+                  </template>
+                </ol>
+              </div>
+            </template>
+
             <p class="text-[10px] opacity-50 mt-1" x-text="formatDate(msg.created_at)"></p>
           </div>
         </article>
@@ -113,6 +134,23 @@
         Posez votre première question à LyneAI.
       </p>
     </section>
+
+    {# Bouton "Rechercher sur le web" #}
+    <div class="px-4 md:px-10 pb-2">
+      <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2"
+           x-show="!streaming">
+        <i class="fa-solid fa-globe text-violet-500 ml-2" aria-hidden="true"></i>
+        <input type="text" x-model="webQuery"
+               @keydown.enter.prevent="runWebResearch()"
+               placeholder="Recherche web : ex. « taux IRPP Côte d'Ivoire 2026 »"
+               class="flex-1 px-2 py-1.5 text-sm focus:outline-none">
+        <button type="button" @click="runWebResearch()" class="btn-primary text-xs"
+                :disabled="!webQuery.trim() || webBusy">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <span x-text="webBusy ? '…' : 'Recherche profonde'"></span>
+        </button>
+      </div>
+    </div>
 
     {# Suggestions rapides #}
     <div class="px-4 md:px-10 pb-2 flex flex-wrap gap-2">

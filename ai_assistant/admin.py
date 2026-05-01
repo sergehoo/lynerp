@@ -10,6 +10,9 @@ from ai_assistant.models import (
     AIModelConfig,
     AIPromptTemplate,
     AIToolCall,
+    OHADAArticle,
+    OHADANote,
+    WebFetchAudit,
 )
 
 
@@ -67,3 +70,25 @@ class AIAuditLogAdmin(admin.ModelAdmin):
     list_filter = ("tenant", "event")
     search_fields = ("target_id", "target_model")
     readonly_fields = ("created_at",)
+
+
+@admin.register(WebFetchAudit)
+class WebFetchAuditAdmin(admin.ModelAdmin):
+    list_display = ("action", "tenant", "actor", "success", "target", "created_at")
+    list_filter = ("tenant", "action", "success")
+    search_fields = ("target",)
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(OHADAArticle)
+class OHADAArticleAdmin(admin.ModelAdmin):
+    list_display = ("reference", "acte", "title", "version", "is_active", "updated_at")
+    list_filter = ("acte", "is_active")
+    search_fields = ("reference", "title", "summary")
+
+
+@admin.register(OHADANote)
+class OHADANoteAdmin(admin.ModelAdmin):
+    list_display = ("title", "tenant", "article", "author", "updated_at")
+    list_filter = ("tenant",)
+    search_fields = ("title", "content")

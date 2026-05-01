@@ -411,6 +411,53 @@ class AIAuditEvent(models.TextChoices):
 
 
 # --------------------------------------------------------------------------- #
+# Audit des appels web (recherche / fetch URL)
+# --------------------------------------------------------------------------- #
+class WebFetchAudit(UUIDPkModel, TenantOwnedModel):
+    """
+    Trace de chaque interaction de LyneAI avec le web : recherche, fetch
+    d'URL, recherche profonde. Utile pour :
+
+    - prouver la conformité (RGPD : qui a interrogé quoi).
+    - facturer ou quotaiser à terme par tenant.
+    - debug en cas de comportement IA incohérent.
+    """
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="web_fetch_audits",
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ("search", "Recherche"),
+            ("fetch", "Fetch URL"),
+            ("research", "Recherche profonde"),
+        ],
+        db_index=True,
+    )
+    target = models.CharField(
+        max_length=500,
+        help_text="Query (search/research) ou URL (fetch).",
+    )
+    success = models.BooleanField(default=True, db_index=True)
+    details = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "ai_web_fetch_audit"
+        verbose_name = "Audit appel web IA"
+        verbose_name_plural = "Audits appels web IA"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["tenant", "action", "-created_at"]),
+            models.Index(fields=["tenant", "actor", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.action}] {self.target[:80]}"
+
+
+# --------------------------------------------------------------------------- #
 # Connaissance OHADA (référentiel global, NON multi-tenant)
 # --------------------------------------------------------------------------- #
 class OHADAActe(models.TextChoices):

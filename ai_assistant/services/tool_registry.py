@@ -136,6 +136,7 @@ def get_tool_registry() -> AIToolRegistry:
             "ai_assistant.tools.ohada_tools",
             "ai_assistant.tools.crm_tools",
             "ai_assistant.tools.projects_tools",
+            "ai_assistant.tools.web_tools",
         ):
             try:
                 __import__(mod)

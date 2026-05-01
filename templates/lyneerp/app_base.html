@@ -1,0 +1,306 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full" x-data="lyneerpApp()" x-init="init()" :class="{ 'dark': dark }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4f46e5">
+    <title>{% block title %}LyneERP{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    {% if DEBUG %}
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui']},
+                        colors: {
+                            primary: {
+                                50: '#eef2ff', 100: '#e0e7ff',
+                                500: '#4f46e5', 600: '#4338ca', 700: '#3730a3'
+                            }
+                        }
+                    }
+                }
+            };
+        </script>
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {% else %}
+        <link rel="stylesheet" href="{% static 'dist/main.css' %}">
+        <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+        <script defer src="{% static 'vendor/alpinejs/plugin-collapse.min.js' %}"></script>
+        <script defer src="{% static 'vendor/alpinejs/cdn.min.js' %}"></script>
+    {% endif %}
+
+    <style>
+        body {
+            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
+            border-radius: 9999px;
+            padding: .15rem .55rem;
+            font-size: .7rem;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            background: #4f46e5;
+            color: #fff;
+            border-radius: .75rem;
+            padding: .55rem 1rem;
+            font-weight: 600;
+            font-size: .85rem;
+            transition: background .15s ease;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .btn-primary:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            background: #fff;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-radius: .75rem;
+            padding: .55rem 1rem;
+            font-weight: 600;
+            font-size: .85rem;
+            transition: background .15s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            background: #e11d48;
+            color: #fff;
+            border-radius: .75rem;
+            padding: .55rem 1rem;
+            font-weight: 600;
+            font-size: .85rem;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+        }
+
+        .input {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: .75rem;
+            padding: .55rem .9rem;
+            font-size: .9rem;
+            background: #fff;
+        }
+
+        .input:focus {
+            outline: 2px solid #4f46e5;
+            outline-offset: -1px;
+            border-color: transparent;
+        }
+
+        .scroll-slim::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .scroll-slim::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+        }
+
+        .ai-content h1, .ai-content h2, .ai-content h3 {
+            font-weight: 700;
+            margin: .8em 0 .4em;
+        }
+
+        .ai-content h1 {
+            font-size: 1.2rem;
+        }
+
+        .ai-content h2 {
+            font-size: 1.1rem;
+        }
+
+        .ai-content h3 {
+            font-size: 1rem;
+        }
+
+        .ai-content p {
+            margin: .4em 0;
+        }
+
+        .ai-content ul, .ai-content ol {
+            padding-left: 1.5rem;
+            margin: .4em 0;
+        }
+
+        .ai-content code {
+            background: rgba(0, 0, 0, .06);
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
+        .ai-content pre {
+            background: rgba(0, 0, 0, .04);
+            padding: .6rem;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .ai-content table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .ai-content th, .ai-content td {
+            border: 1px solid rgba(0, 0, 0, .1);
+            padding: .3rem .5rem;
+            text-align: left;
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="h-full bg-gray-50 text-gray-900 antialiased">
+<div class="flex min-h-screen">
+
+    {# ============================================================ Sidebar #}
+    <aside class="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col"
+           :class="{ 'w-16': collapsed }"
+           aria-label="Navigation principale">
+
+        <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+            <a href="/" class="flex items-center gap-2 font-bold text-gray-900">
+                <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm">L</span>
+                <span x-show="!collapsed">LyneERP</span>
+            </a>
+            <button type="button" @click="collapsed = !collapsed"
+                    class="text-gray-400 hover:text-gray-600 p-1.5 rounded"
+                    :title="collapsed ? 'Déplier' : 'Replier'">
+                <i class="fa-solid" :class="collapsed ? 'fa-angles-right' : 'fa-angles-left'"></i>
+            </button>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto scroll-slim p-2">
+            {% include "_includes/lyneerp_modules_menu.html" %}
+        </nav>
+
+        <div class="border-t border-gray-100 p-3">
+            {% if request.user.is_authenticated %}
+                <div class="flex items-center gap-2 text-sm" x-show="!collapsed">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-semibold">
+                        {{ request.user.first_name.0|default:request.user.username.0|upper }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium truncate">{{ request.user.get_full_name|default:request.user.username }}</p>
+                        {% if current_tenant %}
+                            <p class="text-xs text-gray-500 truncate">{{ current_tenant.name }}</p>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'logout' %}" class="text-xs text-gray-400 hover:text-rose-500"
+                       title="Déconnexion">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </a>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn-primary w-full justify-center text-xs">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter
+                </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    {# ============================================================ Main #}
+    <div class="flex-1 flex flex-col min-w-0">
+
+        <header class="h-14 bg-white border-b border-gray-200 px-6 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <h1 class="text-base font-semibold text-gray-900">{% block topbar_title %}{% endblock %}</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if lyneerp_unread_notifications %}
+                    <a href="{% url 'workflows:notifications' %}"
+                       class="relative px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                       title="Notifications">
+                        <i class="fa-regular fa-bell text-gray-500"></i>
+                        <span class="absolute -top-0.5 -right-0.5 inline-flex w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] items-center justify-center">
+                        {{ lyneerp_unread_notifications }}
+                    </span>
+                    </a>
+                {% endif %}
+                {% if lyneerp_pending_ai_actions %}
+                    <a href="{% url 'ai:action-list' %}"
+                       class="px-3 py-1.5 rounded-lg hover:bg-violet-50 text-violet-700 text-xs font-semibold"
+                       title="Actions IA à valider">
+                        <i class="fa-solid fa-shield-halved"></i> {{ lyneerp_pending_ai_actions }}
+                    </a>
+                {% endif %}
+                <a href="{% url 'ai:panel' %}"
+                   class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-semibold shadow"
+                   title="Ouvrir LyneAI">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>LyneAI</span>
+                </a>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-auto scroll-slim">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<script>
+    function lyneerpApp() {
+        return {
+            collapsed: localStorage.getItem('lyneerp.sidebar.collapsed') === '1',
+            dark: localStorage.getItem('lyneerp.dark') === '1',
+            init() {
+                this.$watch('collapsed', v => localStorage.setItem('lyneerp.sidebar.collapsed', v ? '1' : '0'));
+                this.$watch('dark', v => localStorage.setItem('lyneerp.dark', v ? '1' : '0'));
+            },
+        };
+    }
+</script>
+
+{% block extra_body %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% load static %}
+{% load i18n %}
+
+<div class="space-y-1">
+    {% for item in navigation %}
+    <a href="{% url item.url_name %}"
+       class="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-gray-100 transition">
+
+        <span class="text-gray-500">
+            <i class="fa fa-{{ item.icon }}"></i>
+        </span>
+
+        <span class="text-sm font-medium">
+            {{ item.label }}
+        </span>
+    </a>
+    {% endfor %}
+</div>

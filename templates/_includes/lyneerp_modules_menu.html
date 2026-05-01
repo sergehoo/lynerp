@@ -1,103 +1,227 @@
-{# ===========================================================
-   Menu compact LYNEERP — modules transversaux (RH, Finance,
-   Paie, Stock, IA, Workflows, Notifications).
 
-   À inclure dans hr/base.html (sidebar) ou dans tout autre layout :
-       {% include "_includes/lyneerp_modules_menu.html" %}
-=========================================================== #}
-<nav class="px-3 py-2 space-y-1" aria-label="Modules LYNEERP">
-  <p class="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-    Modules
-  </p>
+<div x-data="{
+        openGroup: localStorage.getItem('lyneerp.sidebar.group') || 'core',
+        toggle(g) {
+            this.openGroup = (this.openGroup === g) ? '' : g;
+            localStorage.setItem('lyneerp.sidebar.group', this.openGroup);
+        }
+     }" class="text-sm">
 
+  {# =============== ACCUEIL =============== #}
   <a href="{% url 'hr-dashboard' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
-    <i class="fa-solid fa-users-gear w-5 text-center text-indigo-500"></i>
-    <span>Ressources humaines</span>
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
+    <i class="fa-solid fa-house w-5 text-center text-indigo-500"></i>
+    <span x-show="!collapsed">Accueil</span>
   </a>
 
-  <a href="/finance/"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
-    <i class="fa-solid fa-chart-line w-5 text-center text-emerald-500"></i>
-    <span>Finance &amp; Comptabilité</span>
-  </a>
+  {# =============== RH =============== #}
+  <button type="button" @click="toggle('hr')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition mt-1">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-users w-5 text-center text-emerald-500"></i>
+      <span x-show="!collapsed">Ressources humaines</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'hr' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'hr' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="{% url 'hr-dashboard' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Tableau de bord</a>
+    <a href="{% url 'hr-employees' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Employés</a>
+    <a href="{% url 'hr-recruitment' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Recrutement</a>
+    <a href="{% url 'hr-leaves' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Congés</a>
+    <a href="{% url 'hr-attendance' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Pointage</a>
+    <a href="{% url 'orphans:hr-performance' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Évaluations</a>
+    <a href="{% url 'orphans:hr-training' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-emerald-50">Formations</a>
+  </div>
 
+  {# =============== PAIE =============== #}
   <a href="{% url 'payroll:dashboard' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition mt-1">
     <i class="fa-solid fa-money-check-dollar w-5 text-center text-emerald-600"></i>
-    <span>Paie</span>
+    <span x-show="!collapsed">Paie</span>
   </a>
 
-  <a href="{% url 'inventory:dashboard' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
-    <i class="fa-solid fa-boxes-stacked w-5 text-center text-amber-500"></i>
-    <span>Logistique &amp; Stock</span>
-  </a>
+  {# =============== FINANCE =============== #}
+  <button type="button" @click="toggle('finance')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition mt-1">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-coins w-5 text-center text-orange-500"></i>
+      <span x-show="!collapsed">Finance &amp; Compta</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'finance' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'finance' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="/finance/" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Tableau de bord</a>
+    <a href="{% url 'finance:invoices:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Factures clients</a>
+    <a href="{% url 'finance:vendor_bills:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Factures fournisseurs</a>
+    <a href="{% url 'finance:quotes:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Devis</a>
+    <a href="{% url 'finance:payments:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Paiements</a>
+    <a href="{% url 'finance:journal_entries:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Écritures</a>
+    <a href="{% url 'finance:accounts:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Plan comptable</a>
+    <a href="{% url 'finance:fiscal_years:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Exercices</a>
+    <a href="{% url 'finance:closings:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Clôtures</a>
+    <a href="{% url 'finance:bank_accounts:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Banques</a>
+    <a href="{% url 'finance:partners:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Partenaires</a>
+    <a href="{% url 'finance:taxes:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-orange-50">Taxes (TVA)</a>
+  </div>
 
-  <a href="{% url 'crm:dashboard' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
-    <i class="fa-solid fa-handshake-angle w-5 text-center text-pink-500"></i>
-    <span>CRM</span>
-  </a>
+  {# =============== CRM =============== #}
+  <button type="button" @click="toggle('crm')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-pink-50 hover:text-pink-700 transition mt-1">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-handshake-angle w-5 text-center text-pink-500"></i>
+      <span x-show="!collapsed">CRM &amp; Ventes</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'crm' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'crm' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="{% url 'crm:dashboard' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-pink-50">Tableau de bord</a>
+    <a href="{% url 'crm:lead-list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-pink-50">Prospects (Leads)</a>
+    <a href="{% url 'crm:opportunity-list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-pink-50">Opportunités</a>
+    <a href="{% url 'orphans:crm-quotes' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-pink-50">Devis</a>
+    <a href="{% url 'orphans:crm-orders' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-pink-50">Commandes</a>
+    <a href="{% url 'orphans:crm-support' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-pink-50">Support client</a>
+  </div>
 
-  <a href="{% url 'projects:dashboard' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
-    <i class="fa-solid fa-diagram-project w-5 text-center text-cyan-500"></i>
-    <span>Projets</span>
-  </a>
+  {# =============== STOCK =============== #}
+  <button type="button" @click="toggle('ops')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition mt-1">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-truck-ramp-box w-5 text-center text-amber-500"></i>
+      <span x-show="!collapsed">Logistique &amp; Stock</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'ops' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'ops' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="{% url 'inventory:dashboard' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Tableau de bord</a>
+    <a href="{% url 'inventory:article-list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Articles</a>
+    <a href="{% url 'inventory:alert-list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Alertes</a>
+    <a href="{% url 'orphans:ops-purchase-orders' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Bons de commande</a>
+    <a href="{% url 'orphans:ops-inventory-counts' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Inventaires</a>
+    <a href="{% url 'orphans:ops-shipments' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Expéditions</a>
+    <a href="{% url 'orphans:ops-tracking' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-amber-50">Tracking</a>
+  </div>
 
-  <a href="{% url 'reporting:dashboard' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
-    <i class="fa-solid fa-chart-pie w-5 text-center text-violet-500"></i>
-    <span>Reporting / KPI</span>
-  </a>
+  {# =============== PROJETS =============== #}
+  <button type="button" @click="toggle('projects')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-cyan-50 hover:text-cyan-700 transition mt-1">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-diagram-project w-5 text-center text-cyan-500"></i>
+      <span x-show="!collapsed">Projets</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'projects' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'projects' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="{% url 'projects:dashboard' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-cyan-50">Tableau de bord</a>
+    <a href="{% url 'projects:list' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-cyan-50">Liste projets</a>
+    <a href="{% url 'orphans:projects-kanban' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-cyan-50">Kanban</a>
+    <a href="{% url 'orphans:projects-gantt' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-cyan-50">Gantt</a>
+    <a href="{% url 'orphans:projects-costs' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-cyan-50">Coûts</a>
+  </div>
+
+  {# =============== BI =============== #}
+  <button type="button" @click="toggle('bi')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition mt-1">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-chart-pie w-5 text-center text-violet-500"></i>
+      <span x-show="!collapsed">Reporting &amp; BI</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'bi' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'bi' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="{% url 'reporting:dashboard' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-violet-50">Dashboards KPI</a>
+    <a href="{% url 'orphans:bi-reports' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-violet-50">Rapports</a>
+    <a href="{% url 'orphans:bi-exports' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-violet-50">Exports</a>
+    <a href="{% url 'orphans:bi-data-quality' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-violet-50">Qualité données</a>
+  </div>
 
   <a href="{% url 'ocr:list' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition mt-1">
     <i class="fa-solid fa-file-invoice w-5 text-center text-orange-500"></i>
-    <span>OCR Factures</span>
+    <span x-show="!collapsed">OCR Factures</span>
   </a>
 
-  <p class="px-3 pt-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+  <p x-show="!collapsed" class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
     Validation &amp; IA
   </p>
 
+  {# =============== IA =============== #}
   <a href="{% url 'ai:panel' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition">
     <i class="fa-solid fa-robot w-5 text-center text-violet-500"></i>
-    <span class="flex-1">LyneAI</span>
+    <span class="flex-1" x-show="!collapsed">LyneAI</span>
     {% if lyneerp_pending_ai_actions %}
-    <span class="badge bg-violet-100 text-violet-700 text-[10px]">
-      {{ lyneerp_pending_ai_actions }}
-    </span>
+    <span x-show="!collapsed" class="badge bg-violet-100 text-violet-700 text-[10px]">{{ lyneerp_pending_ai_actions }}</span>
     {% endif %}
   </a>
 
+  {# =============== APPROBATIONS =============== #}
   <a href="{% url 'workflows:request-list' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition">
     <i class="fa-solid fa-clipboard-check w-5 text-center text-blue-500"></i>
-    <span class="flex-1">Approbations</span>
+    <span class="flex-1" x-show="!collapsed">Approbations</span>
     {% if lyneerp_pending_approvals %}
-    <span class="badge bg-blue-100 text-blue-700 text-[10px]">
-      {{ lyneerp_pending_approvals }}
-    </span>
+    <span x-show="!collapsed" class="badge bg-blue-100 text-blue-700 text-[10px]">{{ lyneerp_pending_approvals }}</span>
     {% endif %}
   </a>
 
+  {# =============== NOTIFICATIONS =============== #}
   <a href="{% url 'workflows:notifications' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition">
     <i class="fa-solid fa-bell w-5 text-center text-rose-500"></i>
-    <span class="flex-1">Notifications</span>
+    <span class="flex-1" x-show="!collapsed">Notifications</span>
     {% if lyneerp_unread_notifications %}
-    <span class="badge bg-rose-100 text-rose-700 text-[10px]">
-      {{ lyneerp_unread_notifications }}
-    </span>
+    <span x-show="!collapsed" class="badge bg-rose-100 text-rose-700 text-[10px]">{{ lyneerp_unread_notifications }}</span>
     {% endif %}
   </a>
 
+  {# =============== AUDIT =============== #}
   <a href="{% url 'workflows:audit' %}"
-     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition">
     <i class="fa-solid fa-shield-halved w-5 text-center text-gray-500"></i>
-    <span>Audit</span>
+    <span x-show="!collapsed">Audit</span>
   </a>
-</nav>
+
+  {# =============== CORE =============== #}
+  <p x-show="!collapsed" class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+    Productivité
+  </p>
+  <a href="{% url 'orphans:tasks' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
+    <i class="fa-solid fa-list-check w-5 text-center text-indigo-500"></i>
+    <span x-show="!collapsed">Tâches</span>
+  </a>
+  <a href="{% url 'orphans:documents' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition">
+    <i class="fa-solid fa-folder-open w-5 text-center text-amber-500"></i>
+    <span x-show="!collapsed">Documents (GED)</span>
+  </a>
+
+  {# =============== ADMIN =============== #}
+  <p x-show="!collapsed" class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+    Administration
+  </p>
+  <button type="button" @click="toggle('admin')"
+          class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-slate-100 transition">
+    <span class="flex items-center gap-3">
+      <i class="fa-solid fa-gear w-5 text-center text-slate-500"></i>
+      <span x-show="!collapsed">Paramétrage</span>
+    </span>
+    <i class="fa-solid fa-chevron-down text-[10px] transition-transform"
+       :class="{ 'rotate-180': openGroup === 'admin' }" x-show="!collapsed"></i>
+  </button>
+  <div x-show="openGroup === 'admin' && !collapsed" x-collapse class="ml-7 my-1 space-y-0.5">
+    <a href="{% url 'orphans:manage-tenants' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">Organisations</a>
+    <a href="{% url 'orphans:manage-users-roles' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">Utilisateurs &amp; rôles</a>
+    <a href="{% url 'orphans:manage-permissions' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">Permissions</a>
+    <a href="{% url 'orphans:manage-license' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">Licences</a>
+    <a href="{% url 'orphans:manage-logs' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">Logs</a>
+    <a href="{% url 'orphans:manage-settings' %}" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">Paramètres</a>
+    <a href="/admin/" class="block px-3 py-1.5 rounded text-xs text-gray-600 hover:bg-slate-100">
+      <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Admin Django
+    </a>
+  </div>
+</div>

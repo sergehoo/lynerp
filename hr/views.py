@@ -15,7 +15,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from hr.models import Employee, EmploymentContract, LeaveRequest, LeaveBalance, Attendance, Payroll, HRDocument, \
     SalaryHistory, PerformanceReview, ContractHistory, MedicalRecord, MedicalVisit, MedicalRestriction
 
-
+class HRDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "hr/dashboard.html"
 class HRTemplateView(LoginRequiredMixin, TemplateView):
     """Vue de base pour les templates HR"""
 
