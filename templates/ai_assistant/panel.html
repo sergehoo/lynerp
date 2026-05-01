@@ -122,6 +122,22 @@
       <article x-show="streaming" class="flex justify-start">
         <div class="max-w-[75%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-soft">
           <p class="text-xs font-semibold mb-1 opacity-70">LyneAI</p>
+
+          {# Indicateur de recherche web automatique #}
+          <template x-if="webStatus === 'searching'">
+            <div class="mb-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-100 text-violet-800 text-xs font-medium">
+              <i class="fa-solid fa-globe animate-pulse" aria-hidden="true"></i>
+              <span>🔎 Recherche internet en cours…</span>
+              <span class="text-[10px] text-violet-500 truncate max-w-[280px]" x-text="webStatusQuery"></span>
+            </div>
+          </template>
+          <template x-if="webStatus === 'done' && webSourcesPreview.length">
+            <div class="mb-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-medium">
+              <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
+              <span x-text="webSourcesPreview.length + ' source(s) web consultée(s)'"></span>
+            </div>
+          </template>
+
           <div class="prose prose-sm max-w-none ai-content" x-html="renderMarkdown(streamBuffer)"></div>
           <p class="text-[10px] opacity-50 mt-1 flex items-center gap-1">
             <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
@@ -131,26 +147,12 @@
       </article>
 
       <p x-show="!messages.length && !streaming" class="text-center text-sm text-gray-400 py-12">
-        Posez votre première question à LyneAI.
+        Posez votre première question à LyneAI.<br>
+        <span class="text-xs text-gray-300">
+          LyneAI consulte automatiquement Internet quand l'information manque.
+        </span>
       </p>
     </section>
-
-    {# Bouton "Rechercher sur le web" #}
-    <div class="px-4 md:px-10 pb-2">
-      <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2"
-           x-show="!streaming">
-        <i class="fa-solid fa-globe text-violet-500 ml-2" aria-hidden="true"></i>
-        <input type="text" x-model="webQuery"
-               @keydown.enter.prevent="runWebResearch()"
-               placeholder="Recherche web : ex. « taux IRPP Côte d'Ivoire 2026 »"
-               class="flex-1 px-2 py-1.5 text-sm focus:outline-none">
-        <button type="button" @click="runWebResearch()" class="btn-primary text-xs"
-                :disabled="!webQuery.trim() || webBusy">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <span x-text="webBusy ? '…' : 'Recherche profonde'"></span>
-        </button>
-      </div>
-    </div>
 
     {# Suggestions rapides #}
     <div class="px-4 md:px-10 pb-2 flex flex-wrap gap-2">

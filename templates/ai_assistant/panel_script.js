@@ -12,11 +12,18 @@ function lyneAIChat() {
         streamBuffer: '',
         online: true,
         modelLabel: '',
+        // ----- recherche web automatique (décidée par le LLM) -----
+        // webStatus : '' | 'searching' | 'done'
+        webStatus: '',
+        webStatusQuery: '',
+        webSourcesPreview: [],
         quickActions: [
             { label: 'Résumer cette conversation', text: 'Fais-moi un résumé de notre conversation jusqu’ici.' },
             { label: 'Analyser les recrutements', text: 'Analyse les recrutements ouverts et propose des priorités.' },
             { label: 'Détection d’anomalies finance', text: 'Détecte les anomalies dans les écritures du dernier mois.' },
             { label: 'Aide à la rédaction', text: 'Aide-moi à rédiger un courrier professionnel court.' },
+            { label: 'Taux fiscaux pays X', text: 'Donne-moi les taux IRPP / TVA en vigueur en Côte d’Ivoire en 2026.' },
+            { label: 'Jurisprudence OHADA', text: 'Cite la jurisprudence CCJA récente sur la responsabilité du gérant de SARL.' },
         ],
 
         async init() {
@@ -88,7 +95,15 @@ function lyneAIChat() {
                 const conv = await this.api('GET', `/api/ai/conversations/${id}/`);
                 this.currentTitle = conv.title || '';
                 this.currentModule = conv.module;
-                this.messages = (conv.messages || []).filter(m => m.role !== 'system');
+                this.messages = (conv.messages || [])
+                    .filter(m => m.role !== 'system')
+                    .map(m => {
+                        // Réhydrate les sources web stockées en metadata
+                        // pour l'affichage du bloc « Sources web ».
+                        const meta = m.metadata || {};
+                        const srcs = Array.isArray(meta.web_sources) ? meta.web_sources : [];
+                        return Object.assign({}, m, { sources: srcs });
+                    });
                 this.scrollBottom();
             } catch (e) {
                 console.error(e);
@@ -116,6 +131,9 @@ function lyneAIChat() {
 
             this.streaming = true;
             this.streamBuffer = '';
+            this.webStatus = '';
+            this.webStatusQuery = '';
+            this.webSourcesPreview = [];
 
             try {
                 await this.streamResponse(content);
@@ -130,6 +148,9 @@ function lyneAIChat() {
             } finally {
                 this.streaming = false;
                 this.streamBuffer = '';
+                this.webStatus = '';
+                this.webStatusQuery = '';
+                this.webSourcesPreview = [];
                 await this.loadPendingActions();
                 this.scrollBottom();
             }
@@ -168,12 +189,25 @@ function lyneAIChat() {
                         if (evt.type === 'chunk') {
                             this.streamBuffer += evt.delta;
                             this.scrollBottom();
+                        } else if (evt.type === 'web_searching') {
+                            // Le router LLM a décidé qu'une recherche web était nécessaire.
+                            this.webStatus = 'searching';
+                            this.webStatusQuery = evt.query || '';
+                            this.scrollBottom();
+                        } else if (evt.type === 'web_done') {
+                            // Recherche terminée : on conserve les sources pour les attacher
+                            // au message final, et on bascule l'indicateur en mode "done".
+                            this.webStatus = 'done';
+                            this.webSourcesPreview = evt.sources || [];
+                            this.scrollBottom();
                         } else if (evt.type === 'done') {
                             this.modelLabel = evt.model || '';
                             this.messages.push({
                                 id: evt.message_id,
                                 role: 'assistant',
                                 content: evt.content,
+                                // Sources web automatiques (si recherche déclenchée par le LLM).
+                                sources: evt.sources || this.webSourcesPreview || [],
                                 created_at: new Date().toISOString(),
                             });
                             this.streamBuffer = '';
