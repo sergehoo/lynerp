@@ -110,6 +110,21 @@ urlpatterns = [
     # rester compatibles avec les ~50 templates existants qui font
     # `{% url 'hr-dashboard' %}`, `{% url 'employee_detail' pk=... %}`, etc.
     path("hr/", include("hr.urls")),
+    # Module IA — UI web et API
+    path("ai/", include(("ai_assistant.urls", "ai"), namespace="ai")),
+    path("api/ai/", include(("ai_assistant.api.urls", "ai_api"), namespace="ai_api")),
+
+    # Module Paie
+    path("payroll/", include(("payroll.urls", "payroll"), namespace="payroll")),
+    path("api/payroll/", include(("payroll.api.urls", "payroll_api"), namespace="payroll_api")),
+
+    # Module Stock / Logistique
+    path("inventory/", include(("inventory.urls", "inventory"), namespace="inventory")),
+    path("api/inventory/", include(("inventory.api.urls", "inventory_api"), namespace="inventory_api")),
+
+    # Workflows / notifications / audit
+    path("workflows/", include(("workflows.urls", "workflows"), namespace="workflows")),
+    path("api/workflows/", include(("workflows.api.urls", "workflows_api"), namespace="workflows_api")),
     # Racine
     path("", root_dispatch, name="root"),
 ]

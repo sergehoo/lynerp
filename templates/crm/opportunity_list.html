@@ -1,0 +1,47 @@
+{% extends "hr/base.html" %}
+{% block title %}Opportunités · CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Opportunités</h1>
+    <a href="{% url 'crm:dashboard' %}" class="btn-secondary">← Dashboard</a>
+  </header>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Opportunité</th>
+          <th class="text-left px-4 py-3">Compte</th>
+          <th class="text-left px-4 py-3">Étape</th>
+          <th class="text-right px-4 py-3">Montant</th>
+          <th class="text-right px-4 py-3">Pondéré</th>
+          <th class="text-left px-4 py-3">Clôture prévue</th>
+          <th class="text-left px-4 py-3">Statut</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for o in opportunities %}
+        <tr>
+          <td class="px-4 py-2 font-medium">{{ o.name }}</td>
+          <td class="px-4 py-2">{{ o.account.name }}</td>
+          <td class="px-4 py-2 text-xs">{{ o.stage.name }} ({{ o.stage.probability|floatformat:0 }}%)</td>
+          <td class="px-4 py-2 text-right">{{ o.amount|floatformat:0 }} {{ o.currency }}</td>
+          <td class="px-4 py-2 text-right text-emerald-600">{{ o.weighted_amount|floatformat:0 }}</td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ o.expected_close_date|date:"d/m/Y"|default:"—" }}</td>
+          <td class="px-4 py-2">
+            {% if o.status == "WON" %}<span class="badge bg-emerald-100 text-emerald-700">Gagnée</span>
+            {% elif o.status == "LOST" %}<span class="badge bg-rose-100 text-rose-700">Perdue</span>
+            {% elif o.status == "ABANDONED" %}<span class="badge bg-gray-100 text-gray-700">Abandonnée</span>
+            {% else %}<span class="badge bg-blue-100 text-blue-700">Ouverte</span>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-8 text-gray-400">Aucune opportunité.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

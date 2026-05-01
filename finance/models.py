@@ -40,7 +40,7 @@ class AuditEvent(UUIDPkModel, TenantOwnedModel):
     Piste d'audit fiable : hash chain (type blockchain léger) pour détecter toute altération.
     """
     actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_events"
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="finances_audit_events"
     )
 
     action = models.CharField(max_length=12, choices=AuditAction.choices, db_index=True)

@@ -1,0 +1,53 @@
+{% extends "hr/base.html" %}
+{% block title %}Articles · Stock{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">Articles</h1>
+    <a href="{% url 'inventory:dashboard' %}" class="btn-secondary">← Dashboard</a>
+  </header>
+
+  <form method="get" class="mb-4">
+    <input type="text" name="q" value="{{ request.GET.q }}" placeholder="SKU ou nom..."
+           class="input max-w-md">
+  </form>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">SKU</th>
+          <th class="text-left px-4 py-3">Nom</th>
+          <th class="text-left px-4 py-3">Catégorie</th>
+          <th class="text-right px-4 py-3">Prix achat</th>
+          <th class="text-right px-4 py-3">Prix vente</th>
+          <th class="text-right px-4 py-3">Min/Max</th>
+          <th class="text-left px-4 py-3">Statut</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for art in articles %}
+        <tr>
+          <td class="px-4 py-2 font-mono text-xs">{{ art.sku }}</td>
+          <td class="px-4 py-2">{{ art.name }}</td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ art.category.name|default:"—" }}</td>
+          <td class="px-4 py-2 text-right">{{ art.purchase_price|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right">{{ art.sale_price|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right text-xs">{{ art.min_stock|floatformat:0 }} / {{ art.max_stock|floatformat:0 }}</td>
+          <td class="px-4 py-2">
+            {% if art.is_active %}
+              <span class="badge bg-emerald-100 text-emerald-700">Actif</span>
+            {% else %}
+              <span class="badge bg-gray-100 text-gray-700">Inactif</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-8 text-gray-400">Aucun article.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

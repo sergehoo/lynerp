@@ -1,0 +1,136 @@
+{% extends "hr/base.html" %}
+{% block title %}Bulletin · {{ slip.slip_number }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-6"
+     x-data="payslipDetail({ id: '{{ slip.id }}', status: '{{ slip.status }}' })">
+
+  <header class="mb-6 flex items-center justify-between">
+    <a href="{% url 'payroll:payslip-list' %}" class="text-sm text-gray-500">← Liste</a>
+    <span class="badge bg-gray-100 text-gray-700">{{ slip.get_status_display }}</span>
+  </header>
+
+  <div class="card mb-6">
+    <h1 class="text-xl font-bold">Bulletin n° {{ slip.slip_number|default:"—" }}</h1>
+    <p class="text-gray-500 text-sm">
+      {{ slip.employee }} — Période {{ slip.period.label }}
+      ({{ slip.period.date_start|date:"d/m/Y" }} → {{ slip.period.date_end|date:"d/m/Y" }})
+    </p>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-center">
+      <div><p class="text-xs text-gray-500">Brut</p><p class="text-lg font-semibold">{{ slip.gross_amount|floatformat:2 }} {{ slip.currency }}</p></div>
+      <div><p class="text-xs text-gray-500">Retenues</p><p class="text-lg font-semibold text-rose-600">-{{ slip.employee_deductions|floatformat:2 }}</p></div>
+      <div><p class="text-xs text-gray-500">Charges patronales</p><p class="text-lg font-semibold text-amber-600">{{ slip.employer_charges|floatformat:2 }}</p></div>
+      <div><p class="text-xs text-gray-500">Net à payer</p><p class="text-2xl font-bold text-emerald-600">{{ slip.net_amount|floatformat:2 }}</p></div>
+    </div>
+  </div>
+
+  <div class="card mb-6">
+    <h2 class="text-base font-semibold mb-3">Lignes du bulletin</h2>
+    <table class="w-full text-sm">
+      <thead class="text-xs uppercase text-gray-500 border-b">
+        <tr>
+          <th class="text-left py-2">Rubrique</th>
+          <th class="text-left py-2">Type</th>
+          <th class="text-right py-2">Base</th>
+          <th class="text-right py-2">Taux</th>
+          <th class="text-right py-2">Montant</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for line in slip.lines.all %}
+        <tr>
+          <td class="py-1.5">{{ line.label }}</td>
+          <td class="py-1.5 text-xs text-gray-500">{{ line.get_kind_display }}</td>
+          <td class="py-1.5 text-right text-xs">{{ line.base_amount|floatformat:2 }}</td>
+          <td class="py-1.5 text-right text-xs">{% if line.rate %}{{ line.rate|floatformat:4 }}{% else %}—{% endif %}</td>
+          <td class="py-1.5 text-right font-medium
+              {% if line.kind == 'DEDUCTION' or line.kind == 'EMPLOYER' %}text-rose-600{% endif %}">
+            {{ line.amount|floatformat:2 }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center py-6 text-gray-400">Bulletin non calculé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card flex flex-wrap items-center justify-end gap-3">
+    <button type="button" @click="explainAI()" class="btn-secondary">
+      <i class="fa-solid fa-robot text-violet-500"></i> Expliquer avec LyneAI
+    </button>
+    <button type="button" @click="compute()" class="btn-secondary"
+            x-show="['DRAFT','COMPUTED'].includes(status)">
+      <i class="fa-solid fa-calculator"></i> Recalculer
+    </button>
+    <button type="button" @click="approve()" class="btn-primary"
+            x-show="status === 'COMPUTED'">
+      <i class="fa-solid fa-check"></i> Approuver
+    </button>
+    <button type="button" @click="markPaid()" class="btn-primary"
+            x-show="status === 'APPROVED'">
+      <i class="fa-solid fa-money-bill"></i> Marquer payé
+    </button>
+  </div>
+
+  <div x-show="explanation" class="mt-6 card">
+    <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-robot text-violet-500"></i> Explication LyneAI</h3>
+    <div class="prose prose-sm max-w-none ai-content" x-html="explanation"></div>
+  </div>
+</div>
+
+<script>
+function payslipDetail({ id, status }) {
+    return {
+        id, status, explanation: '',
+        csrf() {
+            const m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+            return m ? decodeURIComponent(m[1]) : '';
+        },
+        async post(url, body) {
+            const res = await fetch(url, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf() },
+                body: JSON.stringify(body || {}),
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                throw new Error(t || 'Erreur');
+            }
+            return res.json();
+        },
+        async compute() {
+            try {
+                const out = await this.post(`/api/payroll/payslips/${this.id}/compute/`);
+                this.status = out.status;
+                location.reload();
+            } catch (e) { alert(e.message); }
+        },
+        async approve() {
+            if (!confirm('Approuver ce bulletin ?')) return;
+            try {
+                const out = await this.post(`/api/payroll/payslips/${this.id}/approve/`);
+                this.status = out.status;
+                location.reload();
+            } catch (e) { alert(e.message); }
+        },
+        async markPaid() {
+            if (!confirm('Marquer ce bulletin comme PAYÉ ?')) return;
+            try {
+                const out = await this.post(`/api/payroll/payslips/${this.id}/mark-paid/`);
+                this.status = out.status;
+                location.reload();
+            } catch (e) { alert(e.message); }
+        },
+        async explainAI() {
+            try {
+                const out = await this.post(`/api/payroll/ai/explain-payslip/`, { payslip_id: this.id });
+                const md = out.result && out.result.explanation_markdown || '';
+                this.explanation = md.replace(/\n/g, '<br>');
+            } catch (e) { alert(e.message); }
+        },
+    };
+}
+</script>
+{% endblock %}

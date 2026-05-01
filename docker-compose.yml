@@ -12,6 +12,7 @@ volumes:
   rh_media:
   static_volume:
   keycloak_data:
+  ollama_data:    # cache modèles Ollama
 
 services:
   # === Base de données Postgres ===
@@ -28,6 +29,43 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    networks: [web]
+    restart: unless-stopped
+
+  # === Ollama (LLM local pour le module IA) ===
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      # Modèles à pré-télécharger automatiquement (séparés par espace).
+      OLLAMA_MODELS_PRELOAD: "${OLLAMA_MODEL:-qwen2.5:7b}"
+      OLLAMA_KEEP_ALIVE: "5m"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull du modèle au démarrage (idempotent), puis serve.
+    entrypoint: >
+      /bin/sh -c '
+      ollama serve & SERVE_PID=$$!;
+      sleep 3;
+      for m in $$OLLAMA_MODELS_PRELOAD; do
+        echo "[ollama] Pull $$m...";
+        ollama pull $$m || true;
+      done;
+      wait $$SERVE_PID
+      '
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Décommenter pour activer le GPU NVIDIA :
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     networks: [web]
     restart: unless-stopped
 
@@ -178,6 +216,8 @@ services:
       redis:
         condition: service_healthy
       keycloak:
+        condition: service_started
+      ollama:
         condition: service_started
     healthcheck:
 #      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/healthz || exit 1"]

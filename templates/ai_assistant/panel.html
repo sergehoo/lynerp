@@ -1,0 +1,168 @@
+{% extends "hr/base.html" %}
+{% load static %}
+
+{% block title %}LyneAI · Assistant intelligent{% endblock %}
+
+{% block content %}
+<div class="h-screen flex" x-data="lyneAIChat()" x-init="init()" x-cloak>
+
+  {# ============================================================== Sidebar conversations #}
+  <aside class="w-72 shrink-0 border-r border-gray-200 bg-white flex flex-col"
+         aria-label="Liste des conversations">
+    <header class="p-4 border-b border-gray-200">
+      <button type="button" @click="newConversation()"
+              class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold py-2.5 px-4 transition focus:outline-none focus:ring-2 focus:ring-primary-500/40">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        Nouvelle conversation
+      </button>
+      <label class="block mt-3 text-xs font-medium text-gray-500" for="module-select">Module</label>
+      <select id="module-select" x-model="currentModule"
+              class="mt-1 block w-full text-sm rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500">
+        <option value="general">Général</option>
+        <option value="hr">RH</option>
+        <option value="finance">Finance</option>
+        <option value="payroll">Paie</option>
+        <option value="logistics">Logistique</option>
+        <option value="admin">Administration</option>
+      </select>
+    </header>
+
+    <nav class="flex-1 overflow-y-auto scroll-slim p-2" aria-label="Conversations passées">
+      <template x-for="conv in conversations" :key="conv.id">
+        <button type="button" @click="selectConversation(conv.id)"
+                class="w-full text-left px-3 py-2 my-1 rounded-lg transition flex items-start gap-2"
+                :class="conv.id === currentId ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-50'">
+          <i class="fa-regular fa-comment mt-0.5 text-xs" aria-hidden="true"></i>
+          <span class="flex-1 min-w-0">
+            <span class="block text-sm font-medium truncate" x-text="conv.title || 'Nouvelle discussion'"></span>
+            <span class="block text-xs text-gray-500" x-text="conv.module + ' · ' + formatDate(conv.updated_at)"></span>
+          </span>
+        </button>
+      </template>
+
+      <p x-show="!conversations.length" class="text-sm text-gray-400 text-center py-8">
+        Aucune conversation pour l'instant.
+      </p>
+    </nav>
+
+    {# Pending actions banner #}
+    <div x-show="pendingActions.length" class="border-t border-amber-200 bg-amber-50 p-3">
+      <p class="text-xs text-amber-800 font-semibold uppercase tracking-wide">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        Actions en attente
+      </p>
+      <p class="text-sm text-amber-900 mt-1">
+        <span x-text="pendingActions.length"></span> action(s) à valider.
+        <a href="{% url 'ai:action-list' %}" class="underline font-medium">Voir →</a>
+      </p>
+    </div>
+  </aside>
+
+  {# ============================================================== Conversation principale #}
+  <main class="flex-1 flex flex-col bg-gray-50" role="main">
+
+    <header class="px-6 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
+      <div>
+        <h1 class="text-base font-semibold text-gray-900">
+          <i class="fa-solid fa-robot text-primary-500" aria-hidden="true"></i>
+          LyneAI
+          <span class="ml-2 text-xs text-gray-500" x-text="modelLabel"></span>
+        </h1>
+        <p class="text-xs text-gray-500" x-show="currentTitle" x-text="currentTitle"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="badge bg-emerald-50 text-emerald-700" x-show="online">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span> en ligne
+        </span>
+        <span class="badge bg-rose-50 text-rose-700" x-show="!online">
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span> hors ligne
+        </span>
+      </div>
+    </header>
+
+    {# Zone des messages #}
+    <section class="flex-1 overflow-y-auto scroll-slim px-4 md:px-10 py-6 space-y-4"
+             id="messageScroll" aria-live="polite">
+      <template x-for="msg in messages" :key="msg.id || msg._tmpId">
+        <article class="flex gap-3"
+                 :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+          <div class="max-w-[75%] rounded-2xl px-4 py-3 shadow-soft"
+               :class="msg.role === 'user'
+                  ? 'bg-primary-500 text-white rounded-br-sm'
+                  : 'bg-white text-gray-800 rounded-bl-sm border border-gray-200'">
+            <p class="text-xs font-semibold mb-1 opacity-70"
+               x-text="msg.role === 'user' ? '{{ request.user.first_name|default:request.user.username }}' : 'LyneAI'"></p>
+            <div class="prose prose-sm max-w-none ai-content" x-html="renderMarkdown(msg.content)"></div>
+            <p class="text-[10px] opacity-50 mt-1" x-text="formatDate(msg.created_at)"></p>
+          </div>
+        </article>
+      </template>
+
+      <article x-show="streaming" class="flex justify-start">
+        <div class="max-w-[75%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-soft">
+          <p class="text-xs font-semibold mb-1 opacity-70">LyneAI</p>
+          <div class="prose prose-sm max-w-none ai-content" x-html="renderMarkdown(streamBuffer)"></div>
+          <p class="text-[10px] opacity-50 mt-1 flex items-center gap-1">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+            génération en cours…
+          </p>
+        </div>
+      </article>
+
+      <p x-show="!messages.length && !streaming" class="text-center text-sm text-gray-400 py-12">
+        Posez votre première question à LyneAI.
+      </p>
+    </section>
+
+    {# Suggestions rapides #}
+    <div class="px-4 md:px-10 pb-2 flex flex-wrap gap-2">
+      <template x-for="suggestion in quickActions" :key="suggestion.label">
+        <button type="button" @click="input = suggestion.text; $refs.input.focus()"
+                class="px-3 py-1.5 rounded-full text-xs bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 transition">
+          <i class="fa-solid fa-bolt text-amber-500 mr-1" aria-hidden="true"></i>
+          <span x-text="suggestion.label"></span>
+        </button>
+      </template>
+    </div>
+
+    {# Composer #}
+    <form class="px-4 md:px-10 pb-6 pt-2" @submit.prevent="send()" aria-label="Envoyer un message">
+      <div class="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-soft p-2">
+        <textarea x-model="input" x-ref="input" rows="1"
+                  @keydown.enter.prevent="if (!$event.shiftKey) send()"
+                  @input="autoResize($event.target)"
+                  placeholder="Écrivez à LyneAI… (Maj+Entrée pour saut de ligne)"
+                  class="flex-1 px-3 py-2 text-sm focus:outline-none resize-none max-h-40"
+                  aria-label="Votre message"
+                  :disabled="streaming"></textarea>
+        <button type="submit"
+                class="rounded-xl bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="!input.trim() || streaming">
+          <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-2 text-center">
+        LyneAI peut faire des erreurs. Vérifiez les informations critiques.
+        Les actions sensibles passent par une validation humaine.
+      </p>
+    </form>
+  </main>
+</div>
+
+<script>
+{% include "ai_assistant/panel_script.js" %}
+</script>
+
+<style>
+  .ai-content h1, .ai-content h2, .ai-content h3 { font-weight: 700; margin: .8em 0 .4em; }
+  .ai-content h1 { font-size: 1.2rem; }
+  .ai-content h2 { font-size: 1.1rem; }
+  .ai-content h3 { font-size: 1rem; }
+  .ai-content p { margin: .4em 0; }
+  .ai-content ul, .ai-content ol { padding-left: 1.5rem; margin: .4em 0; }
+  .ai-content code { background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 4px; }
+  .ai-content pre { background: rgba(0,0,0,.04); padding: .6rem; border-radius: 8px; overflow-x: auto; }
+  .ai-content table { border-collapse: collapse; width: 100%; }
+  .ai-content th, .ai-content td { border: 1px solid rgba(0,0,0,.1); padding: .3rem .5rem; text-align: left; }
+</style>
+{% endblock %}

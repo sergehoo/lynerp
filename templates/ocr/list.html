@@ -1,0 +1,46 @@
+{% extends "hr/base.html" %}
+{% block title %}OCR Factures · LyneERP{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-6">
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold">
+      <i class="fa-solid fa-file-invoice text-orange-500"></i> OCR Factures
+    </h1>
+    <p class="text-sm text-gray-500 mt-1">
+      Importez vos factures fournisseurs pour les faire analyser par LyneAI.
+    </p>
+  </header>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Document</th>
+          <th class="text-left px-4 py-3">Type</th>
+          <th class="text-left px-4 py-3">Statut</th>
+          <th class="text-left px-4 py-3">Importé par</th>
+          <th class="text-left px-4 py-3">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for d in documents %}
+        <tr>
+          <td class="px-4 py-2">
+            <a href="{% url 'ocr:detail' d.id %}" class="text-primary-600 hover:underline">
+              {{ d.file.name|truncatechars:50 }}
+            </a>
+          </td>
+          <td class="px-4 py-2 text-xs">{{ d.get_kind_display }}</td>
+          <td class="px-4 py-2"><span class="badge bg-gray-100 text-gray-700">{{ d.get_status_display }}</span></td>
+          <td class="px-4 py-2 text-xs">{{ d.uploaded_by|default:"—" }}</td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ d.created_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center py-8 text-gray-400">Aucun document.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

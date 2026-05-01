@@ -1,0 +1,44 @@
+{% extends "hr/base.html" %}
+{% block title %}Leads · CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Leads</h1>
+    <a href="{% url 'crm:dashboard' %}" class="btn-secondary">← Dashboard</a>
+  </header>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Nom</th>
+          <th class="text-left px-4 py-3">Société</th>
+          <th class="text-left px-4 py-3">Statut</th>
+          <th class="text-right px-4 py-3">Score IA</th>
+          <th class="text-left px-4 py-3">Source</th>
+          <th class="text-left px-4 py-3">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for l in leads %}
+        <tr>
+          <td class="px-4 py-2">{{ l.first_name }} {{ l.last_name }}</td>
+          <td class="px-4 py-2">{{ l.company|default:"—" }}</td>
+          <td class="px-4 py-2"><span class="badge bg-gray-100 text-gray-700">{{ l.get_status_display }}</span></td>
+          <td class="px-4 py-2 text-right">
+            {% if l.ai_score %}
+              <span class="badge bg-violet-100 text-violet-700">{{ l.ai_score }}/100</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ l.source|default:"—" }}</td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ l.created_at|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-8 text-gray-400">Aucun lead.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

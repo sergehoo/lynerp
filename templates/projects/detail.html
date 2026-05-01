@@ -1,0 +1,75 @@
+{% extends "hr/base.html" %}
+{% block title %}{{ project.code }} · {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-6">
+  <a href="{% url 'projects:list' %}" class="text-sm text-gray-500">← Liste</a>
+
+  <div class="card mt-4 mb-6">
+    <h1 class="text-xl font-bold">[{{ project.code }}] {{ project.name }}</h1>
+    <p class="text-xs text-gray-500 mt-1">
+      Statut : <strong>{{ project.get_status_display }}</strong>
+      · {{ project.start_date|date:"d/m/Y"|default:"—" }} → {{ project.end_date|date:"d/m/Y"|default:"—" }}
+      · Chef de projet : {{ project.project_manager|default:"—" }}
+    </p>
+    {% if project.description %}
+    <p class="text-sm mt-4">{{ project.description }}</p>
+    {% endif %}
+
+    <div class="mt-4">
+      <div class="w-full bg-gray-200 rounded-full h-2">
+        <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ project.progress_percent }}%"></div>
+      </div>
+      <p class="text-xs text-gray-500 mt-1">Avancement : {{ project.progress_percent|floatformat:0 }}%</p>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="card">
+      <h2 class="text-base font-semibold mb-3">Phases</h2>
+      <ul class="space-y-1">
+        {% for ph in project.phases.all %}
+        <li class="text-sm">{{ ph.order }}. {{ ph.name }} <span class="text-xs text-gray-500">({{ ph.progress_percent|floatformat:0 }}%)</span></li>
+        {% empty %}
+        <li class="text-sm text-gray-400">Aucune phase.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 class="text-base font-semibold mb-3">Jalons</h2>
+      <ul class="space-y-1">
+        {% for m in project.milestones.all %}
+        <li class="text-sm flex items-center justify-between">
+          <span>{{ m.name }}</span>
+          <span class="text-xs text-gray-500">{{ m.target_date|date:"d/m/Y" }}</span>
+        </li>
+        {% empty %}
+        <li class="text-sm text-gray-400">Aucun jalon.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="card mt-6">
+    <h2 class="text-base font-semibold mb-3">Tâches</h2>
+    <table class="w-full text-sm">
+      <thead class="text-xs uppercase text-gray-500 border-b">
+        <tr><th class="text-left py-2">Titre</th><th class="text-left">Statut</th><th class="text-left">Priorité</th><th class="text-left">Échéance</th></tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for t in project.tasks.all|slice:":50" %}
+        <tr>
+          <td class="py-1.5">{{ t.title }}</td>
+          <td class="text-xs">{{ t.get_status_display }}</td>
+          <td class="text-xs">{{ t.get_priority_display }}</td>
+          <td class="text-xs text-gray-500">{{ t.due_date|date:"d/m/Y"|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center py-4 text-gray-400">Aucune tâche.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

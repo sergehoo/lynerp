@@ -92,6 +92,14 @@ LOCAL_APPS = [
     "tenants",
     "hr",
     "finance",
+    "ai_assistant",
+    "payroll",
+    "inventory",
+    "workflows",
+    "crm",
+    "projects",
+    "reporting",
+    "ocr",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -334,6 +342,16 @@ TENANT_SUBDOMAIN_REGEX = os.getenv(
 )
 DEFAULT_TENANT = os.getenv("DEFAULT_TENANT") or None
 LICENSE_ENFORCEMENT = env_bool("LICENSE_ENFORCEMENT", False)
+
+# --------------------------------------------------------------------------- #
+# Module IA (Ollama)
+# --------------------------------------------------------------------------- #
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434").rstrip("/")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_TIMEOUT = env_int("OLLAMA_TIMEOUT", 120)
+OLLAMA_DEFAULT_TEMPERATURE = float(os.getenv("OLLAMA_DEFAULT_TEMPERATURE", "0.2"))
+OLLAMA_DEFAULT_TOP_P = float(os.getenv("OLLAMA_DEFAULT_TOP_P", "0.9"))
+OLLAMA_DEFAULT_MAX_TOKENS = env_int("OLLAMA_DEFAULT_MAX_TOKENS", 2048)
 
 # --------------------------------------------------------------------------- #
 # Keycloak / OIDC

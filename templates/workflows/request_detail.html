@@ -1,0 +1,79 @@
+{% extends "hr/base.html" %}
+{% block title %}{{ request_obj.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-6">
+  <a href="{% url 'workflows:request-list' %}" class="text-sm text-gray-500">← Liste</a>
+
+  <div class="card mt-4 mb-6">
+    <h1 class="text-xl font-bold">{{ request_obj.title }}</h1>
+    <p class="text-xs text-gray-500 mt-1">
+      Workflow : <code>{{ request_obj.workflow.code }}</code> · Demandée par
+      {{ request_obj.requested_by }} le {{ request_obj.created_at|date:"d/m/Y H:i" }}
+    </p>
+    {% if request_obj.summary %}
+    <div class="prose prose-sm max-w-none mt-4">{{ request_obj.summary|linebreaks }}</div>
+    {% endif %}
+    <p class="text-sm mt-4">
+      Statut :
+      {% if request_obj.status == "APPROVED" %}<span class="badge bg-emerald-100 text-emerald-700">Approuvée</span>
+      {% elif request_obj.status == "REJECTED" %}<span class="badge bg-rose-100 text-rose-700">Rejetée</span>
+      {% elif request_obj.status == "IN_PROGRESS" %}<span class="badge bg-amber-100 text-amber-700">En cours</span>
+      {% else %}<span class="badge bg-blue-100 text-blue-700">En attente</span>{% endif %}
+      {% if request_obj.current_step %}
+      · Étape courante : <strong>{{ request_obj.current_step.name }}</strong>
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="card mb-6">
+    <h2 class="text-base font-semibold mb-3">Étapes du workflow</h2>
+    <ol class="space-y-2 text-sm">
+      {% for step in request_obj.workflow.steps.all %}
+      <li class="flex items-center gap-3 p-3 rounded-lg
+          {% if request_obj.current_step_id == step.id %}bg-amber-50 border border-amber-200{% else %}bg-gray-50{% endif %}">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center text-white font-semibold text-xs
+            {% if request_obj.current_step_id == step.id %}bg-amber-500{% else %}bg-gray-400{% endif %}">{{ step.order }}</span>
+        <span class="flex-1">
+          <strong>{{ step.name }}</strong>
+          <span class="text-xs text-gray-500 ml-2">{{ step.role_required|default:"—" }}</span>
+        </span>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  <div class="card mb-6">
+    <h2 class="text-base font-semibold mb-3">Décisions</h2>
+    {% for d in request_obj.decisions.all %}
+    <div class="border-l-4 pl-4 py-2 mb-3
+        {% if d.decision == 'APPROVE' %}border-emerald-400{% else %}border-rose-400{% endif %}">
+      <p class="text-sm">
+        <strong>{{ d.decided_by }}</strong>
+        {% if d.decision == 'APPROVE' %}a <span class="text-emerald-600">approuvé</span>{% else %}a <span class="text-rose-600">rejeté</span>{% endif %}
+        l'étape <em>{{ d.step.name }}</em> le {{ d.decided_at|date:"d/m/Y H:i" }}.
+      </p>
+      {% if d.comment %}<p class="text-xs text-gray-500 mt-1 italic">« {{ d.comment }} »</p>{% endif %}
+    </div>
+    {% empty %}
+    <p class="text-sm text-gray-400">Aucune décision encore.</p>
+    {% endfor %}
+  </div>
+
+  {% if request_obj.status == "IN_PROGRESS" %}
+  <form method="post" action="{% url 'workflows:request-decide' request_obj.id %}" class="card">
+    {% csrf_token %}
+    <h2 class="text-base font-semibold mb-3">Votre décision</h2>
+    <textarea name="comment" rows="3" class="input mb-3" placeholder="Commentaire (optionnel)"></textarea>
+    <div class="flex gap-2 justify-end">
+      <button type="submit" name="action" value="reject" class="btn-danger">
+        <i class="fa-solid fa-xmark"></i> Rejeter
+      </button>
+      <button type="submit" name="action" value="approve" class="btn-primary">
+        <i class="fa-solid fa-check"></i> Approuver
+      </button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

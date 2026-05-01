@@ -1,0 +1,103 @@
+{# ===========================================================
+   Menu compact LYNEERP — modules transversaux (RH, Finance,
+   Paie, Stock, IA, Workflows, Notifications).
+
+   À inclure dans hr/base.html (sidebar) ou dans tout autre layout :
+       {% include "_includes/lyneerp_modules_menu.html" %}
+=========================================================== #}
+<nav class="px-3 py-2 space-y-1" aria-label="Modules LYNEERP">
+  <p class="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+    Modules
+  </p>
+
+  <a href="{% url 'hr-dashboard' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-users-gear w-5 text-center text-indigo-500"></i>
+    <span>Ressources humaines</span>
+  </a>
+
+  <a href="/finance/"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-chart-line w-5 text-center text-emerald-500"></i>
+    <span>Finance &amp; Comptabilité</span>
+  </a>
+
+  <a href="{% url 'payroll:dashboard' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-money-check-dollar w-5 text-center text-emerald-600"></i>
+    <span>Paie</span>
+  </a>
+
+  <a href="{% url 'inventory:dashboard' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-boxes-stacked w-5 text-center text-amber-500"></i>
+    <span>Logistique &amp; Stock</span>
+  </a>
+
+  <a href="{% url 'crm:dashboard' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-handshake-angle w-5 text-center text-pink-500"></i>
+    <span>CRM</span>
+  </a>
+
+  <a href="{% url 'projects:dashboard' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-diagram-project w-5 text-center text-cyan-500"></i>
+    <span>Projets</span>
+  </a>
+
+  <a href="{% url 'reporting:dashboard' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-chart-pie w-5 text-center text-violet-500"></i>
+    <span>Reporting / KPI</span>
+  </a>
+
+  <a href="{% url 'ocr:list' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-file-invoice w-5 text-center text-orange-500"></i>
+    <span>OCR Factures</span>
+  </a>
+
+  <p class="px-3 pt-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+    Validation &amp; IA
+  </p>
+
+  <a href="{% url 'ai:panel' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-robot w-5 text-center text-violet-500"></i>
+    <span class="flex-1">LyneAI</span>
+    {% if lyneerp_pending_ai_actions %}
+    <span class="badge bg-violet-100 text-violet-700 text-[10px]">
+      {{ lyneerp_pending_ai_actions }}
+    </span>
+    {% endif %}
+  </a>
+
+  <a href="{% url 'workflows:request-list' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-clipboard-check w-5 text-center text-blue-500"></i>
+    <span class="flex-1">Approbations</span>
+    {% if lyneerp_pending_approvals %}
+    <span class="badge bg-blue-100 text-blue-700 text-[10px]">
+      {{ lyneerp_pending_approvals }}
+    </span>
+    {% endif %}
+  </a>
+
+  <a href="{% url 'workflows:notifications' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-bell w-5 text-center text-rose-500"></i>
+    <span class="flex-1">Notifications</span>
+    {% if lyneerp_unread_notifications %}
+    <span class="badge bg-rose-100 text-rose-700 text-[10px]">
+      {{ lyneerp_unread_notifications }}
+    </span>
+    {% endif %}
+  </a>
+
+  <a href="{% url 'workflows:audit' %}"
+     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+    <i class="fa-solid fa-shield-halved w-5 text-center text-gray-500"></i>
+    <span>Audit</span>
+  </a>
+</nav>

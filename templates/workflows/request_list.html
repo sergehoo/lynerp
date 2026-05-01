@@ -1,0 +1,70 @@
+{% extends "hr/base.html" %}
+{% block title %}Demandes d'approbation{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">
+      <i class="fa-solid fa-clipboard-check text-primary-500"></i>
+      Demandes d'approbation
+    </h1>
+    <a href="{% url 'workflows:audit' %}" class="btn-secondary">
+      <i class="fa-solid fa-shield"></i> Audit
+    </a>
+  </header>
+
+  <div class="flex gap-2 mb-4 text-xs">
+    <a href="?status=PENDING" class="badge bg-blue-100 text-blue-700">À traiter</a>
+    <a href="?status=IN_PROGRESS" class="badge bg-amber-100 text-amber-700">En cours</a>
+    <a href="?status=APPROVED" class="badge bg-emerald-100 text-emerald-700">Approuvées</a>
+    <a href="?status=REJECTED" class="badge bg-rose-100 text-rose-700">Rejetées</a>
+    <a href="?" class="badge bg-gray-100 text-gray-700">Toutes</a>
+  </div>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Titre</th>
+          <th class="text-left px-4 py-3">Workflow</th>
+          <th class="text-left px-4 py-3">Étape</th>
+          <th class="text-left px-4 py-3">Demandeur</th>
+          <th class="text-left px-4 py-3">Statut</th>
+          <th class="text-left px-4 py-3">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for r in requests %}
+        <tr>
+          <td class="px-4 py-2">
+            <a href="{% url 'workflows:request-detail' r.id %}" class="text-primary-600 hover:underline font-medium">
+              {{ r.title }}
+            </a>
+          </td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ r.workflow.code }}</td>
+          <td class="px-4 py-2 text-xs">{{ r.current_step.name|default:"—" }}</td>
+          <td class="px-4 py-2">{{ r.requested_by }}</td>
+          <td class="px-4 py-2">
+            {% if r.status == "APPROVED" %}<span class="badge bg-emerald-100 text-emerald-700">Approuvée</span>
+            {% elif r.status == "REJECTED" %}<span class="badge bg-rose-100 text-rose-700">Rejetée</span>
+            {% elif r.status == "IN_PROGRESS" %}<span class="badge bg-amber-100 text-amber-700">En cours</span>
+            {% else %}<span class="badge bg-blue-100 text-blue-700">En attente</span>{% endif %}
+          </td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ r.created_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-8 text-gray-400">Aucune demande.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <nav class="mt-6 flex items-center justify-between">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary">← Précédent</a>{% else %}<span></span>{% endif %}
+    <span class="text-sm text-gray-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn-secondary">Suivant →</a>{% else %}<span></span>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

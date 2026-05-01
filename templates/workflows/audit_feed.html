@@ -1,0 +1,66 @@
+{% extends "hr/base.html" %}
+{% block title %}Audit · LyneERP{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">
+      <i class="fa-solid fa-shield-halved text-primary-500"></i>
+      Journal d'audit
+    </h1>
+    <a href="{% url 'workflows:request-list' %}" class="btn-secondary">
+      <i class="fa-solid fa-clipboard-check"></i> Approbations
+    </a>
+  </header>
+
+  <div class="flex gap-2 mb-4 text-xs">
+    <a href="?severity=LOW" class="badge bg-gray-100 text-gray-700">Bas</a>
+    <a href="?severity=MEDIUM" class="badge bg-blue-100 text-blue-700">Moyen</a>
+    <a href="?severity=HIGH" class="badge bg-amber-100 text-amber-700">Élevé</a>
+    <a href="?severity=CRITICAL" class="badge bg-rose-100 text-rose-700">Critique</a>
+    <a href="?" class="badge bg-gray-100 text-gray-700">Tous</a>
+  </div>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Type</th>
+          <th class="text-left px-4 py-3">Acteur</th>
+          <th class="text-left px-4 py-3">Sévérité</th>
+          <th class="text-left px-4 py-3">Cible</th>
+          <th class="text-left px-4 py-3">Description</th>
+          <th class="text-left px-4 py-3">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for e in events %}
+        <tr>
+          <td class="px-4 py-2 font-mono text-xs">{{ e.event_type }}</td>
+          <td class="px-4 py-2">{{ e.actor|default:"système" }}</td>
+          <td class="px-4 py-2">
+            {% if e.severity == "CRITICAL" %}<span class="badge bg-rose-100 text-rose-700">Critique</span>
+            {% elif e.severity == "HIGH" %}<span class="badge bg-amber-100 text-amber-700">Élevé</span>
+            {% elif e.severity == "MEDIUM" %}<span class="badge bg-blue-100 text-blue-700">Moyen</span>
+            {% else %}<span class="badge bg-gray-100 text-gray-700">Bas</span>{% endif %}
+          </td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ e.target_model }} {{ e.target_id|truncatechars:12 }}</td>
+          <td class="px-4 py-2 text-sm">{{ e.description|truncatechars:120 }}</td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ e.created_at|date:"d/m/Y H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-8 text-gray-400">Aucun événement.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <nav class="mt-6 flex items-center justify-between">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary">← Précédent</a>{% else %}<span></span>{% endif %}
+    <span class="text-sm text-gray-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn-secondary">Suivant →</a>{% else %}<span></span>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

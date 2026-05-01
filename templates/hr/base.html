@@ -116,6 +116,17 @@
         @keydown.window.prevent.ctrl.k="openCmd=true"
         @keydown.window.prevent.cmd.j="toggleDark()"
         @keydown.window.prevent.ctrl.j="toggleDark()">
+
+{# === Bouton flottant LyneAI === #}
+<a href="{% url 'ai:panel' %}"
+   class="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 px-4 py-3 rounded-full shadow-lg
+          bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold
+          hover:scale-105 hover:shadow-xl transition focus:outline-none focus:ring-2 focus:ring-violet-400/50"
+   title="Ouvrir LyneAI — Assistant intelligent"
+   aria-label="Ouvrir LyneAI">
+  <i class="fa-solid fa-robot" aria-hidden="true"></i>
+  <span class="hidden sm:inline">LyneAI</span>
+</a>
 <div class="flex min-h-screen relative">
 
     <!-- Sidebar -->

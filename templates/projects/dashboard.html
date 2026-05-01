@@ -1,0 +1,47 @@
+{% extends "hr/base.html" %}
+{% block title %}Projets · LyneERP{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">
+      <i class="fa-solid fa-diagram-project text-cyan-500"></i> Projets
+    </h1>
+    <a href="{% url 'projects:list' %}" class="btn-primary">
+      <i class="fa-solid fa-list"></i> Tous les projets
+    </a>
+  </header>
+
+  <section class="grid lg:grid-cols-2 gap-6">
+    <div class="card">
+      <h2 class="text-base font-semibold mb-3">Projets actifs</h2>
+      <ul class="space-y-2">
+        {% for p in active_projects %}
+        <li class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+          <a href="{% url 'projects:detail' p.id %}" class="text-sm font-medium text-primary-600 hover:underline">
+            [{{ p.code }}] {{ p.name }}
+          </a>
+          <span class="text-xs text-gray-500">{{ p.progress_percent|floatformat:0 }}%</span>
+        </li>
+        {% empty %}
+        <li class="text-sm text-gray-400 py-4 text-center">Aucun projet actif.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 class="text-base font-semibold mb-3">Mes tâches en cours</h2>
+      <ul class="space-y-2">
+        {% for t in my_tasks %}
+        <li class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+          <span class="text-sm font-medium">{{ t.title }}</span>
+          <span class="text-xs text-gray-500">{{ t.due_date|date:"d/m/Y"|default:"—" }}</span>
+        </li>
+        {% empty %}
+        <li class="text-sm text-gray-400 py-4 text-center">Rien pour vous. 🎉</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+</div>
+{% endblock %}

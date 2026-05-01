@@ -1,0 +1,63 @@
+{% extends "hr/base.html" %}
+{% block title %}CRM · LyneERP{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">
+        <i class="fa-solid fa-chart-pie text-pink-500"></i> CRM
+      </h1>
+      <p class="text-sm text-gray-500 mt-1">Pipelines, opportunités, leads.</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'crm:lead-list' %}" class="btn-secondary"><i class="fa-solid fa-bullseye"></i> Leads</a>
+      <a href="{% url 'crm:opportunity-list' %}" class="btn-primary"><i class="fa-solid fa-handshake"></i> Opportunités</a>
+    </div>
+  </header>
+
+  <section class="grid md:grid-cols-3 gap-4 mb-8">
+    <div class="card text-center">
+      <p class="text-xs text-gray-500 uppercase">Comptes actifs</p>
+      <p class="text-3xl font-bold text-gray-900 mt-1">{{ accounts_count }}</p>
+    </div>
+    <div class="card text-center">
+      <p class="text-xs text-gray-500 uppercase">Leads nouveaux</p>
+      <p class="text-3xl font-bold text-amber-600 mt-1">{{ leads_new }}</p>
+    </div>
+    <div class="card text-center">
+      <p class="text-xs text-gray-500 uppercase">Pipeline ouvert</p>
+      <p class="text-3xl font-bold text-emerald-600 mt-1">{{ pipeline_total|floatformat:0 }}</p>
+    </div>
+  </section>
+
+  {% for p in pipelines %}
+  <section class="card mb-6 p-0">
+    <div class="px-6 py-3 border-b">
+      <h2 class="text-base font-semibold">{{ p.name }}</h2>
+    </div>
+    <div class="grid auto-cols-fr grid-flow-col overflow-x-auto p-4 gap-3">
+      {% for stage in p.stages.all %}
+      <div class="min-w-[220px] max-w-[260px] bg-gray-50 rounded-xl p-3">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-semibold">{{ stage.name }}</p>
+          <span class="badge bg-white text-gray-600 text-[10px]">{{ stage.probability|floatformat:0 }}%</span>
+        </div>
+        <div class="space-y-2">
+          {% for opp in stage.opportunities.all|slice:":5" %}
+          <a href="#" class="block bg-white rounded-lg p-2 shadow-soft hover:shadow-md transition">
+            <p class="text-sm font-medium text-gray-800 truncate">{{ opp.name }}</p>
+            <p class="text-xs text-gray-500">{{ opp.account.name }}</p>
+            <p class="text-xs font-mono text-emerald-600">{{ opp.amount|floatformat:0 }} {{ opp.currency }}</p>
+          </a>
+          {% empty %}
+          <p class="text-[11px] text-gray-400 italic">vide</p>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

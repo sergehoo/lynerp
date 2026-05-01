@@ -1,0 +1,47 @@
+{% extends "hr/base.html" %}
+{% block title %}Alertes stock{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-6">
+  <header class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">Alertes stock</h1>
+    <a href="{% url 'inventory:dashboard' %}" class="btn-secondary">← Dashboard</a>
+  </header>
+
+  <div class="flex gap-2 mb-4">
+    <a href="?status=OPEN" class="badge bg-amber-100 text-amber-700">Ouvertes</a>
+    <a href="?status=ACK" class="badge bg-blue-100 text-blue-700">Reconnues</a>
+    <a href="?status=RESOLVED" class="badge bg-emerald-100 text-emerald-700">Résolues</a>
+    <a href="?" class="badge bg-gray-100 text-gray-700">Toutes</a>
+  </div>
+
+  <div class="card overflow-hidden p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Article</th>
+          <th class="text-left px-4 py-3">Entrepôt</th>
+          <th class="text-left px-4 py-3">Type</th>
+          <th class="text-right px-4 py-3">Quantité</th>
+          <th class="text-left px-4 py-3">Statut</th>
+          <th class="text-left px-4 py-3">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for a in alerts %}
+        <tr>
+          <td class="px-4 py-2">{{ a.article }}</td>
+          <td class="px-4 py-2">{{ a.warehouse|default:"—" }}</td>
+          <td class="px-4 py-2">{{ a.get_alert_type_display }}</td>
+          <td class="px-4 py-2 text-right">{{ a.quantity_at_alert|floatformat:2 }}</td>
+          <td class="px-4 py-2">{{ a.get_status_display }}</td>
+          <td class="px-4 py-2 text-xs text-gray-500">{{ a.created_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-8 text-gray-400">Aucune alerte.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

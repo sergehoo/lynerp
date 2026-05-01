@@ -1,0 +1,126 @@
+{% extends "hr/base.html" %}
+{% load static %}
+
+{% block title %}Action IA · {{ action.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-6"
+     x-data="aiActionDetail({ id: '{{ action.id }}', status: '{{ action.status }}' })">
+
+  <header class="mb-6 flex items-center justify-between">
+    <a href="{% url 'ai:action-list' %}" class="text-sm text-gray-500 hover:text-gray-700">
+      ← Retour à la liste
+    </a>
+    <span class="badge"
+          :class="{
+            'bg-blue-100 text-blue-700': status === 'PROPOSED',
+            'bg-emerald-100 text-emerald-700': ['APPROVED', 'EXECUTED'].includes(status),
+            'bg-rose-100 text-rose-700': ['REJECTED', 'FAILED'].includes(status)
+          }"
+          x-text="status"></span>
+  </header>
+
+  <div class="card mb-6">
+    <h1 class="text-xl font-bold text-gray-900">{{ action.title }}</h1>
+    <p class="text-xs text-gray-500 mt-1">
+      Type : <code>{{ action.action_type }}</code> · Risque : <strong>{{ action.risk_level }}</strong>
+      · Proposée le {{ action.created_at|date:"d/m/Y H:i" }}
+      {% if action.proposed_by %}par {{ action.proposed_by }}{% endif %}
+    </p>
+
+    {% if action.summary %}
+    <div class="prose prose-sm max-w-none mt-4 ai-content">
+      {{ action.summary|linebreaks }}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card mb-6">
+    <h2 class="text-base font-semibold text-gray-900 mb-3">Charge utile (payload)</h2>
+    <pre class="text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto">{{ action.payload|pprint }}</pre>
+  </div>
+
+  {% if action.execution_result %}
+  <div class="card mb-6">
+    <h2 class="text-base font-semibold text-gray-900 mb-3">Résultat d'exécution</h2>
+    <pre class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg p-3 overflow-x-auto">{{ action.execution_result|pprint }}</pre>
+  </div>
+  {% endif %}
+
+  {% if action.error_message %}
+  <div class="card mb-6 border-rose-200 bg-rose-50">
+    <h2 class="text-base font-semibold text-rose-900 mb-2">Erreur</h2>
+    <p class="text-sm text-rose-800">{{ action.error_message }}</p>
+  </div>
+  {% endif %}
+
+  <div class="card flex flex-wrap items-center justify-end gap-3" x-show="status === 'PROPOSED'">
+    <button type="button" @click="reject()" class="btn-danger">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i> Rejeter
+    </button>
+    <button type="button" @click="approve()" class="btn-primary">
+      <i class="fa-solid fa-check" aria-hidden="true"></i> Approuver
+    </button>
+  </div>
+
+  <div class="card flex flex-wrap items-center justify-end gap-3"
+       x-show="status === 'APPROVED'">
+    <button type="button" @click="execute()" class="btn-primary">
+      <i class="fa-solid fa-play" aria-hidden="true"></i> Exécuter maintenant
+    </button>
+  </div>
+
+  <p class="text-xs text-gray-400 text-center mt-8">
+    Toute approbation est tracée dans le journal d'audit IA. L'utilisateur ayant
+    déclenché l'action ne peut pas l'approuver lui-même.
+  </p>
+</div>
+
+<script>
+function aiActionDetail({ id, status }) {
+    return {
+        id, status,
+        csrf() {
+            const m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+            return m ? decodeURIComponent(m[1]) : '';
+        },
+        async post(path, body) {
+            const res = await fetch(`/api/ai/actions/${this.id}/${path}/`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf() },
+                body: JSON.stringify(body || {}),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || 'Erreur ' + res.status);
+            return data;
+        },
+        async approve() {
+            if (!confirm('Confirmer l’approbation de cette action ?')) return;
+            try {
+                const out = await this.post('approve');
+                this.status = out.status;
+                location.reload();
+            } catch (e) { alert(e.message); }
+        },
+        async reject() {
+            const reason = prompt('Motif du rejet ?');
+            if (!reason) return;
+            try {
+                const out = await this.post('reject', { reason });
+                this.status = out.status;
+                location.reload();
+            } catch (e) { alert(e.message); }
+        },
+        async execute() {
+            if (!confirm('Confirmer l’exécution de l’action ?\nCette opération modifie la base.')) return;
+            try {
+                const out = await this.post('execute');
+                this.status = out.status;
+                location.reload();
+            } catch (e) { alert(e.message); }
+        },
+    };
+}
+</script>
+{% endblock %}
