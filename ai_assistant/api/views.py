@@ -22,7 +22,31 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
+
+
+# --------------------------------------------------------------------------- #
+# Renderer SSE : sans cela, DRF rejette ``Accept: text/event-stream`` (406)
+# --------------------------------------------------------------------------- #
+class ServerSentEventRenderer(BaseRenderer):
+    """
+    Renderer factice pour permettre la content-negotiation DRF d'accepter
+    l'en-tête ``Accept: text/event-stream``. La réponse réelle est un
+    ``StreamingHttpResponse`` produit par la vue ; ce renderer ne sert qu'à
+    déclarer le media_type comme valide.
+    """
+    media_type = "text/event-stream"
+    format = "sse"
+    charset = "utf-8"
+    render_style = "text"
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        # Si jamais DRF tente de l'utiliser pour sérialiser une réponse
+        # classique (ex. Response()), on retombe sur du texte brut.
+        if isinstance(data, (bytes, str)):
+            return data
+        return str(data or "")
 
 from ai_assistant.api.serializers import (
     AIActionSerializer,
@@ -94,7 +118,13 @@ class AIConversationViewSet(viewsets.ModelViewSet):
     # ------------------------------------------------------------------ #
     # Envoi d'un message
     # ------------------------------------------------------------------ #
-    @action(detail=True, methods=["post"], url_path="messages")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="messages",
+        # On accepte le JSON classique ET le SSE (text/event-stream).
+        renderer_classes=[JSONRenderer, ServerSentEventRenderer],
+    )
     def send_message(self, request, pk=None):
         conv = self.get_object()
         body = SendMessageRequestSerializer(data=request.data)
