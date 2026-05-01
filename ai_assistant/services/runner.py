@@ -25,6 +25,7 @@ récentes, il déclenche la recherche.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Dict, Iterator, List, Optional
 
 from ai_assistant.models import (
@@ -86,6 +87,44 @@ JSON :"""
 _TRIVIAL_PATTERNS = (
     "bonjour", "salut", "hello", "hi", "merci", "thank", "ok",
     "ouais", "oui", "non", "no",
+)
+
+
+# --------------------------------------------------------------------------- #
+# Heuristiques régex : détection rapide d'une intention "recherche web"
+# Permet d'éviter le call LLM router (~10-30s sur CPU) quand c'est évident.
+# --------------------------------------------------------------------------- #
+_WEB_TRIGGER_RE = re.compile(
+    r"\b("
+    r"actualit[ée]s?|news|derni[èe]res?\s+(?:nouvelles|infos)|breaking|"
+    r"a\s+jour|mis(?:e|es)?\s+a?\s+jour|r[ée]cent[se]?|aujourd['’ ]?hui|"
+    r"hier|cette\s+semaine|ce\s+mois|cette\s+ann[ée]e|"
+    # années récentes / futures
+    r"20(?:2[3-9]|3[0-9])|"
+    # données qui bougent
+    r"taux\s+(?:irpp|its|tva|de\s+change|directeur|d['’ ]?int[ée]r[êe]ts?)|"
+    r"prix|cours|cotation|fiscal(?:it[ée])?|cnps|smic|smig|barème|"
+    # juridique récent
+    r"jurisprudence|arr[êe]t\s+ccja|d[ée]cret\s+\d|loi\s+(?:de\s+finances|n°)|"
+    # injonction explicite
+    r"cherche(?:r)?\s+sur\s+(?:internet|le\s+web|google)|"
+    r"recherche\s+web|google\s+ce|fais\s+une\s+recherche"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+# Heuristique inverse : verrouille « pas besoin de web » pour les requêtes
+# clairement internes au tenant.
+_INTERNAL_RE = re.compile(
+    r"\b("
+    r"mes\s+(?:employ[ée]s?|salari[ée]s?|factures?|clients?|projets?|tickets?)|"
+    r"liste(?:r)?\s+(?:les\s+)?(?:employ[ée]s?|salari[ée]s?|factures?|clients?)|"
+    r"r[ée]sume(?:r)?\s+(?:cette|ma|notre)\s+(?:conversation|discussion)|"
+    r"explique(?:r)?\s+(?:moi\s+)?ce\s+(?:code|texte|mot)|"
+    r"traduis|reformule|corrige|relis|r[ée]dige(?:r)?\s+un\s+(?:e?-?mail|courrier|message)"
+    r")\b",
+    re.IGNORECASE,
 )
 
 
@@ -175,10 +214,17 @@ class ConversationRunner:
 
     def _decide_web_research(self, content: str) -> Dict[str, Any]:
         """
-        Demande au modèle si une recherche web est nécessaire.
+        Décide si une recherche web est nécessaire.
 
-        Retourne un dict normalisé :
-            {"needs_web": bool, "search_query": str, "reason": str}
+        Stratégie en 3 étages pour minimiser la latence :
+
+        1. **Court-circuits** : trivial (« merci »), web désactivé,
+           pattern interne tenant clair (« liste mes employés »).
+        2. **Heuristique régex** : si la question contient des mots-clés
+           web évidents (« actualité », « 2026 », « taux IRPP »…), on
+           déclenche la recherche SANS appeler le router LLM.
+        3. **Router LLM** : seulement si les deux premiers étages sont
+           neutres. Réponse JSON forcée, faible température.
 
         En cas d'erreur ou de JSON invalide, retourne ``needs_web=False``
         (fallback safe : on préfère ne pas chercher plutôt que de spammer
@@ -188,6 +234,24 @@ class ConversationRunner:
             return {"needs_web": False, "search_query": "", "reason": "disabled"}
         if self._is_trivial_question(content):
             return {"needs_web": False, "search_query": "", "reason": "trivial"}
+
+        text = content or ""
+
+        # 1bis) Pattern manifeste interne : on ne cherche pas le web.
+        if _INTERNAL_RE.search(text):
+            return {
+                "needs_web": False,
+                "search_query": "",
+                "reason": "internal_pattern_matched",
+            }
+
+        # 2) Pattern manifeste web : on déclenche sans appeler le router.
+        if _WEB_TRIGGER_RE.search(text):
+            return {
+                "needs_web": True,
+                "search_query": text.strip()[:300],
+                "reason": "heuristic_web_trigger",
+            }
 
         from django.conf import settings as _settings
         cutoff = getattr(_settings, "AI_KNOWLEDGE_CUTOFF", "fin 2024")
@@ -206,7 +270,8 @@ class ConversationRunner:
                 ],
                 temperature=0.0,
                 top_p=1.0,
-                max_tokens=200,
+                max_tokens=150,
+                num_ctx=2048,  # router = court, pas besoin d'un grand contexte
             )
             data = result.get("data") or {}
         except OllamaError as exc:
@@ -297,6 +362,13 @@ class ConversationRunner:
                 f"[{src.get('index')}] {src.get('title') or ''} — {src.get('url')}"
             )
         sources_block = "\n".join(sources_lines) or "(aucune)"
+        # Budget caractères pour la recherche web — en fonction de num_ctx.
+        # qwen2.5 ~ 3.5 chars/token. On garde large : on vise ~30% de num_ctx
+        # pour le bloc web, le reste va au system prompt + historique.
+        from django.conf import settings as _settings
+        num_ctx = int(getattr(_settings, "OLLAMA_NUM_CTX", 8192))
+        chars_budget = max(2000, int(num_ctx * 3.5 * 0.30))
+        snippets_trimmed = snippets[:chars_budget]
         return {
             "role": "system",
             "content": (
@@ -306,7 +378,7 @@ class ConversationRunner:
                 "Voici les extraits récupérés en direct (à utiliser pour "
                 "répondre **avec citations** [1], [2]… et un bloc Sources "
                 "à la fin de ta réponse) :\n\n"
-                f"{snippets[:18000]}\n\n"
+                f"{snippets_trimmed}\n\n"
                 "## Sources disponibles\n"
                 f"{sources_block}\n\n"
                 "Cite ces sources [n] dans ta réponse pour chaque "

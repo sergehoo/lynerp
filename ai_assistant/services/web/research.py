@@ -12,12 +12,35 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from ai_assistant.services.ollama import get_ollama
 from ai_assistant.services.web.fetch import WebFetchError, web_fetch
 from ai_assistant.services.web.search import WebSearchError, web_search
 
 logger = logging.getLogger(__name__)
+
+
+# Extensions binaires que web_fetch ne sait pas extraire — on filtre en amont
+# pour éviter une perte de 5-15s par URL.
+_BINARY_EXTENSIONS = (
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2",
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico",
+    ".mp3", ".mp4", ".avi", ".mov", ".webm", ".mkv",
+    ".csv", ".tsv",
+)
+
+
+def _is_binary_url(url: str) -> bool:
+    """True si l'URL pointe (a priori) vers un binaire non-HTML."""
+    if not url:
+        return True
+    try:
+        path = (urlparse(url).path or "").lower()
+    except Exception:  # noqa: BLE001
+        return True
+    return any(path.endswith(ext) for ext in _BINARY_EXTENSIONS)
 
 
 SYNTHESIS_PROMPT = """Tu es **LyneAI**, assistant ERP de l'organisation {tenant_name}.
@@ -93,13 +116,18 @@ def deep_research(
     for cand in candidates:
         if len(fetched) >= pages:
             break
+        url = cand.get("url") or ""
+        # Filtre amont : on ne tente même pas de fetcher les binaires.
+        if _is_binary_url(url):
+            logger.debug("Skip binary URL: %s", url)
+            continue
         try:
             page = web_fetch(
-                cand["url"], tenant_id=tenant_id,
+                url, tenant_id=tenant_id,
                 max_chars=max_chars_per_page,
             )
         except WebFetchError as exc:
-            logger.info("Skip page (%s) : %s", cand.get("url"), exc)
+            logger.info("Skip page (%s) : %s", url, exc)
             continue
         if not page.get("text"):
             continue

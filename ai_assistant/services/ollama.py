@@ -65,6 +65,20 @@ class OllamaService:
         except requests.RequestException as exc:
             raise OllamaError(f"Ollama injoignable : {exc}") from exc
 
+    def _default_ctx(self) -> int:
+        """
+        Fenêtre de contexte par défaut.
+
+        Ollama tronque silencieusement si le prompt dépasse ``num_ctx``.
+        On force une fenêtre confortable (8192) pour éviter que la recherche
+        web injectée par le runner ne soit coupée. Override possible via
+        ``settings.OLLAMA_NUM_CTX`` ou ``OLLAMA_NUM_CTX`` env.
+        """
+        try:
+            return int(getattr(settings, "OLLAMA_NUM_CTX", 8192))
+        except (TypeError, ValueError):
+            return 8192
+
     def chat(
         self,
         messages: List[Dict[str, Any]],
@@ -73,6 +87,7 @@ class OllamaService:
         temperature: float = 0.2,
         top_p: float = 0.9,
         max_tokens: int = 2048,
+        num_ctx: Optional[int] = None,
         format: Optional[str] = None,
         keep_alive: str = "5m",
     ) -> Dict[str, Any]:
@@ -96,6 +111,7 @@ class OllamaService:
                 "temperature": float(temperature),
                 "top_p": float(top_p),
                 "num_predict": int(max_tokens),
+                "num_ctx": int(num_ctx or self._default_ctx()),
             },
             "keep_alive": keep_alive,
         }
@@ -135,6 +151,7 @@ class OllamaService:
         temperature: float = 0.2,
         top_p: float = 0.9,
         max_tokens: int = 2048,
+        num_ctx: Optional[int] = None,
         format: Optional[str] = None,
         keep_alive: str = "5m",
     ) -> Iterator[Dict[str, Any]]:
@@ -154,6 +171,7 @@ class OllamaService:
                 "temperature": float(temperature),
                 "top_p": float(top_p),
                 "num_predict": int(max_tokens),
+                "num_ctx": int(num_ctx or self._default_ctx()),
             },
             "keep_alive": keep_alive,
         }

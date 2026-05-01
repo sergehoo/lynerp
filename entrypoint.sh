@@ -16,7 +16,12 @@ set -euo pipefail
 : "${DJANGO_ENV:=dev}"
 : "${BIND:=0.0.0.0:8000}"
 : "${GUNICORN_WORKERS:=3}"
-: "${GUNICORN_TIMEOUT:=120}"
+# Long timeout indispensable pour le streaming SSE LyneAI : Ollama peut
+# tenir une connexion HTTP pendant plusieurs minutes sur CPU. Réduire à 60
+# si vous avez un GPU ou un modèle plus petit.
+: "${GUNICORN_TIMEOUT:=300}"
+: "${GUNICORN_GRACEFUL_TIMEOUT:=60}"
+: "${GUNICORN_KEEPALIVE:=65}"
 : "${GUNICORN_MAX_REQUESTS:=1000}"
 : "${GUNICORN_MAX_REQUESTS_JITTER:=50}"
 
@@ -50,11 +55,13 @@ if [ "${DJANGO_ENV}" = "prod" ]; then
   echo "📦 collectstatic"
   python manage.py collectstatic --noinput
 
-  echo "🚀 Gunicorn sur ${BIND} (workers=${GUNICORN_WORKERS})"
+  echo "🚀 Gunicorn sur ${BIND} (workers=${GUNICORN_WORKERS}, timeout=${GUNICORN_TIMEOUT}s)"
   exec gunicorn Lyneerp.wsgi:application \
     --bind "${BIND}" \
     --workers "${GUNICORN_WORKERS}" \
     --timeout "${GUNICORN_TIMEOUT}" \
+    --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
+    --keep-alive "${GUNICORN_KEEPALIVE}" \
     --max-requests "${GUNICORN_MAX_REQUESTS}" \
     --max-requests-jitter "${GUNICORN_MAX_REQUESTS_JITTER}" \
     --access-logfile - \

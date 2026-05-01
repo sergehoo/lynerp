@@ -1,0 +1,204 @@
+{% extends "lyneerp/app_base.html" %}
+{% load humanize %}
+
+{% block title %}Consommation IA · LyneERP{% endblock %}
+{% block topbar_title %}Consommation IA{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+
+  {# ====================================================== Header + filtre période #}
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <i class="fa-solid fa-chart-line text-violet-500"></i>
+        Consommation tokens LyneAI
+      </h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Organisation :
+        <span class="font-medium text-gray-700">{{ tenant.name|default:"—" }}</span>
+        · Période :
+        {% if period == "all" %}depuis le début{% else %}{{ period }}{% endif %}.
+      </p>
+    </div>
+    <nav class="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 text-xs">
+      {% for p in periods %}
+        <a href="?period={{ p }}"
+           class="px-3 py-1.5 rounded-lg font-semibold transition
+                  {% if p == period %}bg-violet-100 text-violet-700{% else %}text-gray-500 hover:bg-gray-50{% endif %}">
+          {% if p == "all" %}Tout{% else %}{{ p }}{% endif %}
+        </a>
+      {% endfor %}
+    </nav>
+  </header>
+
+  {# ====================================================== KPIs #}
+  <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="card !p-4">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Tokens totaux</p>
+      <p class="text-2xl font-bold text-gray-900 mt-1">{{ kpis.total_tokens|intcomma }}</p>
+    </div>
+    <div class="card !p-4">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Prompts (entrée)</p>
+      <p class="text-2xl font-bold text-indigo-700 mt-1">{{ kpis.prompt_tokens|intcomma }}</p>
+    </div>
+    <div class="card !p-4">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Complétions (sortie)</p>
+      <p class="text-2xl font-bold text-emerald-700 mt-1">{{ kpis.completion_tokens|intcomma }}</p>
+    </div>
+    <div class="card !p-4">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Messages</p>
+      <p class="text-2xl font-bold text-gray-900 mt-1">{{ kpis.messages|intcomma }}</p>
+    </div>
+    <div class="card !p-4">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Conversations</p>
+      <p class="text-2xl font-bold text-gray-900 mt-1">{{ kpis.conversations|intcomma }}</p>
+    </div>
+    <div class="card !p-4">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Utilisateurs actifs</p>
+      <p class="text-2xl font-bold text-gray-900 mt-1">{{ kpis.active_users|intcomma }}</p>
+    </div>
+  </section>
+
+  {# ====================================================== Série temporelle #}
+  {% if daily %}
+  <section class="card">
+    <header class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-gray-900">Évolution quotidienne</h3>
+      <span class="text-xs text-gray-500">{{ daily|length }} jours</span>
+    </header>
+    <div class="flex items-end gap-1 h-32">
+      {% for d in daily %}
+        <div class="flex-1 group relative flex flex-col justify-end items-center">
+          <div class="w-full rounded-t bg-gradient-to-t from-indigo-500 to-violet-500"
+               style="height: {% widthratio d.total daily_max 100 %}%;"
+               title="{{ d.day|date:'d/m/Y' }} — {{ d.total|intcomma }} tokens"></div>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="text-[10px] text-gray-400 mt-2 text-center">
+      {{ daily.0.day|date:"d/m" }} → {{ daily|last|stringformat:"s" }}
+      <span class="ml-2 hidden md:inline">Survolez une barre pour voir le détail.</span>
+    </p>
+  </section>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    {# ====================================================== Par module #}
+    <section class="card">
+      <header class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-gray-900">Tokens par module</h3>
+        <i class="fa-solid fa-cubes text-gray-400"></i>
+      </header>
+      {% if per_module %}
+        <ul class="space-y-2">
+          {% for m in per_module %}
+          <li class="text-sm">
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <span class="font-medium text-gray-700 capitalize">{{ m.conversation__module|default:"general" }}</span>
+              <span class="text-xs text-gray-500">
+                {{ m.total|default:0|intcomma }} tk · {{ m.msgs }} msg
+              </span>
+            </div>
+            <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+              <div class="h-full bg-violet-500 rounded-full"
+                   style="width: {% widthratio m.total module_max 100 %}%"></div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-400 py-6 text-center">Aucune consommation enregistrée.</p>
+      {% endif %}
+    </section>
+
+    {# ====================================================== Top utilisateurs #}
+    <section class="card">
+      <header class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-gray-900">Top 10 utilisateurs</h3>
+        <i class="fa-solid fa-users text-gray-400"></i>
+      </header>
+      {% if top_users %}
+        <ul class="space-y-2">
+          {% for u in top_users %}
+          <li class="text-sm">
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <span class="flex items-center gap-2 min-w-0">
+                <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                  {{ u.first_name|first|upper|default:u.email|first|upper }}
+                </span>
+                <span class="truncate font-medium text-gray-700">
+                  {% firstof u.first_name u.email u.username "—" %}
+                  {% if u.last_name %}{{ u.last_name }}{% endif %}
+                </span>
+              </span>
+              <span class="text-xs text-gray-500 shrink-0">
+                {{ u.total|default:0|intcomma }} tk
+              </span>
+            </div>
+            <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full"
+                   style="width: {% widthratio u.total user_max 100 %}%"></div>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-0.5 ml-8">
+              {{ u.email }} · {{ u.msgs }} message(s) ·
+              prompt {{ u.prompt|intcomma }} / complétion {{ u.completion|intcomma }}
+            </p>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-400 py-6 text-center">Aucun utilisateur actif sur cette période.</p>
+      {% endif %}
+    </section>
+
+  </div>
+
+  {# ====================================================== Top conversations #}
+  <section class="card">
+    <header class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-gray-900">Top 10 conversations</h3>
+      <i class="fa-regular fa-comments text-gray-400"></i>
+    </header>
+    {% if top_conversations %}
+      <div class="overflow-x-auto -mx-4">
+        <table class="w-full text-sm">
+          <thead class="text-[11px] uppercase text-gray-500 border-b border-gray-100">
+            <tr>
+              <th class="text-left px-4 py-2 font-medium">Conversation</th>
+              <th class="text-left px-4 py-2 font-medium">Utilisateur</th>
+              <th class="text-left px-4 py-2 font-medium">Module</th>
+              <th class="text-right px-4 py-2 font-medium">Messages</th>
+              <th class="text-right px-4 py-2 font-medium">Tokens</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for c in top_conversations %}
+            <tr>
+              <td class="px-4 py-2 text-gray-800 font-medium truncate max-w-xs"
+                  title="{{ c.title }}">
+                {{ c.title|default:"(sans titre)" }}
+              </td>
+              <td class="px-4 py-2 text-gray-600">{{ c.user_email|default:"—" }}</td>
+              <td class="px-4 py-2 text-gray-600 capitalize">{{ c.module }}</td>
+              <td class="px-4 py-2 text-right tabular-nums">{{ c.msgs }}</td>
+              <td class="px-4 py-2 text-right tabular-nums font-semibold">
+                {{ c.total|default:0|intcomma }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-sm text-gray-400 py-6 text-center">Aucune conversation sur cette période.</p>
+    {% endif %}
+  </section>
+
+  <p class="text-[11px] text-gray-400 text-center pt-4">
+    LyneERP · Consommation calculée sur ``AIMessage.prompt_tokens`` et
+    ``AIMessage.completion_tokens`` enregistrés à chaque échange Ollama.
+  </p>
+</div>
+{% endblock %}

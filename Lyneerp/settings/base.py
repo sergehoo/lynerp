@@ -368,6 +368,9 @@ OLLAMA_TIMEOUT = env_int("OLLAMA_TIMEOUT", 120)
 OLLAMA_DEFAULT_TEMPERATURE = float(os.getenv("OLLAMA_DEFAULT_TEMPERATURE", "0.2"))
 OLLAMA_DEFAULT_TOP_P = float(os.getenv("OLLAMA_DEFAULT_TOP_P", "0.9"))
 OLLAMA_DEFAULT_MAX_TOKENS = env_int("OLLAMA_DEFAULT_MAX_TOKENS", 2048)
+# Fenêtre de contexte (num_ctx). 4096 par défaut Ollama → trop petit avec
+# recherche web injectée. 8192 est un bon compromis pour qwen2.5:7b.
+OLLAMA_NUM_CTX = env_int("OLLAMA_NUM_CTX", 8192)
 
 # --------------------------------------------------------------------------- #
 # Web research (LyneAI)
