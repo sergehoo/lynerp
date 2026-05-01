@@ -23,6 +23,7 @@ import logging
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.shortcuts import render
 
 from Lyneerp.core.tenant import resolve_tenant_from_request
 
@@ -43,6 +44,7 @@ DEFAULT_EXEMPT_PREFIXES = (
     "/api/auth/whoami",
     "/api/auth/exchange",
     "/api/auth/keycloak",
+    "/no-tenant/",  # page d'aide quand l'user n'a aucun tenant
 )
 
 
@@ -76,17 +78,35 @@ class TenantMiddleware:
         else:
             # Bloque les requêtes API sans tenant — on évite tout fall-through silencieux.
             path = getattr(request, "path", "") or ""
+            user = getattr(request, "user", None)
+            is_authenticated = bool(user and getattr(user, "is_authenticated", False))
+
             if path.startswith("/api/") and not _path_is_exempt(path):
                 logger.info(
-                    "[TenantMiddleware] Tenant introuvable pour API path=%s host=%s",
+                    "[TenantMiddleware] Tenant introuvable pour API path=%s host=%s user=%s",
                     path,
                     request.get_host() if hasattr(request, "get_host") else "?",
+                    getattr(user, "email", user),
                 )
                 return JsonResponse(
                     {
                         "detail": "Organisation introuvable pour cette requête.",
                         "code": "tenant_not_found",
                     },
+                    status=403,
+                )
+
+            # Pour les requêtes UI : si l'utilisateur est connecté mais n'a
+            # AUCUN tenant rattaché, on l'envoie sur une page d'explication.
+            if (
+                is_authenticated
+                and not _path_is_exempt(path)
+                and not path.startswith("/api/")
+            ):
+                return render(
+                    request,
+                    "tenants/no_tenant.html",
+                    {"user": user},
                     status=403,
                 )
 

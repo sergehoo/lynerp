@@ -344,6 +344,21 @@ TENANT_SUBDOMAIN_REGEX = os.getenv(
 DEFAULT_TENANT = os.getenv("DEFAULT_TENANT") or None
 LICENSE_ENFORCEMENT = env_bool("LICENSE_ENFORCEMENT", False)
 
+# --- Provisioning tenant via SSO Keycloak ---------------------------------- #
+# Le claim du token JWT qui contient le slug du tenant (mapper Keycloak).
+KEYCLOAK_TENANT_CLAIM = os.getenv("KEYCLOAK_TENANT_CLAIM", "tenant")
+# Si True, un tenant est créé à la volée la 1ère fois qu'un user se connecte
+# avec un slug inconnu (utile en dev ; déconseillé en prod).
+KEYCLOAK_AUTO_CREATE_TENANT = env_bool("KEYCLOAK_AUTO_CREATE_TENANT", False)
+# Mapping rôles realm Keycloak → TenantUser.role.
+KEYCLOAK_ROLE_MAPPING = {
+    "lyneerp-owner": "OWNER",
+    "lyneerp-admin": "ADMIN",
+    "lyneerp-manager": "MANAGER",
+    "lyneerp-member": "MEMBER",
+    "lyneerp-viewer": "VIEWER",
+}
+
 # --------------------------------------------------------------------------- #
 # Module IA (Ollama)
 # --------------------------------------------------------------------------- #

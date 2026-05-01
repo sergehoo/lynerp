@@ -114,6 +114,37 @@ def resolve_tenant(identifier: Optional[str]):
     return _safe_resolve(identifier)
 
 
+def _resolve_user_primary_tenant(request: HttpRequest):
+    """
+    Récupère le tenant principal de l'utilisateur authentifié via la table
+    ``TenantUser``. Si l'utilisateur a plusieurs memberships actives, on
+    prend la plus récente (last_access desc, joined_at desc).
+
+    Renvoie None si :
+    - le user n'est pas authentifié,
+    - aucune membership active n'existe,
+    - l'app ``tenants`` n'est pas chargée.
+    """
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    try:
+        from tenants.models import TenantUser
+    except Exception:  # noqa: BLE001
+        return None
+
+    membership = (
+        TenantUser.objects
+        .filter(user=user, is_active=True, tenant__is_active=True)
+        .select_related("tenant")
+        .order_by("-last_access", "-joined_at")
+        .first()
+    )
+    if membership and membership.tenant:
+        return membership.tenant
+    return None
+
+
 def resolve_tenant_from_request(request: HttpRequest):
     """
     Ordre de résolution :
@@ -123,7 +154,8 @@ def resolve_tenant_from_request(request: HttpRequest):
       3. Session ``tenant_id`` (ou ``settings.TENANT_SESSION_KEY``)
       4. Sous-domaine selon ``TENANT_SUBDOMAIN_REGEX``
       5. Claims OIDC ``request.oidc.tenant`` / ``tenant_id``
-      6. ``settings.DEFAULT_TENANT`` (slug ou UUID)
+      6. ``TenantUser`` du user authentifié (mono-tenant : sa seule org)
+      7. ``settings.DEFAULT_TENANT`` (slug ou UUID)
     """
     if request is None:
         return None
@@ -164,7 +196,12 @@ def resolve_tenant_from_request(request: HttpRequest):
         if tenant:
             return tenant
 
-    # 6) Default
+    # 6) Membership user (mono-tenant : on prend sa seule organisation)
+    tenant = _resolve_user_primary_tenant(request)
+    if tenant:
+        return tenant
+
+    # 7) Default
     ident = getattr(settings, "DEFAULT_TENANT", None)
     return _safe_resolve(ident)
 

@@ -1,0 +1,97 @@
+{% load static %}<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aucune organisation — LyneERP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --indigo: #4f46e5; --indigo-d: #4338ca; --rose: #e11d48; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #fdf2f8 100%);
+      color: #111827; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 20px;
+      padding: 40px 36px; max-width: 560px; width: 100%;
+      box-shadow: 0 12px 40px rgba(79, 70, 229, .12);
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: 9999px;
+      background: #fef3c7; color: #92400e; font-weight: 600; font-size: 12px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    h1 { margin: 16px 0 12px; font-size: 26px; font-weight: 700; }
+    p { color: #4b5563; line-height: 1.55; margin: 0 0 14px; }
+    .actions { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 12px; font-weight: 600; font-size: 14px;
+      text-decoration: none; transition: background .15s ease, transform .1s;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--indigo); color: #fff; }
+    .btn-primary:hover { background: var(--indigo-d); }
+    .btn-secondary { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+    .btn-secondary:hover { background: #f9fafb; }
+    .helper {
+      margin-top: 24px; padding: 14px 16px; border-radius: 12px;
+      background: #f9fafb; border: 1px solid #e5e7eb; font-size: 13px;
+    }
+    .helper code {
+      background: #111827; color: #e5e7eb; padding: 2px 6px; border-radius: 4px;
+      font-size: 12px;
+    }
+    .footer { margin-top: 28px; font-size: 12px; color: #9ca3af; text-align: center; }
+    .icon {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: linear-gradient(135deg, #fbbf24, #f97316);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">!</div>
+    <span class="badge" style="margin-top: 14px;">Accès limité</span>
+    <h1>Vous n'êtes rattaché à aucune organisation</h1>
+    <p>
+      Bonjour <strong>{{ user.get_full_name|default:user.email|default:user.username }}</strong>,
+      votre compte est bien authentifié, mais aucune entreprise active n'est
+      associée à votre profil dans LyneERP.
+    </p>
+    <p>
+      Pour accéder à l'application, votre administrateur doit vous rattacher
+      à une organisation. Si vous êtes administrateur, vous pouvez initialiser
+      votre tenant via la console de gestion ou la commande Django ci-dessous.
+    </p>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="{% url 'logout' %}">
+        Se déconnecter
+      </a>
+      <a class="btn btn-secondary" href="mailto:support@lyneerp.com?subject=Rattachement%20organisation">
+        Contacter le support
+      </a>
+    </div>
+
+    {% if user.is_superuser %}
+    <div class="helper">
+      <strong>Vous êtes superuser.</strong> Bootstrap rapide en local :
+      <pre style="margin: 8px 0 0; white-space: pre-wrap; word-break: break-word;"><code>python manage.py bootstrap_tenant \
+  --slug kaydan --name "Kaydan Groupe" \
+  --owner-email {{ user.email|default:"votre@email" }}</code></pre>
+    </div>
+    {% endif %}
+
+    <p class="footer">LyneERP — Multi-tenant ERP avec IA.</p>
+  </div>
+</body>
+</html>
